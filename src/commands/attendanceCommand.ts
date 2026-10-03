@@ -59,22 +59,37 @@ export function makeAttendanceCommand({ name, description, status, forOthers }: 
       return;
     }
 
-    const instances = await prisma.raidInstance.findMany({
-      where: { raidTeamId: { in: teams.map((t) => t.id) }, closed: false },
-      include: { raidTeam: true },
-      orderBy: { startsAt: "asc" },
-      take: MAX_CHOICES,
-    });
+    // Split the choice budget evenly so one busy team can't push the others off the list.
+    const perTeam = Math.max(1, Math.floor(MAX_CHOICES / teams.length));
+    const perTeamInstances = await Promise.all(
+      teams.map((team) =>
+        prisma.raidInstance.findMany({
+          where: { raidTeamId: team.id, closed: false },
+          orderBy: { startsAt: "asc" },
+          take: perTeam,
+        }),
+      ),
+    );
+
+    const teamById = new Map(teams.map((t) => [t.id, t]));
+    const instances = perTeamInstances
+      .flat()
+      .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+      .slice(0, MAX_CHOICES);
 
     if (instances.length === 0) {
       await interaction.respond([{ name: "No upcoming raids found", value: "none" }]);
       return;
     }
 
-    const allChoices = instances.map((instance) => ({
-      name: `${formatLabel(instance.startsAt, instance.raidTeam.timezone)} · ${instance.raidTeam.name ?? "Raid"}`,
-      value: instance.id,
-    }));
+    const allChoices = instances.map((instance) => {
+      const team = teamById.get(instance.raidTeamId)!;
+      const teamName = team.name ?? interaction.guild?.roles.cache.get(team.roleId)?.name ?? "Raid";
+      return {
+        name: `${formatLabel(instance.startsAt, team.timezone)} · ${teamName}`,
+        value: instance.id,
+      };
+    });
 
     // Only narrow by the typed text when it actually matches something, so an
     // unexpected format (e.g. "10/5") never dead-ends to an empty list.
