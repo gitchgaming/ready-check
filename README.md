@@ -52,12 +52,15 @@ lets you call out for a specific future date without touching any buttons.
   several pages to page forward into. Officers can use it to review history;
   raiders can use it to call out further ahead than the public message
   currently shows.
-- `/callout role:<role> date:<date>` — call out for a specific future raid
-  without touching any buttons. `date` autocompletes against that team's
-  actual upcoming raid dates as you type, so you can't submit an invalid one.
-- `/callin role:<role> date:<date>` — the reverse: mark yourself back in for a
-  raid you previously called out for. Same autocomplete and roster rules as
-  `/callout`.
+- `/callout date:<date>` — call out for a future raid without touching any
+  buttons. The only argument is the date: the bot works out which raid team(s)
+  you're on from your Discord roles, and the autocomplete lists only those
+  teams' upcoming raids (each labeled with its team name).
+- `/callin date:<date>` — the reverse: mark yourself back in for a raid you
+  previously called out for. Same date picker.
+- `/callout-for user:<member> date:<date>` and `/callin-for user:<member>
+  date:<date>` — officers only. Same as above, but for another raider. The
+  date picker shows that raider's raids.
 - A raid instance closes (drops into history) a few hours after its start
   time, the next time the bot re-syncs (hourly by default).
 - `/raid-status` — a quick ephemeral list of upcoming raids and call-outs,

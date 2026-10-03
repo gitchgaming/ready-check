@@ -1,10 +1,10 @@
 import { makeAttendanceCommand } from "./attendanceCommand.js";
 
 const command = makeAttendanceCommand({
-  name: "callout",
-  description: "Call out for a future raid date without using the schedule message.",
+  name: "callout-for",
+  description: "Officers: call out a raider for a future raid date.",
   status: "OUT",
-  forOthers: false,
+  forOthers: true,
 });
 
 export const data = command.data;
