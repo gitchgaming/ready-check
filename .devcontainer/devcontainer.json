@@ -6,8 +6,5 @@
     "vscode": {
       "extensions": ["Prisma.prisma", "dbaeumer.vscode-eslint"]
     }
-  },
-  "remoteEnv": {
-    "DATABASE_URL": "file:./dev.db"
   }
 }
