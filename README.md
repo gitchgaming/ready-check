@@ -19,6 +19,9 @@ lets you call out for a specific future date without touching any buttons.
 - **Raider role** (a team's own role) — read-only everywhere except calling
   out for themselves, via the schedule message's buttons or `/callout`.
 - Everyone can read: `/raid-status`, `/raid-calendar`, `/raid-slot list`.
+- `/raid-roster role:<role>` (officers only) posts the team's current roster
+  as its own message in the channel where it's run. It's a one-off snapshot,
+  not kept up to date.
 
 ## How it works
 
