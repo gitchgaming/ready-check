@@ -3,6 +3,8 @@ import { Client, Events, GatewayIntentBits } from "discord.js";
 import { commands } from "./commands/index.js";
 import { isAttendanceButton, handleAttendanceButton } from "./interactions/attendanceButton.js";
 import { isNavButton, handleNavButton } from "./interactions/navButton.js";
+import { prisma } from "./lib/db.js";
+import { renderRoster } from "./lib/roster.js";
 import { syncAllRaidTeams } from "./lib/scheduler.js";
 
 const token = process.env.DISCORD_TOKEN;
@@ -17,6 +19,30 @@ const client = new Client({
 });
 
 const commandsByName = new Map(commands.map((c) => [c.data.name, c]));
+
+const ROSTER_DEBOUNCE_MS = 3000;
+const rosterRefreshTimers = new Map<string, NodeJS.Timeout>();
+
+// Role changes often arrive in bursts, so refresh each guild's rosters once things settle.
+function scheduleRosterRefresh(guildId: string) {
+  const existing = rosterRefreshTimers.get(guildId);
+  if (existing) clearTimeout(existing);
+
+  rosterRefreshTimers.set(
+    guildId,
+    setTimeout(async () => {
+      rosterRefreshTimers.delete(guildId);
+      const teams = await prisma.raidTeam.findMany({ where: { guildId }, select: { id: true } });
+      for (const team of teams) {
+        await renderRoster(client, team.id).catch((err) => console.error("Roster refresh failed:", err));
+      }
+    }, ROSTER_DEBOUNCE_MS),
+  );
+}
+
+client.on(Events.GuildMemberUpdate, (_oldMember, newMember) => scheduleRosterRefresh(newMember.guild.id));
+client.on(Events.GuildMemberAdd, (member) => scheduleRosterRefresh(member.guild.id));
+client.on(Events.GuildMemberRemove, (member) => scheduleRosterRefresh(member.guild.id));
 
 client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Logged in as ${readyClient.user.tag}`);

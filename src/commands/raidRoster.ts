@@ -1,15 +1,14 @@
-import { EmbedBuilder, SlashCommandBuilder, type ChatInputCommandInteraction, type Client } from "discord.js";
+import { SlashCommandBuilder, type ChatInputCommandInteraction, type Client } from "discord.js";
 import { assertCanManage } from "../lib/access.js";
 import { prisma } from "../lib/db.js";
-
-const MAX_DESCRIPTION = 4000; // Discord caps embed descriptions at 4096
+import { buildRosterEmbed, fetchRosterNames } from "../lib/roster.js";
 
 export const data = new SlashCommandBuilder()
   .setName("raid-roster")
-  .setDescription("Officers: post the current roster for a raid team as its own message.")
+  .setDescription("Officers: post an auto-updating roster for a raid team in this channel.")
   .addRoleOption((opt) => opt.setName("role").setDescription("The raid team's role").setRequired(true));
 
-export async function execute(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
+export async function execute(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
   if (!interaction.guild) {
     await interaction.reply({ content: "This command only works in a server.", ephemeral: true });
     return;
@@ -30,29 +29,31 @@ export async function execute(interaction: ChatInputCommandInteraction, _client:
     return;
   }
 
-  const members = await interaction.guild.members.fetch();
-  const names = members
-    .filter((m) => !m.user.bot && m.roles.cache.has(role.id))
-    .map((m) => m.displayName)
-    .sort((a, b) => a.localeCompare(b));
-
-  const lines: string[] = [];
-  let length = 0;
-  for (const name of names) {
-    if (length + name.length + 1 > MAX_DESCRIPTION) break;
-    lines.push(name);
-    length += name.length + 1;
+  const channel = interaction.channel;
+  if (!channel || !channel.isTextBased()) {
+    await interaction.reply({ content: "Run this in a text channel.", ephemeral: true });
+    return;
   }
-  const hidden = names.length - lines.length;
-  const description =
-    names.length === 0
-      ? "No one has this role yet."
-      : lines.join("\n") + (hidden > 0 ? `\n…and ${hidden} more` : "");
 
-  const embed = new EmbedBuilder()
-    .setTitle(`${team.name ?? role.name} — roster (${names.length})`)
-    .setDescription(description)
-    .setColor(0x5865f2);
+  if (team.rosterChannelId && team.rosterMessageId) {
+    const previousChannel = await client.channels.fetch(team.rosterChannelId).catch(() => null);
+    if (previousChannel?.isTextBased()) {
+      const previous = await previousChannel.messages.fetch(team.rosterMessageId).catch(() => null);
+      await previous?.delete().catch(() => null);
+    }
+  }
 
-  await interaction.reply({ embeds: [embed] });
+  const names = await fetchRosterNames(interaction.guild, role.id);
+  const embed = buildRosterEmbed(team.name ?? role.name, names);
+  const message = await channel.send({ embeds: [embed] });
+
+  await prisma.raidTeam.update({
+    where: { id: team.id },
+    data: { rosterChannelId: channel.id, rosterMessageId: message.id },
+  });
+
+  await interaction.reply({
+    content: `✅ Roster will now stay up to date in <#${channel.id}>.`,
+    ephemeral: true,
+  });
 }

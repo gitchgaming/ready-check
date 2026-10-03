@@ -29,6 +29,10 @@ model RaidTeam {
   // /raid-calendar, which is ephemeral and never affects this message.
   displayCount Int @default(3)
 
+  // The auto-updating roster message for this team, set via /raid-roster.
+  rosterChannelId String?
+  rosterMessageId String?
+
   slots     RaidSlot[]
   instances RaidInstance[]
 

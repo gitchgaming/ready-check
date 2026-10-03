@@ -2,6 +2,7 @@ import { DateTime } from "luxon";
 import type { Client } from "discord.js";
 import { prisma } from "./db.js";
 import { buildPublicMessage } from "./embeds.js";
+import { renderRoster } from "./roster.js";
 
 /** How many raids /raid-calendar pages through at a time. */
 export const PAGE_SIZE = 3;
@@ -175,6 +176,9 @@ export async function syncAllRaidTeams(client: Client): Promise<void> {
   for (const team of teams) {
     await syncRaidTeam(client, team.id).catch((err) => {
       console.error(`Failed to sync raid team ${team.id}:`, err);
+    });
+    await renderRoster(client, team.id).catch((err) => {
+      console.error(`Failed to refresh roster for raid team ${team.id}:`, err);
     });
   }
 }
