@@ -36,12 +36,17 @@ function buildScheduleEmbed(team: RaidTeam, instances: InstanceWithAttendance[],
 
   for (const instance of instances) {
     const unix = Math.floor(instance.startsAt.getTime() / 1000);
-    const calledOut = instance.attendance
+    const calledOutIds = instance.attendance
       .filter((a) => a.status === "OUT" && rosterIds.has(a.userId))
-      .map((a) => `❌ <@${a.userId}>`);
+      .map((a) => a.userId);
+    const calledOut = calledOutIds.map((id) => `❌ <@${id}>`);
+    const attending = rosterIds.size - calledOutIds.length;
     embed.addFields({
       name: `<t:${unix}:D>`,
-      value: `<t:${unix}:t> · <t:${unix}:R>\n\n${calledOut.length > 0 ? calledOut.join("\n") : "—"}`,
+      value:
+        `<t:${unix}:t> · <t:${unix}:R>\n` +
+        `**${attending} of ${rosterIds.size} attending**\n\n` +
+        (calledOut.length > 0 ? calledOut.join("\n") : "—"),
       inline: true,
     });
   }
