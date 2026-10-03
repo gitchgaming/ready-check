@@ -23,17 +23,21 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function autocomplete(interaction: AutocompleteInteraction): Promise<void> {
-  const role = interaction.options.getRole("role");
-  if (!role || !interaction.guildId) {
+  // Discord only guarantees a fully-resolved object for the currently-focused
+  // option during autocomplete — getRole() can come back empty even when a
+  // role was already picked. The raw snowflake is still there, so read that
+  // directly instead; it's all the DB lookup needs anyway.
+  const roleId = interaction.options.get("role")?.value as string | undefined;
+  if (!roleId || !interaction.guildId) {
     await interaction.respond([{ name: "Pick a role above first", value: "none" }]);
     return;
   }
 
   const team = await prisma.raidTeam.findUnique({
-    where: { guildId_roleId: { guildId: interaction.guildId, roleId: role.id } },
+    where: { guildId_roleId: { guildId: interaction.guildId, roleId } },
   });
   if (!team) {
-    await interaction.respond([{ name: `${role.name} isn't set up as a raid team yet`, value: "none" }]);
+    await interaction.respond([{ name: "That role isn't set up as a raid team yet", value: "none" }]);
     return;
   }
 
