@@ -1,4 +1,5 @@
 import type { ButtonInteraction, Client } from "discord.js";
+import { DateTime } from "luxon";
 import { prisma } from "../lib/db.js";
 import { buildCalendarMessage } from "../lib/embeds.js";
 import { rosterMemberIds } from "../lib/roster.js";
@@ -51,7 +52,7 @@ export async function handleAttendanceButton(interaction: ButtonInteraction, cli
   }
 
   const currentlyOut = instance.attendance.length > 0;
-  const dateLabel = instance.startsAt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const dateLabel = DateTime.fromJSDate(instance.startsAt).setZone(instance.raidTeam.timezone).toFormat("MMM d");
 
   if (currentlyOut) {
     await prisma.attendance.deleteMany({ where: { raidInstanceId: instance.id, userId: interaction.user.id } });

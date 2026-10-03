@@ -5,6 +5,7 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import type { Attendance, RaidInstance, RaidTeam } from "@prisma/client";
+import { DateTime } from "luxon";
 
 type InstanceWithAttendance = RaidInstance & { attendance: Attendance[] };
 
@@ -67,7 +68,11 @@ function buildScheduleEmbed(team: RaidTeam, instances: InstanceWithAttendance[],
   return embed;
 }
 
-function dateButtonRows(instances: InstanceWithAttendance[], customId: (instanceId: string) => string) {
+function dateButtonRows(
+  instances: InstanceWithAttendance[],
+  timezone: string,
+  customId: (instanceId: string) => string,
+) {
   const openInstances = instances.filter((i) => !i.closed && !i.cancelled);
   const rows: ActionRowBuilder<ButtonBuilder>[] = [];
 
@@ -77,7 +82,7 @@ function dateButtonRows(instances: InstanceWithAttendance[], customId: (instance
       row.addComponents(
         new ButtonBuilder()
           .setCustomId(customId(instance.id))
-          .setLabel(shortDateLabel(instance.startsAt))
+          .setLabel(shortDateLabel(instance.startsAt, timezone))
           .setStyle(ButtonStyle.Primary),
       );
     }
@@ -90,7 +95,7 @@ function dateButtonRows(instances: InstanceWithAttendance[], customId: (instance
 /** The public, non-scrolling team message: always the next N upcoming raids, no nav. */
 export function buildPublicMessage(team: RaidTeam, instances: InstanceWithAttendance[], rosterIds: Set<string>) {
   const embed = buildScheduleEmbed(team, instances, rosterIds);
-  const rows = dateButtonRows(instances, (id) => `attendance:${id}`);
+  const rows = dateButtonRows(instances, team.timezone, (id) => `attendance:${id}`);
   return { embeds: [embed], components: rows };
 }
 
@@ -103,7 +108,7 @@ export function buildCalendarMessage(
   rosterIds: Set<string>,
 ) {
   const embed = buildScheduleEmbed(team, instances, rosterIds);
-  const rows = dateButtonRows(instances, (id) => `attendance:${id}:cal:${offset}`);
+  const rows = dateButtonRows(instances, team.timezone, (id) => `attendance:${id}:cal:${offset}`);
 
   rows.push(
     new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -123,6 +128,6 @@ export function buildCalendarMessage(
   return { embeds: [embed], components: rows };
 }
 
-function shortDateLabel(date: Date): string {
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+function shortDateLabel(date: Date, timezone: string): string {
+  return DateTime.fromJSDate(date).setZone(timezone).toFormat("MMM d");
 }
