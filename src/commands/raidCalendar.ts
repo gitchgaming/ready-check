@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction, type Client } from "discord.js";
 import { prisma } from "../lib/db.js";
 import { buildCalendarMessage } from "../lib/embeds.js";
+import { rosterMemberIds } from "../lib/roster.js";
 import { instancesForWindow } from "../lib/scheduler.js";
 
 export const data = new SlashCommandBuilder()
@@ -9,14 +10,14 @@ export const data = new SlashCommandBuilder()
   .addRoleOption((opt) => opt.setName("role").setDescription("The raid team's role").setRequired(true));
 
 export async function execute(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
-  if (!interaction.guildId) {
+  if (!interaction.guild) {
     await interaction.reply({ content: "This command only works in a server.", ephemeral: true });
     return;
   }
 
   const role = interaction.options.getRole("role", true);
   const team = await prisma.raidTeam.findUnique({
-    where: { guildId_roleId: { guildId: interaction.guildId, roleId: role.id } },
+    where: { guildId_roleId: { guildId: interaction.guild.id, roleId: role.id } },
   });
 
   if (!team) {
@@ -28,8 +29,9 @@ export async function execute(interaction: ChatInputCommandInteraction, _client:
   }
 
   const { instances, canEarlier, canLater } = await instancesForWindow(team.id, 0);
+  const rosterIds = await rosterMemberIds(interaction.guild, team.roleId);
   await interaction.reply({
-    ...buildCalendarMessage(team, instances, 0, { canEarlier, canLater }),
+    ...buildCalendarMessage(team, instances, 0, { canEarlier, canLater }, rosterIds),
     ephemeral: true,
   });
 }

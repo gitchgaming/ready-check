@@ -66,6 +66,11 @@ lets you call out for a specific future date without touching any buttons.
 - `/callout-for user:<member> date:<date>` and `/callin-for user:<member>
   date:<date>` — officers only. Same as above, but for another raider. The
   date picker shows that raider's raids.
+- Call-outs only count while the raider still holds the team's role. If
+  someone loses the role, their past call-outs stay in the database for
+  audit but no longer show on the schedule message, `/raid-status`, or the
+  calendar. Schedule messages refresh when members gain or lose roles, join,
+  or leave.
 - A raid instance closes (drops into history) a few hours after its start
   time, the next time the bot re-syncs (hourly by default).
 - `/raid-status` — a quick ephemeral list of upcoming raids and call-outs,

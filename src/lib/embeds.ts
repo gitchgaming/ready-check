@@ -16,7 +16,7 @@ export interface NavState {
 const MAX_DATE_BUTTONS_PER_ROW = 5; // Discord's limit per action row
 const MAX_DATE_ROWS = 4; // leaves one row free for the nav row when present
 
-function buildScheduleEmbed(team: RaidTeam, instances: InstanceWithAttendance[]) {
+function buildScheduleEmbed(team: RaidTeam, instances: InstanceWithAttendance[], rosterIds: Set<string>) {
   const anyOpen = instances.some((i) => !i.closed);
 
   const embed = new EmbedBuilder()
@@ -36,7 +36,9 @@ function buildScheduleEmbed(team: RaidTeam, instances: InstanceWithAttendance[])
 
   for (const instance of instances) {
     const unix = Math.floor(instance.startsAt.getTime() / 1000);
-    const calledOut = instance.attendance.filter((a) => a.status === "OUT").map((a) => `❌ <@${a.userId}>`);
+    const calledOut = instance.attendance
+      .filter((a) => a.status === "OUT" && rosterIds.has(a.userId))
+      .map((a) => `❌ <@${a.userId}>`);
     embed.addFields({
       name: `<t:${unix}:D>`,
       value: `<t:${unix}:t> · <t:${unix}:R>\n\n${calledOut.length > 0 ? calledOut.join("\n") : "—"}`,
@@ -68,8 +70,8 @@ function dateButtonRows(instances: InstanceWithAttendance[], customId: (instance
 }
 
 /** The public, non-scrolling team message: always the next N upcoming raids, no nav. */
-export function buildPublicMessage(team: RaidTeam, instances: InstanceWithAttendance[]) {
-  const embed = buildScheduleEmbed(team, instances);
+export function buildPublicMessage(team: RaidTeam, instances: InstanceWithAttendance[], rosterIds: Set<string>) {
+  const embed = buildScheduleEmbed(team, instances, rosterIds);
   const rows = dateButtonRows(instances, (id) => `attendance:${id}`);
   return { embeds: [embed], components: rows };
 }
@@ -80,8 +82,9 @@ export function buildCalendarMessage(
   instances: InstanceWithAttendance[],
   offset: number,
   nav: NavState,
+  rosterIds: Set<string>,
 ) {
-  const embed = buildScheduleEmbed(team, instances);
+  const embed = buildScheduleEmbed(team, instances, rosterIds);
   const rows = dateButtonRows(instances, (id) => `attendance:${id}:cal:${offset}`);
 
   rows.push(

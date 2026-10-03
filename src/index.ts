@@ -5,7 +5,7 @@ import { isAttendanceButton, handleAttendanceButton } from "./interactions/atten
 import { isNavButton, handleNavButton } from "./interactions/navButton.js";
 import { prisma } from "./lib/db.js";
 import { renderRoster } from "./lib/roster.js";
-import { syncAllRaidTeams } from "./lib/scheduler.js";
+import { renderTeamMessage, syncAllRaidTeams } from "./lib/scheduler.js";
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) {
@@ -35,6 +35,9 @@ function scheduleRosterRefresh(guildId: string) {
       const teams = await prisma.raidTeam.findMany({ where: { guildId }, select: { id: true } });
       for (const team of teams) {
         await renderRoster(client, team.id).catch((err) => console.error("Roster refresh failed:", err));
+        await renderTeamMessage(client, team.id).catch((err) =>
+          console.error("Schedule refresh failed:", err),
+        );
       }
     }, ROSTER_DEBOUNCE_MS),
   );

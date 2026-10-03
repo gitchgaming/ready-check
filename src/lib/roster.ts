@@ -3,6 +3,12 @@ import { prisma } from "./db.js";
 
 const MAX_DESCRIPTION = 4000; // Discord caps embed descriptions at 4096
 
+/** IDs of non-bot members currently holding the role. */
+export async function rosterMemberIds(guild: Guild, roleId: string): Promise<Set<string>> {
+  const members = await guild.members.fetch();
+  return new Set(members.filter((m) => !m.user.bot && m.roles.cache.has(roleId)).map((m) => m.id));
+}
+
 export async function fetchRosterNames(guild: Guild, roleId: string): Promise<string[]> {
   const members = await guild.members.fetch();
   return members

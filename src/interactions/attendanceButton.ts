@@ -1,6 +1,7 @@
 import type { ButtonInteraction, Client } from "discord.js";
 import { prisma } from "../lib/db.js";
 import { buildCalendarMessage } from "../lib/embeds.js";
+import { rosterMemberIds } from "../lib/roster.js";
 import { instancesForWindow, renderTeamMessage } from "../lib/scheduler.js";
 
 /**
@@ -60,7 +61,11 @@ export async function handleAttendanceButton(interaction: ButtonInteraction, cli
   if (isCalendar && calendarOffset !== null) {
     const team = await prisma.raidTeam.findUniqueOrThrow({ where: { id: instance.raidTeamId } });
     const { instances, canEarlier, canLater } = await instancesForWindow(team.id, calendarOffset);
-    await interaction.update(buildCalendarMessage(team, instances, calendarOffset, { canEarlier, canLater }));
+    const guild = await client.guilds.fetch(team.guildId);
+    const rosterIds = await rosterMemberIds(guild, team.roleId);
+    await interaction.update(
+      buildCalendarMessage(team, instances, calendarOffset, { canEarlier, canLater }, rosterIds),
+    );
     return;
   }
 

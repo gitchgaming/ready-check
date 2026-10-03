@@ -1,6 +1,7 @@
 import type { ButtonInteraction, Client } from "discord.js";
 import { prisma } from "../lib/db.js";
 import { buildCalendarMessage } from "../lib/embeds.js";
+import { rosterMemberIds } from "../lib/roster.js";
 import { PAGE_SIZE, clampOffset, instancesForWindow } from "../lib/scheduler.js";
 
 /**
@@ -12,7 +13,7 @@ export function isNavButton(customId: string): boolean {
   return customId.startsWith("mynav:");
 }
 
-export async function handleNavButton(interaction: ButtonInteraction, _client: Client): Promise<void> {
+export async function handleNavButton(interaction: ButtonInteraction, client: Client): Promise<void> {
   const [, direction, teamId, currentOffsetRaw] = interaction.customId.split(":");
   if ((direction !== "earlier" && direction !== "later") || !teamId) return;
 
@@ -24,5 +25,9 @@ export async function handleNavButton(interaction: ButtonInteraction, _client: C
 
   const newOffset = await clampOffset(team.id, requestedOffset);
   const { instances, canEarlier, canLater } = await instancesForWindow(team.id, newOffset);
-  await interaction.update(buildCalendarMessage(team, instances, newOffset, { canEarlier, canLater }));
+  const guild = await client.guilds.fetch(team.guildId);
+  const rosterIds = await rosterMemberIds(guild, team.roleId);
+  await interaction.update(
+    buildCalendarMessage(team, instances, newOffset, { canEarlier, canLater }, rosterIds),
+  );
 }

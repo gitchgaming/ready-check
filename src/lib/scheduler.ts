@@ -2,7 +2,7 @@ import { DateTime } from "luxon";
 import type { Client } from "discord.js";
 import { prisma } from "./db.js";
 import { buildPublicMessage } from "./embeds.js";
-import { renderRoster } from "./roster.js";
+import { renderRoster, rosterMemberIds } from "./roster.js";
 
 /** How many raids /raid-calendar pages through at a time. */
 export const PAGE_SIZE = 3;
@@ -154,7 +154,10 @@ export async function renderTeamMessage(client: Client, teamId: string): Promise
   if (!team) return;
 
   const instances = await nextOpenInstances(team.id, team.displayCount);
-  const content = buildPublicMessage(team, instances);
+  const guild = await client.guilds.fetch(team.guildId).catch(() => null);
+  if (!guild) return;
+  const rosterIds = await rosterMemberIds(guild, team.roleId);
+  const content = buildPublicMessage(team, instances, rosterIds);
 
   const channel = await client.channels.fetch(team.channelId).catch(() => null);
   if (!channel || !channel.isTextBased()) return;
