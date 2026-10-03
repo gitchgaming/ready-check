@@ -8,6 +8,7 @@ import * as raidCalendar from "./raidCalendar.js";
 import * as raidCancel from "./raidCancel.js";
 import * as raidExtra from "./raidExtra.js";
 import * as raidPublish from "./raidPublish.js";
+import * as raidUncancel from "./raidUncancel.js";
 import * as raidRoster from "./raidRoster.js";
 import * as raidSetup from "./raidSetup.js";
 import * as raidSlot from "./raidSlot.js";
@@ -28,6 +29,7 @@ export const commands: Command[] = [
   raidRoster,
   raidPublish,
   raidCancel,
+  raidUncancel,
   raidExtra,
   callout,
   callin,

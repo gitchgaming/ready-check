@@ -36,6 +36,17 @@ function buildScheduleEmbed(team: RaidTeam, instances: InstanceWithAttendance[],
 
   for (const instance of instances) {
     const unix = Math.floor(instance.startsAt.getTime() / 1000);
+    const header = `<t:${unix}:t> · <t:${unix}:R>\n\n`;
+
+    if (instance.cancelled) {
+      embed.addFields({
+        name: `<t:${unix}:D>`,
+        value: `${header}🚫 **Cancelled**`,
+        inline: true,
+      });
+      continue;
+    }
+
     const calledOutIds = instance.attendance
       .filter((a) => a.status === "OUT" && rosterIds.has(a.userId))
       .map((a) => a.userId);
@@ -46,7 +57,7 @@ function buildScheduleEmbed(team: RaidTeam, instances: InstanceWithAttendance[],
     embed.addFields({
       name: `<t:${unix}:D>`,
       value:
-        `<t:${unix}:t> · <t:${unix}:R>\n\n` +
+        header +
         `${dot} **${attending} of ${total} attending**\n\n` +
         (calledOut.length > 0 ? calledOut.join("\n") : "—"),
       inline: true,
@@ -57,7 +68,7 @@ function buildScheduleEmbed(team: RaidTeam, instances: InstanceWithAttendance[],
 }
 
 function dateButtonRows(instances: InstanceWithAttendance[], customId: (instanceId: string) => string) {
-  const openInstances = instances.filter((i) => !i.closed);
+  const openInstances = instances.filter((i) => !i.closed && !i.cancelled);
   const rows: ActionRowBuilder<ButtonBuilder>[] = [];
 
   for (let i = 0; i < openInstances.length && rows.length < MAX_DATE_ROWS; i += MAX_DATE_BUTTONS_PER_ROW) {

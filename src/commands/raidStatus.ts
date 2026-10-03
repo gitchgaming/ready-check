@@ -27,7 +27,7 @@ export async function execute(interaction: ChatInputCommandInteraction, _client:
   }
 
   const instances = await prisma.raidInstance.findMany({
-    where: { raidTeamId: team.id, closed: false, cancelled: false },
+    where: { raidTeamId: team.id, closed: false },
     include: { attendance: true },
     orderBy: { startsAt: "asc" },
   });
@@ -45,6 +45,10 @@ export async function execute(interaction: ChatInputCommandInteraction, _client:
 
   for (const instance of instances) {
     const unixSeconds = Math.floor(instance.startsAt.getTime() / 1000);
+    if (instance.cancelled) {
+      embed.addFields({ name: `<t:${unixSeconds}:F>`, value: "🚫 Cancelled" });
+      continue;
+    }
     const calledOut = instance.attendance
       .filter((a) => a.status === "OUT" && rosterIds.has(a.userId))
       .map((a) => `<@${a.userId}>`);
