@@ -1,4 +1,6 @@
-import type { ChatInputCommandInteraction, Client } from "discord.js";
+import type { AutocompleteInteraction, ChatInputCommandInteraction, Client } from "discord.js";
+import * as callout from "./callout.js";
+import * as raidCalendar from "./raidCalendar.js";
 import * as raidSetup from "./raidSetup.js";
 import * as raidSlot from "./raidSlot.js";
 import * as raidStatus from "./raidStatus.js";
@@ -6,6 +8,7 @@ import * as raidStatus from "./raidStatus.js";
 export interface Command {
   data: { name: string; toJSON: () => unknown };
   execute: (interaction: ChatInputCommandInteraction, client: Client) => Promise<void>;
+  autocomplete?: (interaction: AutocompleteInteraction) => Promise<void>;
 }
 
-export const commands: Command[] = [raidSetup, raidSlot, raidStatus];
+export const commands: Command[] = [raidSetup, raidSlot, raidStatus, raidCalendar, callout];

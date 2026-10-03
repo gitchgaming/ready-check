@@ -4,39 +4,43 @@ Discord bot for WoW raid scheduling and one-click attendance call-outs.
 
 Set a recurring raid schedule tied to a Discord role (attendance is assumed
 **required** by default for everyone with that role). Each raid team gets one
-persistent, auto-updating schedule message with a card per upcoming raid and
-a button per date to toggle your own call-out. Raid leaders run
-`/raid-status` for a quick ephemeral summary any time.
+fixed, auto-updating schedule message with a card per upcoming raid and a
+button per date to toggle your own call-out. `/raid-calendar` gives anyone a
+private, scrollable view of the full past/future timeline, and `/callout`
+lets you call out for a specific future date without touching any buttons.
 
 ## How it works
 
 - `/raid-setup` (Administrators only) — binds a role + channel + timezone as
-  a "raid team". That team's schedule message posts and lives in that channel.
+  a "raid team". That team's schedule message posts and lives in that
+  channel. Optional `raids-shown` (1–10, default 6) sets how many upcoming
+  raids the message displays at once.
 - `/raid-slot add|remove|list` (Administrators only) — manages the weekly
   recurring raid times for a team, e.g. Tuesday 20:00 and Thursday 20:00
   (times can differ per day — each instance keeps its own start time).
-- The bot maintains **one message per team**, edited in place as time passes
-  — it always shows the next 3 upcoming raids as cards (date, time, and
-  who's called out), each with a date button below. Clicking a date toggles
-  *your* call-out for that raid; nothing to click means you're in. Since a
-  button's label/color is shared by everyone who sees the message, personal
-  feedback comes back as an ephemeral reply rather than the button changing.
-- **← Earlier / Later →** page the same 3-card window back and forth through
-  the team's full raid timeline. Paging into the past shows closed, read-only
-  raids (who missed what, no buttons — audit only); paging into the future
-  shows further-out raids, still fully actionable. The bot keeps the next 12
-  raids generated per team at all times, so you can page up to 4 windows
-  into the future (longer for a team with fewer than 2 raids/week, since it's
-  12 raids, not 12 weeks).
-- Paging is shared, not personal — like the call-out buttons, the window
-  position lives on the one message, so if someone pages forward to call out
-  for a raid two months out, everyone sees that window until someone pages
-  it back.
+- The bot maintains **one public message per team**, edited in place as time
+  passes — it always shows the next `raids-shown` upcoming raids as cards
+  (date, time, who's called out), each with a date button below. Clicking a
+  date toggles *your* call-out for that raid; nothing to click means you're
+  in. Since a button's label/color is shared by everyone who sees the
+  message, personal feedback comes back as an ephemeral reply rather than
+  the button changing. **This message never scrolls** — it's a fixed, shared
+  view, so one person can't change what everyone else sees.
+- `/raid-calendar` — anyone can run this for a private, scrollable view of a
+  team's full timeline (past and future), with its own ← Earlier / Later →
+  buttons. Since it's ephemeral, only the person who ran it sees it or can
+  page it — it never affects the public message or other viewers. The bot
+  keeps at least 12 future raids generated per team so there's always
+  several pages to page forward into (more if `raids-shown` is set above
+  12). Officers can use it to review history; raiders can use it to call out
+  further ahead than the public message currently shows.
+- `/callout role:<role> date:<date>` — call out for a specific future raid
+  without touching any buttons. `date` autocompletes against that team's
+  actual upcoming raid dates as you type, so you can't submit an invalid one.
 - A raid instance closes (drops into history) a few hours after its start
   time, the next time the bot re-syncs (hourly by default).
 - `/raid-status` — a quick ephemeral list of upcoming raids and call-outs,
-  independent of the persistent message and always showing the true next 3
-  regardless of where the shared window is currently paged to.
+  independent of everything above.
 
 ## Development (GitHub Codespaces)
 

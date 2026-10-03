@@ -7,6 +7,7 @@ import {
 } from "discord.js";
 import { DateTime } from "luxon";
 import { prisma } from "../lib/db.js";
+import { syncRaidTeam } from "../lib/scheduler.js";
 
 export const data = new SlashCommandBuilder()
   .setName("raid-setup")
@@ -30,9 +31,17 @@ export const data = new SlashCommandBuilder()
   )
   .addStringOption((opt) =>
     opt.setName("name").setDescription('Display name for this raid team, e.g. "Main Raid"').setRequired(false),
+  )
+  .addIntegerOption((opt) =>
+    opt
+      .setName("raids-shown")
+      .setDescription("How many upcoming raids the schedule message shows at once (default 6)")
+      .setMinValue(1)
+      .setMaxValue(10)
+      .setRequired(false),
   );
 
-export async function execute(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
+export async function execute(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
   if (!interaction.guildId) {
     await interaction.reply({ content: "This command only works in a server.", ephemeral: true });
     return;
@@ -42,6 +51,7 @@ export async function execute(interaction: ChatInputCommandInteraction, _client:
   const channel = interaction.options.getChannel("channel", true);
   const timezone = interaction.options.getString("timezone", true).trim();
   const name = interaction.options.getString("name");
+  const raidsShown = interaction.options.getInteger("raids-shown");
 
   if (!DateTime.now().setZone(timezone).isValid) {
     await interaction.reply({
@@ -59,11 +69,13 @@ export async function execute(interaction: ChatInputCommandInteraction, _client:
       channelId: channel.id,
       timezone,
       name,
+      ...(raidsShown ? { displayCount: raidsShown } : {}),
     },
     update: {
       channelId: channel.id,
       timezone,
       ...(name ? { name } : {}),
+      ...(raidsShown ? { displayCount: raidsShown } : {}),
     },
   });
 
@@ -72,8 +84,13 @@ export async function execute(interaction: ChatInputCommandInteraction, _client:
       `✅ Raid team **${team.name ?? role.name}** is set up.\n` +
       `• Role: <@&${role.id}>\n` +
       `• Channel: <#${channel.id}>\n` +
-      `• Timezone: ${timezone}\n\n` +
+      `• Timezone: ${timezone}\n` +
+      `• Raids shown: ${team.displayCount}\n\n` +
       "Next, add raid times with `/raid-slot add`.",
     ephemeral: true,
+  });
+
+  await syncRaidTeam(client, team.id).catch((err) => {
+    console.error(`Failed to sync raid team ${team.id} after setup:`, err);
   });
 }

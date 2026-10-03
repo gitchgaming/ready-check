@@ -1,13 +1,13 @@
 import { DateTime } from "luxon";
 import type { Client } from "discord.js";
 import { prisma } from "./db.js";
-import { buildTeamMessage } from "./embeds.js";
+import { buildPublicMessage } from "./embeds.js";
 
-/** How many raids are displayed in the message at once. */
+/** How many raids /raid-calendar pages through at a time. */
 export const PAGE_SIZE = 3;
 
-/** How many future raid instances to keep generated per team (paging limit). */
-const FUTURE_GENERATE_COUNT = 12;
+/** Minimum number of future raid instances to keep generated per team. */
+const MIN_FUTURE_GENERATE_COUNT = 12;
 
 /** How long after a raid's start time before it moves into history. */
 const CLOSE_GRACE_HOURS = 3;
@@ -43,17 +43,19 @@ function nextOccurrences(
   return results;
 }
 
-/** Ensures the next FUTURE_GENERATE_COUNT raid instances exist, closes out expired ones, and re-renders the team's message. */
+/** Ensures enough future raid instances exist, closes out expired ones, and re-renders the team's message. */
 export async function syncRaidTeam(client: Client, teamId: string): Promise<void> {
   const team = await prisma.raidTeam.findUnique({ where: { id: teamId }, include: { slots: true } });
   if (!team) return;
 
+  const generateCount = Math.max(MIN_FUTURE_GENERATE_COUNT, team.displayCount);
+
   if (team.slots.length > 0) {
     const candidates = team.slots.flatMap((slot) =>
-      nextOccurrences(slot.dayOfWeek, slot.hour, slot.minute, team.timezone, FUTURE_GENERATE_COUNT),
+      nextOccurrences(slot.dayOfWeek, slot.hour, slot.minute, team.timezone, generateCount),
     );
     candidates.sort((a, b) => a.toMillis() - b.toMillis());
-    const chosen = candidates.slice(0, FUTURE_GENERATE_COUNT);
+    const chosen = candidates.slice(0, generateCount);
 
     for (const startsAt of chosen) {
       await prisma.raidInstance.upsert({
@@ -71,6 +73,16 @@ export async function syncRaidTeam(client: Client, teamId: string): Promise<void
   });
 
   await renderTeamMessage(client, team.id);
+}
+
+/** The next `count` open (not-yet-closed) raid instances, soonest first. */
+export async function nextOpenInstances(teamId: string, count: number) {
+  return prisma.raidInstance.findMany({
+    where: { raidTeamId: teamId, closed: false },
+    include: { attendance: true },
+    orderBy: { startsAt: "asc" },
+    take: count,
+  });
 }
 
 export interface WindowResult {
@@ -91,9 +103,9 @@ async function fetchWindowInstances(teamId: string, closed: boolean, skip: numbe
 }
 
 /**
- * Fetches the PAGE_SIZE raids visible at a given offset from "now", where closed
- * (past) raids occupy negative indices and open (future) raids occupy indices
- * starting at 0, and reports whether paging further in either direction is possible.
+ * Fetches the PAGE_SIZE raids visible at a given offset from "now", for the personal
+ * /raid-calendar view — closed (past) raids occupy negative indices, open (future)
+ * raids occupy indices starting at 0. Purely computed per-call; nothing is persisted.
  */
 export async function instancesForWindow(teamId: string, offset: number): Promise<WindowResult> {
   const closedCount = await prisma.raidInstance.count({ where: { raidTeamId: teamId, closed: true } });
@@ -124,7 +136,7 @@ export async function instancesForWindow(teamId: string, offset: number): Promis
   };
 }
 
-/** Clamps a requested offset so the resulting window always stays within available instances. */
+/** Clamps a requested /raid-calendar offset so the resulting window stays within available instances. */
 export async function clampOffset(teamId: string, requestedOffset: number): Promise<number> {
   const closedCount = await prisma.raidInstance.count({ where: { raidTeamId: teamId, closed: true } });
   const openCount = await prisma.raidInstance.count({ where: { raidTeamId: teamId, closed: false } });
@@ -135,13 +147,13 @@ export async function clampOffset(teamId: string, requestedOffset: number): Prom
   return windowStart - anchorIndex;
 }
 
-/** Re-renders a team's single persistent schedule message from current DB state. */
+/** Re-renders a team's single persistent, fixed-count public schedule message from current DB state. */
 export async function renderTeamMessage(client: Client, teamId: string): Promise<void> {
   const team = await prisma.raidTeam.findUnique({ where: { id: teamId } });
   if (!team) return;
 
-  const { instances, canEarlier, canLater } = await instancesForWindow(team.id, team.windowOffset);
-  const content = buildTeamMessage(team, instances, { canEarlier, canLater });
+  const instances = await nextOpenInstances(team.id, team.displayCount);
+  const content = buildPublicMessage(team, instances);
 
   const channel = await client.channels.fetch(team.channelId).catch(() => null);
   if (!channel || !channel.isTextBased()) return;

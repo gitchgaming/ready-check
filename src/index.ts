@@ -35,6 +35,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
+    if (interaction.isAutocomplete()) {
+      const command = commandsByName.get(interaction.commandName);
+      if (!command?.autocomplete) return;
+      await command.autocomplete(interaction);
+      return;
+    }
+
     if (interaction.isButton() && isAttendanceButton(interaction.customId)) {
       await handleAttendanceButton(interaction, client);
       return;
