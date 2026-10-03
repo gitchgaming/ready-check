@@ -1,18 +1,12 @@
-import {
-  ChannelType,
-  PermissionFlagsBits,
-  SlashCommandBuilder,
-  type ChatInputCommandInteraction,
-  type Client,
-} from "discord.js";
+import { ChannelType, SlashCommandBuilder, type ChatInputCommandInteraction, type Client } from "discord.js";
 import { DateTime } from "luxon";
+import { assertCanManage } from "../lib/access.js";
 import { prisma } from "../lib/db.js";
 import { syncRaidTeam } from "../lib/scheduler.js";
 
 export const data = new SlashCommandBuilder()
   .setName("raid-setup")
   .setDescription("Create a raid team, or update an existing one's settings.")
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
   .addRoleOption((opt) =>
     opt
       .setName("role")
@@ -49,6 +43,8 @@ export async function execute(interaction: ChatInputCommandInteraction, client: 
     await interaction.reply({ content: "This command only works in a server.", ephemeral: true });
     return;
   }
+
+  if (!(await assertCanManage(interaction))) return;
 
   const role = interaction.options.getRole("role", true);
   const channel = interaction.options.getChannel("channel");

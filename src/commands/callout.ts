@@ -5,6 +5,7 @@ import {
   type Client,
 } from "discord.js";
 import { DateTime } from "luxon";
+import { accessLevel, canCalloutForOthers } from "../lib/access.js";
 import { prisma } from "../lib/db.js";
 import { renderTeamMessage } from "../lib/scheduler.js";
 
@@ -20,6 +21,12 @@ export const data = new SlashCommandBuilder()
       .setDescription("Pick the raid date from the suggestions")
       .setRequired(true)
       .setAutocomplete(true),
+  )
+  .addUserOption((opt) =>
+    opt
+      .setName("user")
+      .setDescription("Officers only: call out on behalf of another raider")
+      .setRequired(false),
   );
 
 export async function autocomplete(interaction: AutocompleteInteraction): Promise<void> {
@@ -67,7 +74,7 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
 }
 
 export async function execute(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
-  if (!interaction.guildId) {
+  if (!interaction.guild) {
     await interaction.reply({ content: "This command only works in a server.", ephemeral: true });
     return;
   }
@@ -93,25 +100,47 @@ export async function execute(interaction: ChatInputCommandInteraction, client: 
     return;
   }
 
-  const member = await interaction.guild?.members.fetch(interaction.user.id).catch(() => null);
-  if (!member || !member.roles.cache.has(instance.raidTeam.roleId)) {
+  const targetUser = interaction.options.getUser("user");
+  const onBehalf = targetUser !== null && targetUser.id !== interaction.user.id;
+  const subjectId = onBehalf ? targetUser.id : interaction.user.id;
+
+  if (onBehalf) {
+    const level = await accessLevel(interaction.guild, interaction.user.id);
+    if (!canCalloutForOthers(level)) {
+      await interaction.reply({
+        content: "Only officers can call out on behalf of other raiders.",
+        ephemeral: true,
+      });
+      return;
+    }
+  }
+
+  const subject = await interaction.guild.members.fetch(subjectId).catch(() => null);
+  if (!subject || !subject.roles.cache.has(instance.raidTeam.roleId)) {
     await interaction.reply({
-      content: `You're not on <@&${instance.raidTeam.roleId}>'s roster, so there's nothing to update here.`,
+      content: onBehalf
+        ? `<@${subjectId}> isn't on <@&${instance.raidTeam.roleId}>'s roster.`
+        : `You're not on <@&${instance.raidTeam.roleId}>'s roster, so there's nothing to update here.`,
       ephemeral: true,
     });
     return;
   }
 
   await prisma.attendance.upsert({
-    where: { raidInstanceId_userId: { raidInstanceId: instance.id, userId: interaction.user.id } },
-    create: { raidInstanceId: instance.id, userId: interaction.user.id, status: "OUT" },
+    where: { raidInstanceId_userId: { raidInstanceId: instance.id, userId: subjectId } },
+    create: { raidInstanceId: instance.id, userId: subjectId, status: "OUT" },
     update: { status: "OUT" },
   });
 
   await renderTeamMessage(client, instance.raidTeamId);
 
   const dateLabel = formatLabel(instance.startsAt, instance.raidTeam.timezone);
-  await interaction.reply({ content: `❌ Marked you as called out for ${dateLabel}.`, ephemeral: true });
+  await interaction.reply({
+    content: onBehalf
+      ? `❌ Marked <@${subjectId}> as called out for ${dateLabel}.`
+      : `❌ Marked you as called out for ${dateLabel}.`,
+    ephemeral: true,
+  });
 }
 
 function formatLabel(date: Date, timezone: string): string {

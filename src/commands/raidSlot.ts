@@ -1,9 +1,5 @@
-import {
-  PermissionFlagsBits,
-  SlashCommandBuilder,
-  type ChatInputCommandInteraction,
-  type Client,
-} from "discord.js";
+import { SlashCommandBuilder, type ChatInputCommandInteraction, type Client } from "discord.js";
+import { assertCanManage } from "../lib/access.js";
 import { prisma } from "../lib/db.js";
 import { parseHourMinute } from "../lib/time.js";
 import { WEEKDAY_CHOICES, weekdayName } from "../lib/weekdays.js";
@@ -12,7 +8,6 @@ import { syncRaidTeam } from "../lib/scheduler.js";
 export const data = new SlashCommandBuilder()
   .setName("raid-slot")
   .setDescription("Manage the weekly recurring raid times for a raid team.")
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
   .addSubcommand((sub) =>
     sub
       .setName("add")
@@ -64,6 +59,8 @@ export async function execute(interaction: ChatInputCommandInteraction, client: 
   }
 
   const subcommand = interaction.options.getSubcommand();
+
+  if (subcommand !== "list" && !(await assertCanManage(interaction))) return;
 
   if (subcommand === "list") {
     const slots = await prisma.raidSlot.findMany({

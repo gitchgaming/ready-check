@@ -9,6 +9,17 @@ button per date to toggle your own call-out. `/raid-calendar` gives anyone a
 private, scrollable view of the full past/future timeline, and `/callout`
 lets you call out for a specific future date without touching any buttons.
 
+## Access
+
+- **Server owner** — always has full access. Runs `/access officer-role:<role>`
+  once to designate the officer role.
+- **Officer role** — can create and edit raid teams (`/raid-setup`,
+  `/raid-slot add|remove`) and call out on behalf of other raiders
+  (`/callout user:<member>`).
+- **Raider role** (a team's own role) — read-only everywhere except calling
+  out for themselves, via the schedule message's buttons or `/callout`.
+- Everyone can read: `/raid-status`, `/raid-calendar`, `/raid-slot list`.
+
 ## How it works
 
 - `/raid-setup` (Administrators only) — binds a role + channel + timezone as
