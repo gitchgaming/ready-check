@@ -1,12 +1,12 @@
 import { DateTime } from "luxon";
 import type { Client } from "discord.js";
 import { prisma } from "./db.js";
-import { buildRaidMessage } from "./embeds.js";
+import { buildTeamMessage, type ViewMode } from "./embeds.js";
 
-/** How many future raid instances to keep visible per team. */
+/** How many future raid instances to keep generated/shown per team. */
 const UPCOMING_WINDOW = 3;
 
-/** How long after a raid's start time before its message is closed out. */
+/** How long after a raid's start time before it moves into history. */
 const CLOSE_GRACE_HOURS = 3;
 
 function nextOccurrence(
@@ -40,73 +40,71 @@ function nextOccurrences(
   return results;
 }
 
-/** Ensures the next N raid instances exist (as DB rows + posted messages) for a team. */
+/** Ensures the next N raid instances exist as DB rows, closes out expired ones, and re-renders the team's message. */
 export async function syncRaidTeam(client: Client, teamId: string): Promise<void> {
   const team = await prisma.raidTeam.findUnique({ where: { id: teamId }, include: { slots: true } });
-  if (!team || team.slots.length === 0) return;
+  if (!team) return;
 
-  const candidates = team.slots.flatMap((slot) =>
-    nextOccurrences(slot.dayOfWeek, slot.hour, slot.minute, team.timezone, UPCOMING_WINDOW),
-  );
-  candidates.sort((a, b) => a.toMillis() - b.toMillis());
-  const chosen = candidates.slice(0, UPCOMING_WINDOW);
+  if (team.slots.length > 0) {
+    const candidates = team.slots.flatMap((slot) =>
+      nextOccurrences(slot.dayOfWeek, slot.hour, slot.minute, team.timezone, UPCOMING_WINDOW),
+    );
+    candidates.sort((a, b) => a.toMillis() - b.toMillis());
+    const chosen = candidates.slice(0, UPCOMING_WINDOW);
+
+    for (const startsAt of chosen) {
+      await prisma.raidInstance.upsert({
+        where: { raidTeamId_startsAt: { raidTeamId: team.id, startsAt: startsAt.toJSDate() } },
+        create: { raidTeamId: team.id, startsAt: startsAt.toJSDate() },
+        update: {},
+      });
+    }
+  }
+
+  const cutoff = DateTime.now().minus({ hours: CLOSE_GRACE_HOURS }).toJSDate();
+  await prisma.raidInstance.updateMany({
+    where: { raidTeamId: team.id, closed: false, startsAt: { lt: cutoff } },
+    data: { closed: true },
+  });
+
+  await renderTeamMessage(client, team.id);
+}
+
+/** Fetches the instances to display for a team's current view mode, in chronological order. */
+export async function instancesForMode(teamId: string, mode: ViewMode) {
+  const instances = await prisma.raidInstance.findMany({
+    where: { raidTeamId: teamId, closed: mode === "history" },
+    include: { attendance: true },
+    orderBy: { startsAt: mode === "history" ? "desc" : "asc" },
+    take: UPCOMING_WINDOW,
+  });
+  // Keep chronological order within the card grid even for history (most-recent-first query above).
+  if (mode === "history") instances.reverse();
+  return instances;
+}
+
+/** Re-renders a team's single persistent schedule message from current DB state. */
+export async function renderTeamMessage(client: Client, teamId: string): Promise<void> {
+  const team = await prisma.raidTeam.findUnique({ where: { id: teamId } });
+  if (!team) return;
+
+  const mode = (team.viewMode as ViewMode) ?? "upcoming";
+  const instances = await instancesForMode(team.id, mode);
+  const content = buildTeamMessage(team, instances, mode);
 
   const channel = await client.channels.fetch(team.channelId).catch(() => null);
   if (!channel || !channel.isTextBased()) return;
 
-  for (const startsAt of chosen) {
-    const existing = await prisma.raidInstance.findUnique({
-      where: { raidTeamId_startsAt: { raidTeamId: team.id, startsAt: startsAt.toJSDate() } },
-    });
-    if (existing) continue;
-
-    const instance = await prisma.raidInstance.create({
-      data: {
-        raidTeamId: team.id,
-        startsAt: startsAt.toJSDate(),
-        channelId: team.channelId,
-      },
-    });
-
-    const { embeds, components } = buildRaidMessage(team, instance, []);
-    const message = await channel.send({ embeds, components });
-    await prisma.raidInstance.update({ where: { id: instance.id }, data: { messageId: message.id } });
+  if (team.messageId) {
+    const existing = await channel.messages.fetch(team.messageId).catch(() => null);
+    if (existing) {
+      await existing.edit(content);
+      return;
+    }
   }
 
-  await closeExpiredInstances(client, team.id);
-}
-
-async function closeExpiredInstances(client: Client, raidTeamId: string): Promise<void> {
-  const cutoff = DateTime.now().minus({ hours: CLOSE_GRACE_HOURS }).toJSDate();
-  const expired = await prisma.raidInstance.findMany({
-    where: { raidTeamId, closed: false, startsAt: { lt: cutoff } },
-  });
-
-  for (const instance of expired) {
-    await prisma.raidInstance.update({ where: { id: instance.id }, data: { closed: true } });
-    await refreshInstanceMessage(client, instance.id).catch((err) => {
-      console.error(`Failed to close out message for raid instance ${instance.id}:`, err);
-    });
-  }
-}
-
-/** Re-renders a raid instance's embed/buttons from current DB state. */
-export async function refreshInstanceMessage(client: Client, instanceId: string): Promise<void> {
-  const instance = await prisma.raidInstance.findUnique({
-    where: { id: instanceId },
-    include: { raidTeam: true, attendance: true },
-  });
-  if (!instance || !instance.messageId) return;
-
-  const channel = await client.channels.fetch(instance.channelId).catch(() => null);
-  if (!channel || !channel.isTextBased()) return;
-
-  const message = await channel.messages.fetch(instance.messageId).catch(() => null);
-  if (!message) return;
-
-  const calledOut = instance.attendance.filter((a) => a.status === "OUT").map((a) => a.userId);
-  const { embeds, components } = buildRaidMessage(instance.raidTeam, instance, calledOut);
-  await message.edit({ embeds, components });
+  const message = await channel.send(content);
+  await prisma.raidTeam.update({ where: { id: team.id }, data: { messageId: message.id } });
 }
 
 export async function syncAllRaidTeams(client: Client): Promise<void> {

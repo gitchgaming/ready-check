@@ -8,7 +8,9 @@ generator client {
 }
 
 // One RaidTeam = one Discord role whose members are assumed required for
-// every raid instance generated from its slots, posted into one channel.
+// every raid instance generated from its slots. The team's schedule lives
+// in a single persistent message in one channel, edited in place as raids
+// come and go rather than posting a new message per raid.
 model RaidTeam {
   id        String   @id @default(cuid())
   guildId   String
@@ -17,6 +19,11 @@ model RaidTeam {
   timezone  String
   name      String?
   createdAt DateTime @default(now())
+
+  // The one persistent schedule message for this team.
+  messageId String?
+  // "upcoming" (default, actionable) | "history" (read-only audit view).
+  viewMode  String   @default("upcoming")
 
   slots     RaidSlot[]
   instances RaidInstance[]
@@ -41,12 +48,12 @@ model RaidSlot {
 // A concrete occurrence of a raid, generated ahead of time from a team's
 // slots. Attendance defaults to "required" (IN) for every member holding
 // the team's role — an Attendance row only exists for explicit overrides.
+// closed flips to true a few hours after startsAt, after which it's
+// read-only and only shows up in the team's history view.
 model RaidInstance {
   id         String   @id @default(cuid())
   raidTeamId String
   startsAt   DateTime
-  channelId  String
-  messageId  String?
   closed     Boolean  @default(false)
 
   raidTeam   RaidTeam     @relation(fields: [raidTeamId], references: [id], onDelete: Cascade)

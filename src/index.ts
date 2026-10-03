@@ -2,6 +2,7 @@ import "dotenv/config";
 import { Client, Events, GatewayIntentBits } from "discord.js";
 import { commands } from "./commands/index.js";
 import { isAttendanceButton, handleAttendanceButton } from "./interactions/attendanceButton.js";
+import { isNavButton, handleNavButton } from "./interactions/navButton.js";
 import { syncAllRaidTeams } from "./lib/scheduler.js";
 
 const token = process.env.DISCORD_TOKEN;
@@ -36,6 +37,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (interaction.isButton() && isAttendanceButton(interaction.customId)) {
       await handleAttendanceButton(interaction, client);
+      return;
+    }
+
+    if (interaction.isButton() && isNavButton(interaction.customId)) {
+      await handleNavButton(interaction, client);
       return;
     }
   } catch (err) {

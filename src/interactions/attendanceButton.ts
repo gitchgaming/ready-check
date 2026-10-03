@@ -1,19 +1,19 @@
 import type { ButtonInteraction, Client } from "discord.js";
 import { prisma } from "../lib/db.js";
-import { refreshInstanceMessage } from "../lib/scheduler.js";
+import { renderTeamMessage } from "../lib/scheduler.js";
 
-/** customId shape: "attendance:<in|out>:<raidInstanceId>" */
+/** customId shape: "attendance:<raidInstanceId>" — clicking toggles the clicker's own status. */
 export function isAttendanceButton(customId: string): boolean {
   return customId.startsWith("attendance:");
 }
 
 export async function handleAttendanceButton(interaction: ButtonInteraction, client: Client): Promise<void> {
-  const [, action, instanceId] = interaction.customId.split(":");
-  if ((action !== "in" && action !== "out") || !instanceId) return;
+  const [, instanceId] = interaction.customId.split(":");
+  if (!instanceId) return;
 
   const instance = await prisma.raidInstance.findUnique({
     where: { id: instanceId },
-    include: { raidTeam: true },
+    include: { raidTeam: true, attendance: { where: { userId: interaction.user.id } } },
   });
 
   if (!instance) {
@@ -35,21 +35,21 @@ export async function handleAttendanceButton(interaction: ButtonInteraction, cli
     return;
   }
 
-  if (action === "in") {
-    // Default state is IN, so "I'm in" just clears any prior call-out.
+  const currentlyOut = instance.attendance.length > 0;
+  const dateLabel = instance.startsAt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+  if (currentlyOut) {
     await prisma.attendance.deleteMany({ where: { raidInstanceId: instance.id, userId: interaction.user.id } });
   } else {
-    await prisma.attendance.upsert({
-      where: { raidInstanceId_userId: { raidInstanceId: instance.id, userId: interaction.user.id } },
-      create: { raidInstanceId: instance.id, userId: interaction.user.id, status: "OUT" },
-      update: { status: "OUT" },
+    await prisma.attendance.create({
+      data: { raidInstanceId: instance.id, userId: interaction.user.id, status: "OUT" },
     });
   }
 
-  await refreshInstanceMessage(client, instance.id);
+  await renderTeamMessage(client, instance.raidTeamId);
 
   await interaction.reply({
-    content: action === "in" ? "✅ Marked you as in." : "❌ Marked you as called out for this raid.",
+    content: currentlyOut ? `✅ Marked you as in for ${dateLabel}.` : `❌ Marked you as called out for ${dateLabel}.`,
     ephemeral: true,
   });
 }
