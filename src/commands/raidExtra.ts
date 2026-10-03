@@ -7,7 +7,7 @@ import { renderTeamMessage } from "../lib/scheduler.js";
 const WHEN_FORMAT = "yyyy-MM-dd HH:mm";
 
 export const data = new SlashCommandBuilder()
-  .setName("raid-adhoc")
+  .setName("raid-extra")
   .setDescription("Officers: add a one-off raid that isn't on the weekly schedule.")
   .addRoleOption((opt) => opt.setName("role").setDescription("The raid team's role").setRequired(true))
   .addStringOption((opt) =>

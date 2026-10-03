@@ -22,7 +22,7 @@ lets you call out for a specific future date without touching any buttons.
 - `/raid-cancel role:<role> date:<date>` (officers only) cancels an upcoming
   raid. It drops off the schedule and can't be called out for. The record is
   kept, so the weekly sync won't bring it back.
-- `/raid-adhoc role:<role> when:<YYYY-MM-DD HH:MM>` (officers only) adds a
+- `/raid-extra role:<role> when:<YYYY-MM-DD HH:MM>` (officers only) adds a
   one-off raid in the team's timezone. Cancelling a raid and then adding one
   at the same time reinstates it.
 - `/raid-publish role:<role>` (officers only) reposts a team's schedule message

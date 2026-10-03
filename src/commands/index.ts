@@ -5,8 +5,8 @@ import * as calinFor from "./calinFor.js";
 import * as callout from "./callout.js";
 import * as calloutFor from "./calloutFor.js";
 import * as raidCalendar from "./raidCalendar.js";
-import * as raidAdhoc from "./raidAdhoc.js";
 import * as raidCancel from "./raidCancel.js";
+import * as raidExtra from "./raidExtra.js";
 import * as raidPublish from "./raidPublish.js";
 import * as raidRoster from "./raidRoster.js";
 import * as raidSetup from "./raidSetup.js";
@@ -28,7 +28,7 @@ export const commands: Command[] = [
   raidRoster,
   raidPublish,
   raidCancel,
-  raidAdhoc,
+  raidExtra,
   callout,
   callin,
   calloutFor,
