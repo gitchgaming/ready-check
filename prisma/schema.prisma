@@ -23,9 +23,11 @@ model RaidTeam {
   // The one persistent, non-scrolling schedule message for this team.
   messageId String?
   // How many upcoming raids the public message shows at once. Configurable
-  // via /raid-setup. Personal scrolling happens only through /raid-calendar,
-  // which is ephemeral and never affects this message.
-  displayCount Int @default(6)
+  // via /raid-setup. Default 3 because Discord caps inline embed fields at
+  // 3 per row — anything higher wraps to multiple rows (Discord's layout,
+  // not configurable by the bot). Personal scrolling happens only through
+  // /raid-calendar, which is ephemeral and never affects this message.
+  displayCount Int @default(3)
 
   slots     RaidSlot[]
   instances RaidInstance[]

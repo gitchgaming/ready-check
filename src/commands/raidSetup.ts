@@ -35,7 +35,7 @@ export const data = new SlashCommandBuilder()
   .addIntegerOption((opt) =>
     opt
       .setName("raids-shown")
-      .setDescription("How many upcoming raids the schedule message shows at once (default 6)")
+      .setDescription("How many upcoming raids the schedule message shows (default 3 — more wraps to extra rows)")
       .setMinValue(1)
       .setMaxValue(10)
       .setRequired(false),

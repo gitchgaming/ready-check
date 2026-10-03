@@ -13,8 +13,11 @@ lets you call out for a specific future date without touching any buttons.
 
 - `/raid-setup` (Administrators only) — binds a role + channel + timezone as
   a "raid team". That team's schedule message posts and lives in that
-  channel. Optional `raids-shown` (1–10, default 6) sets how many upcoming
-  raids the message displays at once.
+  channel. Optional `raids-shown` (1–10, default 3) sets how many upcoming
+  raids the message displays at once — **3 is the sweet spot**: Discord caps
+  inline embed cards at 3 per row (not configurable by the bot), so 3 is the
+  largest count that's guaranteed to render as a single tidy row. Anything
+  higher wraps to extra rows.
 - `/raid-slot add|remove|list` (Administrators only) — manages the weekly
   recurring raid times for a team, e.g. Tuesday 20:00 and Thursday 20:00
   (times can differ per day — each instance keeps its own start time).
@@ -31,9 +34,9 @@ lets you call out for a specific future date without touching any buttons.
   buttons. Since it's ephemeral, only the person who ran it sees it or can
   page it — it never affects the public message or other viewers. The bot
   keeps at least 12 future raids generated per team so there's always
-  several pages to page forward into (more if `raids-shown` is set above
-  12). Officers can use it to review history; raiders can use it to call out
-  further ahead than the public message currently shows.
+  several pages to page forward into. Officers can use it to review history;
+  raiders can use it to call out further ahead than the public message
+  currently shows.
 - `/callout role:<role> date:<date>` — call out for a specific future raid
   without touching any buttons. `date` autocompletes against that team's
   actual upcoming raid dates as you type, so you can't submit an invalid one.
