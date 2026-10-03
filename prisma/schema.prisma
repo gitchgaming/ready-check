@@ -63,6 +63,9 @@ model RaidInstance {
   raidTeamId String
   startsAt   DateTime
   closed     Boolean  @default(false)
+  // Cancelled raids are hidden from the schedule and reject call-outs. Kept
+  // rather than deleted so the hourly sync doesn't regenerate them.
+  cancelled  Boolean  @default(false)
 
   raidTeam   RaidTeam     @relation(fields: [raidTeamId], references: [id], onDelete: Cascade)
   attendance Attendance[]

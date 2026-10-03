@@ -31,6 +31,11 @@ export async function handleAttendanceButton(interaction: ButtonInteraction, cli
     return;
   }
 
+  if (instance.cancelled) {
+    await interaction.reply({ content: "This raid has been cancelled.", ephemeral: true });
+    return;
+  }
+
   if (instance.closed) {
     await interaction.reply({ content: "This raid has already started or passed.", ephemeral: true });
     return;

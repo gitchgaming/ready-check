@@ -79,7 +79,7 @@ export async function syncRaidTeam(client: Client, teamId: string): Promise<void
 /** The next `count` open (not-yet-closed) raid instances, soonest first. */
 export async function nextOpenInstances(teamId: string, count: number) {
   return prisma.raidInstance.findMany({
-    where: { raidTeamId: teamId, closed: false },
+    where: { raidTeamId: teamId, closed: false, cancelled: false },
     include: { attendance: true },
     orderBy: { startsAt: "asc" },
     take: count,
@@ -95,7 +95,7 @@ export interface WindowResult {
 async function fetchWindowInstances(teamId: string, closed: boolean, skip: number, take: number) {
   if (take <= 0) return [];
   return prisma.raidInstance.findMany({
-    where: { raidTeamId: teamId, closed },
+    where: { raidTeamId: teamId, closed, cancelled: false },
     include: { attendance: true },
     orderBy: { startsAt: "asc" },
     skip,
@@ -109,8 +109,8 @@ async function fetchWindowInstances(teamId: string, closed: boolean, skip: numbe
  * raids occupy indices starting at 0. Purely computed per-call; nothing is persisted.
  */
 export async function instancesForWindow(teamId: string, offset: number): Promise<WindowResult> {
-  const closedCount = await prisma.raidInstance.count({ where: { raidTeamId: teamId, closed: true } });
-  const openCount = await prisma.raidInstance.count({ where: { raidTeamId: teamId, closed: false } });
+  const closedCount = await prisma.raidInstance.count({ where: { raidTeamId: teamId, closed: true, cancelled: false } });
+  const openCount = await prisma.raidInstance.count({ where: { raidTeamId: teamId, closed: false, cancelled: false } });
   const totalCount = closedCount + openCount;
   const anchorIndex = closedCount;
 
@@ -139,8 +139,8 @@ export async function instancesForWindow(teamId: string, offset: number): Promis
 
 /** Clamps a requested /raid-calendar offset so the resulting window stays within available instances. */
 export async function clampOffset(teamId: string, requestedOffset: number): Promise<number> {
-  const closedCount = await prisma.raidInstance.count({ where: { raidTeamId: teamId, closed: true } });
-  const openCount = await prisma.raidInstance.count({ where: { raidTeamId: teamId, closed: false } });
+  const closedCount = await prisma.raidInstance.count({ where: { raidTeamId: teamId, closed: true, cancelled: false } });
+  const openCount = await prisma.raidInstance.count({ where: { raidTeamId: teamId, closed: false, cancelled: false } });
   const totalCount = closedCount + openCount;
   const anchorIndex = closedCount;
 

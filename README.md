@@ -19,6 +19,12 @@ lets you call out for a specific future date without touching any buttons.
 - **Raider role** (a team's own role) — read-only everywhere except calling
   out for themselves, via the schedule message's buttons or `/callout`.
 - Everyone can read: `/raid-status`, `/raid-calendar`, `/raid-slot list`.
+- `/raid-cancel role:<role> date:<date>` (officers only) cancels an upcoming
+  raid. It drops off the schedule and can't be called out for. The record is
+  kept, so the weekly sync won't bring it back.
+- `/raid-adhoc role:<role> when:<YYYY-MM-DD HH:MM>` (officers only) adds a
+  one-off raid in the team's timezone. Cancelling a raid and then adding one
+  at the same time reinstates it.
 - `/raid-publish role:<role>` (officers only) reposts a team's schedule message
   in the channel where it's run, removing the old one if it still exists. Use
   it if the schedule message was deleted.

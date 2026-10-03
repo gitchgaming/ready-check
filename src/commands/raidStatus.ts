@@ -27,7 +27,7 @@ export async function execute(interaction: ChatInputCommandInteraction, _client:
   }
 
   const instances = await prisma.raidInstance.findMany({
-    where: { raidTeamId: team.id, closed: false },
+    where: { raidTeamId: team.id, closed: false, cancelled: false },
     include: { attendance: true },
     orderBy: { startsAt: "asc" },
   });

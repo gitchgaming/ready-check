@@ -64,7 +64,7 @@ export function makeAttendanceCommand({ name, description, status, forOthers }: 
     const perTeamInstances = await Promise.all(
       teams.map((team) =>
         prisma.raidInstance.findMany({
-          where: { raidTeamId: team.id, closed: false },
+          where: { raidTeamId: team.id, closed: false, cancelled: false },
           orderBy: { startsAt: "asc" },
           take: perTeam,
         }),
@@ -135,6 +135,11 @@ export function makeAttendanceCommand({ name, description, status, forOthers }: 
 
     if (instance.closed) {
       await interaction.reply({ content: "This raid has already started or passed.", ephemeral: true });
+      return;
+    }
+
+    if (instance.cancelled) {
+      await interaction.reply({ content: "This raid has been cancelled.", ephemeral: true });
       return;
     }
 
