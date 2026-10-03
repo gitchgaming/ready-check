@@ -55,6 +55,9 @@ lets you call out for a specific future date without touching any buttons.
 - `/callout role:<role> date:<date>` — call out for a specific future raid
   without touching any buttons. `date` autocompletes against that team's
   actual upcoming raid dates as you type, so you can't submit an invalid one.
+- `/callin role:<role> date:<date>` — the reverse: mark yourself back in for a
+  raid you previously called out for. Same autocomplete and roster rules as
+  `/callout`.
 - A raid instance closes (drops into history) a few hours after its start
   time, the next time the bot re-syncs (hourly by default).
 - `/raid-status` — a quick ephemeral list of upcoming raids and call-outs,
