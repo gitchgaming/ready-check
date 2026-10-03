@@ -3,15 +3,24 @@ import { prisma } from "./db.js";
 
 const MAX_DESCRIPTION = 4000; // Discord caps embed descriptions at 4096
 
+/**
+ * Fetches the full member list only when the cache is incomplete. Discord's member
+ * events keep the cache current after that, so repeated full fetches are avoided.
+ */
+export async function ensureMembersCached(guild: Guild): Promise<void> {
+  if (guild.members.cache.size < guild.memberCount) await guild.members.fetch();
+}
+
 /** IDs of non-bot members currently holding the role. */
 export async function rosterMemberIds(guild: Guild, roleId: string): Promise<Set<string>> {
-  const members = await guild.members.fetch();
-  return new Set(members.filter((m) => !m.user.bot && m.roles.cache.has(roleId)).map((m) => m.id));
+  await ensureMembersCached(guild);
+  return new Set(guild.members.cache.filter((m) => !m.user.bot && m.roles.cache.has(roleId)).map((m) => m.id));
 }
 
 export async function fetchRosterNames(guild: Guild, roleId: string): Promise<string[]> {
-  const members = await guild.members.fetch();
-  return members
+  await ensureMembersCached(guild);
+  return guild.members.cache
+    .filter((m) => !m.user.bot && m.roles.cache.has(roleId))
     .filter((m) => !m.user.bot && m.roles.cache.has(roleId))
     .map((m) => m.displayName)
     .sort((a, b) => a.localeCompare(b));

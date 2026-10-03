@@ -4,7 +4,7 @@ import { commands } from "./commands/index.js";
 import { isAttendanceButton, handleAttendanceButton } from "./interactions/attendanceButton.js";
 import { isNavButton, handleNavButton } from "./interactions/navButton.js";
 import { prisma } from "./lib/db.js";
-import { renderRoster } from "./lib/roster.js";
+import { ensureMembersCached, renderRoster } from "./lib/roster.js";
 import { renderTeamMessage, syncAllRaidTeams } from "./lib/scheduler.js";
 
 const token = process.env.DISCORD_TOKEN;
@@ -49,6 +49,9 @@ client.on(Events.GuildMemberRemove, (member) => scheduleRosterRefresh(member.gui
 
 client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Logged in as ${readyClient.user.tag}`);
+  for (const guild of readyClient.guilds.cache.values()) {
+    await ensureMembersCached(guild).catch((err) => console.error("Member cache warmup failed:", err));
+  }
   await syncAllRaidTeams(readyClient).catch((err) => console.error("Initial raid sync failed:", err));
   setInterval(() => {
     syncAllRaidTeams(readyClient).catch((err) => console.error("Scheduled raid sync failed:", err));
