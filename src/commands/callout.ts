@@ -25,7 +25,7 @@ export const data = new SlashCommandBuilder()
 export async function autocomplete(interaction: AutocompleteInteraction): Promise<void> {
   const role = interaction.options.getRole("role");
   if (!role || !interaction.guildId) {
-    await interaction.respond([]);
+    await interaction.respond([{ name: "Pick a role above first", value: "none" }]);
     return;
   }
 
@@ -33,7 +33,7 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
     where: { guildId_roleId: { guildId: interaction.guildId, roleId: role.id } },
   });
   if (!team) {
-    await interaction.respond([]);
+    await interaction.respond([{ name: `${role.name} isn't set up as a raid team yet`, value: "none" }]);
     return;
   }
 
@@ -49,6 +49,11 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
     .filter(({ label }) => label.toLowerCase().includes(focused))
     .slice(0, MAX_CHOICES)
     .map(({ instance, label }) => ({ name: label, value: instance.id }));
+
+  if (choices.length === 0) {
+    await interaction.respond([{ name: "No upcoming raids found for this team", value: "none" }]);
+    return;
+  }
 
   await interaction.respond(choices);
 }
