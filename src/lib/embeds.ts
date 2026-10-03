@@ -6,39 +6,36 @@ import {
 } from "discord.js";
 import type { Attendance, RaidInstance, RaidTeam } from "@prisma/client";
 
-export type ViewMode = "upcoming" | "history";
-
 type InstanceWithAttendance = RaidInstance & { attendance: Attendance[] };
+
+export interface NavState {
+  canEarlier: boolean;
+  canLater: boolean;
+}
 
 const MAX_DATE_BUTTONS = 5; // Discord's limit per action row
 
-export function buildTeamMessage(
-  team: RaidTeam,
-  instances: InstanceWithAttendance[],
-  mode: ViewMode,
-) {
-  const isHistory = mode === "history";
+export function buildTeamMessage(team: RaidTeam, instances: InstanceWithAttendance[], nav: NavState) {
+  const anyOpen = instances.some((i) => !i.closed);
 
   const embed = new EmbedBuilder()
-    .setTitle(`${team.name ?? "Raid"} — ${isHistory ? "past raids" : "upcoming schedule"}`)
-    .setColor(isHistory ? 0x6b7280 : 0x5865f2);
+    .setTitle(`${team.name ?? "Raid"} — schedule`)
+    .setColor(instances.length > 0 && !anyOpen ? 0x6b7280 : 0x5865f2);
 
   if (instances.length === 0) {
-    embed.setDescription(
-      isHistory ? "No past raids yet." : "No raids scheduled yet. Add times with `/raid-slot add`.",
-    );
+    embed.setDescription("No raids to show here yet. Add times with `/raid-slot add`.");
   } else {
     embed.setDescription(
-      isHistory
-        ? "These raids already happened — attendance is locked."
-        : "Click a date to call out — it's toggleable, so click again anytime to switch back.",
+      anyOpen
+        ? "Click a date to call out — it's toggleable, so click again anytime to switch back."
+        : "These raids already happened — attendance is locked.",
     );
     for (const instance of instances) {
       const unix = Math.floor(instance.startsAt.getTime() / 1000);
-      const calledOut = instance.attendance.filter((a) => a.status === "OUT").map((a) => `<@${a.userId}>`);
+      const calledOut = instance.attendance.filter((a) => a.status === "OUT").map((a) => `❌ <@${a.userId}>`);
       embed.addFields({
         name: `<t:${unix}:D>`,
-        value: `<t:${unix}:t> · <t:${unix}:R>\n${calledOut.length > 0 ? calledOut.join(", ") : "—"}`,
+        value: `<t:${unix}:t> · <t:${unix}:R>\n\n${calledOut.length > 0 ? calledOut.join("\n") : "—"}`,
         inline: true,
       });
     }
@@ -46,9 +43,10 @@ export function buildTeamMessage(
 
   const rows: ActionRowBuilder<ButtonBuilder>[] = [];
 
-  if (!isHistory && instances.length > 0) {
+  const openInstances = instances.filter((i) => !i.closed);
+  if (openInstances.length > 0) {
     const dateRow = new ActionRowBuilder<ButtonBuilder>();
-    for (const instance of instances.slice(0, MAX_DATE_BUTTONS)) {
+    for (const instance of openInstances.slice(0, MAX_DATE_BUTTONS)) {
       dateRow.addComponents(
         new ButtonBuilder()
           .setCustomId(`attendance:${instance.id}`)
@@ -64,12 +62,12 @@ export function buildTeamMessage(
       .setCustomId(`nav:earlier:${team.id}`)
       .setLabel("← Earlier")
       .setStyle(ButtonStyle.Secondary)
-      .setDisabled(isHistory),
+      .setDisabled(!nav.canEarlier),
     new ButtonBuilder()
       .setCustomId(`nav:later:${team.id}`)
       .setLabel("Later →")
       .setStyle(ButtonStyle.Secondary)
-      .setDisabled(!isHistory),
+      .setDisabled(!nav.canLater),
   );
   rows.push(navRow);
 

@@ -22,8 +22,11 @@ model RaidTeam {
 
   // The one persistent schedule message for this team.
   messageId String?
-  // "upcoming" (default, actionable) | "history" (read-only audit view).
-  viewMode  String   @default("upcoming")
+  // Position of the currently-displayed 3-raid window, as an index offset
+  // from the next upcoming raid (0 = the next 3; negative = paged back into
+  // closed/history raids; positive = paged forward into further-future
+  // raids). Shared across every viewer, same as the message itself.
+  windowOffset Int @default(0)
 
   slots     RaidSlot[]
   instances RaidInstance[]

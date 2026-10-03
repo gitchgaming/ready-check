@@ -21,13 +21,22 @@ a button per date to toggle your own call-out. Raid leaders run
   *your* call-out for that raid; nothing to click means you're in. Since a
   button's label/color is shared by everyone who sees the message, personal
   feedback comes back as an ephemeral reply rather than the button changing.
-- **← Earlier** flips the same message into a read-only history view of past
-  raids (who missed what) — **Later →** flips back. History can't be edited;
-  it's audit-only.
-- A raid instance closes (drops out of "upcoming" into history) a few hours
-  after its start time, the next time the bot re-syncs (hourly by default).
+- **← Earlier / Later →** page the same 3-card window back and forth through
+  the team's full raid timeline. Paging into the past shows closed, read-only
+  raids (who missed what, no buttons — audit only); paging into the future
+  shows further-out raids, still fully actionable. The bot keeps the next 12
+  raids generated per team at all times, so you can page up to 4 windows
+  into the future (longer for a team with fewer than 2 raids/week, since it's
+  12 raids, not 12 weeks).
+- Paging is shared, not personal — like the call-out buttons, the window
+  position lives on the one message, so if someone pages forward to call out
+  for a raid two months out, everyone sees that window until someone pages
+  it back.
+- A raid instance closes (drops into history) a few hours after its start
+  time, the next time the bot re-syncs (hourly by default).
 - `/raid-status` — a quick ephemeral list of upcoming raids and call-outs,
-  independent of the persistent message.
+  independent of the persistent message and always showing the true next 3
+  regardless of where the shared window is currently paged to.
 
 ## Development (GitHub Codespaces)
 
