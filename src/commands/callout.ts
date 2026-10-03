@@ -41,21 +41,25 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
   const instances = await prisma.raidInstance.findMany({
     where: { raidTeamId: team.id, closed: false },
     orderBy: { startsAt: "asc" },
-    take: MAX_CHOICES * 2,
+    take: MAX_CHOICES,
   });
 
-  const choices = instances
-    .map((instance) => ({ instance, label: formatLabel(instance.startsAt, team.timezone) }))
-    .filter(({ label }) => label.toLowerCase().includes(focused))
-    .slice(0, MAX_CHOICES)
-    .map(({ instance, label }) => ({ name: label, value: instance.id }));
-
-  if (choices.length === 0) {
+  if (instances.length === 0) {
     await interaction.respond([{ name: "No upcoming raids found for this team", value: "none" }]);
     return;
   }
 
-  await interaction.respond(choices);
+  const allChoices = instances.map((instance) => ({
+    name: formatLabel(instance.startsAt, team.timezone),
+    value: instance.id,
+  }));
+
+  // Only narrow by the typed text when it actually matches something —
+  // otherwise an unexpected format (e.g. "10/5") would dead-end to nothing
+  // even though valid dates exist.
+  const filtered = focused ? allChoices.filter((c) => c.name.toLowerCase().includes(focused)) : allChoices;
+
+  await interaction.respond(filtered.length > 0 ? filtered : allChoices);
 }
 
 export async function execute(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
