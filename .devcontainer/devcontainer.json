@@ -1,0 +1,13 @@
+{
+  "name": "ready-check",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-20-bookworm",
+  "postCreateCommand": "npm install",
+  "customizations": {
+    "vscode": {
+      "extensions": ["Prisma.prisma", "dbaeumer.vscode-eslint"]
+    }
+  },
+  "remoteEnv": {
+    "DATABASE_URL": "file:./prisma/dev.db"
+  }
+}

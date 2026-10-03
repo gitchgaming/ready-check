@@ -1,0 +1,68 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// One RaidTeam = one Discord role whose members are assumed required for
+// every raid instance generated from its slots, posted into one channel.
+model RaidTeam {
+  id        String   @id @default(cuid())
+  guildId   String
+  roleId    String
+  channelId String
+  timezone  String
+  name      String?
+  createdAt DateTime @default(now())
+
+  slots     RaidSlot[]
+  instances RaidInstance[]
+
+  @@unique([guildId, roleId])
+}
+
+// A weekly recurring raid time, e.g. "Tuesday 20:00". dayOfWeek follows
+// Luxon's convention: 1 = Monday ... 7 = Sunday.
+model RaidSlot {
+  id         String @id @default(cuid())
+  raidTeamId String
+  dayOfWeek  Int
+  hour       Int
+  minute     Int
+
+  raidTeam RaidTeam @relation(fields: [raidTeamId], references: [id], onDelete: Cascade)
+
+  @@unique([raidTeamId, dayOfWeek, hour, minute])
+}
+
+// A concrete occurrence of a raid, generated ahead of time from a team's
+// slots. Attendance defaults to "required" (IN) for every member holding
+// the team's role — an Attendance row only exists for explicit overrides.
+model RaidInstance {
+  id         String   @id @default(cuid())
+  raidTeamId String
+  startsAt   DateTime
+  channelId  String
+  messageId  String?
+  closed     Boolean  @default(false)
+
+  raidTeam   RaidTeam     @relation(fields: [raidTeamId], references: [id], onDelete: Cascade)
+  attendance Attendance[]
+
+  @@unique([raidTeamId, startsAt])
+}
+
+model Attendance {
+  id             String   @id @default(cuid())
+  raidInstanceId String
+  userId         String
+  status         String // "IN" | "OUT"
+  updatedAt      DateTime @updatedAt
+
+  raidInstance RaidInstance @relation(fields: [raidInstanceId], references: [id], onDelete: Cascade)
+
+  @@unique([raidInstanceId, userId])
+}

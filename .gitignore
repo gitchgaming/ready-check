@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+*.log
+
+# SQLite
+prisma/*.db
+prisma/*.db-journal
+
+# Prisma generated client (regenerated via postinstall)
+generated/
