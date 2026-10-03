@@ -12,12 +12,16 @@ lets you call out for a specific future date without touching any buttons.
 ## How it works
 
 - `/raid-setup` (Administrators only) — binds a role + channel + timezone as
-  a "raid team". That team's schedule message posts and lives in that
-  channel. Optional `raids-shown` (1–10, default 3) sets how many upcoming
-  raids the message displays at once — **3 is the sweet spot**: Discord caps
-  inline embed cards at 3 per row (not configurable by the bot), so 3 is the
-  largest count that's guaranteed to render as a single tidy row. Anything
-  higher wraps to extra rows.
+  a "raid team". The role is the only required option and also the team's
+  identifier (one team per role), so re-running this later to tweak a
+  setting — `raids-shown`, the channel, the timezone, the name — only needs
+  `role` plus whichever field you're changing; anything left out keeps its
+  current value. `channel` and `timezone` are required only the first time,
+  since a new team can't exist without them. `raids-shown` (1–10, default 3)
+  sets how many upcoming raids the message displays at once — **3 is the
+  sweet spot**: Discord caps inline embed cards at 3 per row (not
+  configurable by the bot), so 3 is the largest count guaranteed to render
+  as a single tidy row. Anything higher wraps to extra rows.
 - `/raid-slot add|remove|list` (Administrators only) — manages the weekly
   recurring raid times for a team, e.g. Tuesday 20:00 and Thursday 20:00
   (times can differ per day — each instance keeps its own start time).

@@ -11,23 +11,26 @@ import { syncRaidTeam } from "../lib/scheduler.js";
 
 export const data = new SlashCommandBuilder()
   .setName("raid-setup")
-  .setDescription("Create or update a raid team: the role that's required, and where to post raids.")
+  .setDescription("Create a raid team, or update an existing one's settings.")
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
   .addRoleOption((opt) =>
-    opt.setName("role").setDescription("Role whose members are assumed required for this raid team").setRequired(true),
+    opt
+      .setName("role")
+      .setDescription("The raid team's role — identifies which team to create or update")
+      .setRequired(true),
   )
   .addChannelOption((opt) =>
     opt
       .setName("channel")
-      .setDescription("Channel to post raid schedules and call-out buttons in")
+      .setDescription("Channel to post the schedule message in (required for first-time setup)")
       .addChannelTypes(ChannelType.GuildText)
-      .setRequired(true),
+      .setRequired(false),
   )
   .addStringOption((opt) =>
     opt
       .setName("timezone")
-      .setDescription('IANA timezone for this team\'s raid times, e.g. "America/New_York"')
-      .setRequired(true),
+      .setDescription('IANA timezone, e.g. "America/New_York" (required for first-time setup)')
+      .setRequired(false),
   )
   .addStringOption((opt) =>
     opt.setName("name").setDescription('Display name for this raid team, e.g. "Main Raid"').setRequired(false),
@@ -48,14 +51,27 @@ export async function execute(interaction: ChatInputCommandInteraction, client: 
   }
 
   const role = interaction.options.getRole("role", true);
-  const channel = interaction.options.getChannel("channel", true);
-  const timezone = interaction.options.getString("timezone", true).trim();
+  const channel = interaction.options.getChannel("channel");
+  const timezoneInput = interaction.options.getString("timezone");
   const name = interaction.options.getString("name");
   const raidsShown = interaction.options.getInteger("raids-shown");
 
-  if (!DateTime.now().setZone(timezone).isValid) {
+  const timezone = timezoneInput?.trim();
+  if (timezone && !DateTime.now().setZone(timezone).isValid) {
     await interaction.reply({
       content: `"${timezone}" isn't a recognized IANA timezone. Try something like \`America/New_York\`, \`Europe/London\`, or \`Australia/Sydney\`.`,
+      ephemeral: true,
+    });
+    return;
+  }
+
+  const existing = await prisma.raidTeam.findUnique({
+    where: { guildId_roleId: { guildId: interaction.guildId, roleId: role.id } },
+  });
+
+  if (!existing && (!channel || !timezone)) {
+    await interaction.reply({
+      content: `<@&${role.id}> isn't set up yet — \`channel\` and \`timezone\` are required the first time.`,
       ephemeral: true,
     });
     return;
@@ -66,14 +82,14 @@ export async function execute(interaction: ChatInputCommandInteraction, client: 
     create: {
       guildId: interaction.guildId,
       roleId: role.id,
-      channelId: channel.id,
-      timezone,
+      channelId: channel!.id,
+      timezone: timezone!,
       name,
       ...(raidsShown ? { displayCount: raidsShown } : {}),
     },
     update: {
-      channelId: channel.id,
-      timezone,
+      ...(channel ? { channelId: channel.id } : {}),
+      ...(timezone ? { timezone } : {}),
       ...(name ? { name } : {}),
       ...(raidsShown ? { displayCount: raidsShown } : {}),
     },
@@ -83,10 +99,10 @@ export async function execute(interaction: ChatInputCommandInteraction, client: 
     content:
       `✅ Raid team **${team.name ?? role.name}** is set up.\n` +
       `• Role: <@&${role.id}>\n` +
-      `• Channel: <#${channel.id}>\n` +
-      `• Timezone: ${timezone}\n` +
+      `• Channel: <#${team.channelId}>\n` +
+      `• Timezone: ${team.timezone}\n` +
       `• Raids shown: ${team.displayCount}\n\n` +
-      "Next, add raid times with `/raid-slot add`.",
+      (existing ? "" : "Next, add raid times with `/raid-slot add`."),
     ephemeral: true,
   });
 
