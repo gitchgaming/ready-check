@@ -1,10 +1,16 @@
 {
   "name": "ready-check",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:1-20-bookworm",
-  "postCreateCommand": "npm install && npm install -g @anthropic-ai/claude-code",
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/workspaces/.claude-state"
+  },
+  "postCreateCommand": "sh .devcontainer/persist-claude.sh && npm install && npm install -g @anthropic-ai/claude-code",
   "customizations": {
     "vscode": {
-      "extensions": ["Prisma.prisma", "dbaeumer.vscode-eslint"]
+      "extensions": [
+        "Prisma.prisma",
+        "dbaeumer.vscode-eslint"
+      ]
     }
   }
 }
