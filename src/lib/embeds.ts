@@ -25,7 +25,7 @@ function buildScheduleEmbed(team: RaidTeam, instances: InstanceWithAttendance[],
     .setColor(instances.length > 0 && !anyOpen ? 0x6b7280 : 0x5865f2);
 
   if (instances.length === 0) {
-    embed.setDescription("No raids to show here yet. Add times with `/raid-slot add`.");
+    embed.setDescription("No raids to show here yet. Officers can add weekly raid nights with `/raidlead nights add`.");
     return embed;
   }
 
@@ -99,7 +99,7 @@ export function buildPublicMessage(team: RaidTeam, instances: InstanceWithAttend
   return { embeds: [embed], components: rows };
 }
 
-/** The personal, ephemeral /raid-calendar view: scrollable, state carried in customIds. */
+/** The personal, ephemeral /schedule view: scrollable, state carried in customIds. */
 export function buildCalendarMessage(
   team: RaidTeam,
   instances: InstanceWithAttendance[],

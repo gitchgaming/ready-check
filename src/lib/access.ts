@@ -1,32 +1,14 @@
-import type { ChatInputCommandInteraction, Guild } from "discord.js";
-import { prisma } from "./db.js";
+import { PermissionFlagsBits, type BaseInteraction } from "discord.js";
 
-export type AccessLevel = "owner" | "officer" | "member";
+/** The Discord permission that marks a member as an officer and makes /raidlead visible. */
+export const OFFICER_PERMISSION = PermissionFlagsBits.ManageEvents;
 
-export async function accessLevel(guild: Guild, userId: string): Promise<AccessLevel> {
-  if (guild.ownerId === userId) return "owner";
-
-  const config = await prisma.guildConfig.findUnique({ where: { guildId: guild.id } });
-  if (!config?.officerRoleId) return "member";
-
-  const member = await guild.members.fetch(userId).catch(() => null);
-  if (member?.roles.cache.has(config.officerRoleId)) return "officer";
-  return "member";
-}
-
-/** Replies with a denial and returns false unless the caller is the owner or officer. */
-export async function assertCanManage(interaction: ChatInputCommandInteraction): Promise<boolean> {
-  if (!interaction.guild) return false;
-  const level = await accessLevel(interaction.guild, interaction.user.id);
-  if (level === "owner" || level === "officer") return true;
-
-  await interaction.reply({
-    content: "You need the officer role to manage raid teams.",
-    ephemeral: true,
-  });
-  return false;
-}
-
-export function canCalloutForOthers(level: AccessLevel): boolean {
-  return level === "owner" || level === "officer";
+/**
+ * Officers are the server owner and anyone with Manage Events (Administrator
+ * implies it). Discord already hides /raidlead from everyone else, but server
+ * admins can override that in Integrations settings, so commands check again.
+ */
+export function isOfficer(interaction: BaseInteraction): boolean {
+  if (interaction.guild?.ownerId === interaction.user.id) return true;
+  return interaction.memberPermissions?.has(OFFICER_PERMISSION) ?? false;
 }

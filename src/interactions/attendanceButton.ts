@@ -8,7 +8,7 @@ import { instancesForWindow, renderTeamMessage } from "../lib/scheduler.js";
 /**
  * customId shape:
  *   "attendance:<raidInstanceId>"              — clicked from the public message
- *   "attendance:<raidInstanceId>:cal:<offset>" — clicked from a personal /raid-calendar
+ *   "attendance:<raidInstanceId>:cal:<offset>" — clicked from a personal /schedule
  * Either way, clicking toggles the clicker's own status for that raid.
  */
 export function isAttendanceButton(customId: string): boolean {

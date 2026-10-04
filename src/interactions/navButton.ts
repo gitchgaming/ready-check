@@ -6,7 +6,7 @@ import { PAGE_SIZE, clampOffset, instancesForWindow } from "../lib/scheduler.js"
 
 /**
  * customId shape: "mynav:<earlier|later>:<raidTeamId>:<currentOffset>"
- * Personal /raid-calendar paging only — nothing persisted, state lives in the
+ * Personal /schedule paging only — nothing persisted, state lives in the
  * customId itself, so it never affects the public message or other viewers.
  */
 export function isNavButton(customId: string): boolean {

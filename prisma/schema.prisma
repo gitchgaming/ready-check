@@ -73,13 +73,6 @@ model RaidInstance {
   @@unique([raidTeamId, startsAt])
 }
 
-// Per-guild access configuration, set by the server owner via /access.
-// The guild owner always has full access regardless of these roles.
-model GuildConfig {
-  guildId       String  @id
-  officerRoleId String?
-}
-
 model Attendance {
   id             String   @id @default(cuid())
   raidInstanceId String

@@ -2,90 +2,71 @@
 
 Discord bot for WoW raid scheduling and one-click attendance call-outs.
 
-Set a recurring raid schedule tied to a Discord role (attendance is assumed
-**required** by default for everyone with that role). Each raid team gets one
-fixed, auto-updating schedule message with a card per upcoming raid and a
-button per date to toggle your own call-out. `/raid-calendar` gives anyone a
-private, scrollable view of the full past/future timeline, and `/callout`
-lets you call out for a specific future date without touching any buttons.
+Each raid team is a Discord role. Everyone with the role is assumed to be
+attending every raid unless they call out. The bot keeps one auto-updating
+schedule message per team, with a card for each upcoming raid and a date
+button to toggle your own call-out.
 
-## Access
+## Who can do what
 
-- **Server owner** — always has full access. Runs `/access officer-role:<role>`
-  once to designate the officer role.
-- **Officer role** — can create and edit raid teams (`/raid-setup`,
-  `/raid-slot add|remove`) and call out on behalf of other raiders
-  (`/callout user:<member>`).
-- **Raider role** (a team's own role) — read-only everywhere except calling
-  out for themselves, via the schedule message's buttons or `/callout`.
-- Everyone can read: `/raid-status`, `/raid-calendar`, `/raid-slot list`.
-- `/raid-cancel role:<role> date:<date>` (officers only) cancels an upcoming
-  raid. It stays on the schedule with a 🚫 Cancelled status in place of the
-  attendance count, and its call-outs are hidden. Nobody can call out for it.
-- `/raid-uncancel role:<role> date:<date>` (officers only) restores a cancelled
-  raid. Everything comes back as it was, including any call-outs.
-- `/raid-extra role:<role> when:<YYYY-MM-DD HH:MM>` (officers only) adds a
-  one-off raid in the team's timezone. Adding one at the time of a cancelled
-  raid restores that raid.
-- `/raid-publish role:<role>` (officers only) reposts a team's schedule message
-  in the channel where it's run, removing the old one if it still exists. Use
-  it if the schedule message was deleted.
-- `/raid-roster role:<role>` (officers only) posts an auto-updating roster for
-  that team in the channel where it's run. It refreshes when members gain or
-  lose the role, join, or leave (batched a few seconds apart), and again every
-  hour as a safety net. Running it again moves the roster to the new channel
-  and removes the old message.
+- **Raiders** (anyone with a team's role) see three commands and the
+  schedule message's buttons. They can only change their own attendance.
+- **Officers** are the server owner and anyone with Discord's **Manage
+  Events** permission. Give that permission to your officer role. Officers
+  also see `/raidlead`, which is hidden from everyone else. Server admins can
+  adjust who sees it under Server Settings → Integrations → ready-check.
+
+## Raider commands
+
+All dates are picked from a list of your team's actual raids.
+
+- `/callout date:` — call out for a raid.
+- `/attend date:` — undo a call-out.
+- `/schedule` — a private, scrollable view of your team's raids, past and
+  future, with the same call-out buttons. Only you see it, so paging it
+  doesn't affect anyone else. The optional `team:` picker is only needed if
+  you're on more than one raid team (or are an officer viewing another team).
+
+## Officer commands (`/raidlead`)
+
+Every subcommand takes the team's `role:` first.
+
+**`team`** — create and manage raid teams
+- `setup channel: timezone: [name:] [raids-shown:]` — create a team.
+- `edit [channel:] [timezone:] [name:] [raids-shown:]` — change settings.
+  Changing the channel moves the schedule message.
+- `publish` — post the schedule message in the current channel, replacing
+  the old one. Use it if the message was deleted.
+- `roster` — post an auto-updating roster in the current channel.
+
+**`nights`** — weekly recurring raid nights
+- `add day: time:` — e.g. Wednesday, `20:00`. Times are 24-hour, in the
+  team's timezone.
+- `remove night:` — pick from the team's existing nights. Raids already on
+  the schedule stay.
+- `list`
+
+**`raid`** — change individual raids
+- `cancel date:` — the raid stays on the schedule as 🚫 Cancelled, with its
+  call-outs hidden and no date button.
+- `restore date:` — undo a cancel. Call-outs come back as they were.
+- `add date: time:` — a one-off raid outside the weekly nights.
+
+**On behalf of a raider**
+- `callout user: date:` and `attend user: date:`
 
 ## How it works
 
-- `/raid-setup` (Administrators only) — binds a role + channel + timezone as
-  a "raid team". The role is the only required option and also the team's
-  identifier (one team per role), so re-running this later to tweak a
-  setting — `raids-shown`, the channel, the timezone, the name — only needs
-  `role` plus whichever field you're changing; anything left out keeps its
-  current value. `channel` and `timezone` are required only the first time,
-  since a new team can't exist without them. `raids-shown` (1–10, default 3)
-  sets how many upcoming raids the message displays at once — **3 is the
-  sweet spot**: Discord caps inline embed cards at 3 per row (not
-  configurable by the bot), so 3 is the largest count guaranteed to render
-  as a single tidy row. Anything higher wraps to extra rows.
-- `/raid-slot add|remove|list` (Administrators only) — manages the weekly
-  recurring raid times for a team, e.g. Tuesday 20:00 and Thursday 20:00
-  (times can differ per day — each instance keeps its own start time).
-- The bot maintains **one public message per team**, edited in place as time
-  passes — it always shows the next `raids-shown` upcoming raids as cards
-  (date, time, who's called out), each with a date button below. Clicking a
-  date toggles *your* call-out for that raid; nothing to click means you're
-  in. Since a button's label/color is shared by everyone who sees the
-  message, personal feedback comes back as an ephemeral reply rather than
-  the button changing. **This message never scrolls** — it's a fixed, shared
-  view, so one person can't change what everyone else sees.
-- `/raid-calendar` — anyone can run this for a private, scrollable view of a
-  team's full timeline (past and future), with its own ← Earlier / Later →
-  buttons. Since it's ephemeral, only the person who ran it sees it or can
-  page it — it never affects the public message or other viewers. The bot
-  keeps at least 12 future raids generated per team so there's always
-  several pages to page forward into. Officers can use it to review history;
-  raiders can use it to call out further ahead than the public message
-  currently shows.
-- `/callout date:<date>` — call out for a future raid without touching any
-  buttons. The only argument is the date: the bot works out which raid team(s)
-  you're on from your Discord roles, and the autocomplete lists only those
-  teams' upcoming raids (each labeled with its team name).
-- `/callin date:<date>` — the reverse: mark yourself back in for a raid you
-  previously called out for. Same date picker.
-- `/callout-for user:<member> date:<date>` and `/callin-for user:<member>
-  date:<date>` — officers only. Same as above, but for another raider. The
-  date picker shows that raider's raids.
-- Call-outs only count while the raider still holds the team's role. If
-  someone loses the role, their past call-outs stay in the database for
-  audit but no longer show on the schedule message, `/raid-status`, or the
-  calendar. Schedule messages refresh when members gain or lose roles, join,
-  or leave.
-- A raid instance closes (drops into history) a few hours after its start
-  time, the next time the bot re-syncs (hourly by default).
-- `/raid-status` — a quick ephemeral list of upcoming raids and call-outs,
-  independent of everything above.
+- The schedule message shows the next `raids-shown` raids (default 3). Discord
+  caps embed cards at 3 per row, so 3 is the largest count that fits on one
+  row. The message never scrolls, since paging it would change it for everyone.
+- Each card shows an attendance count (🟢 everyone in, 🟡 some out, 🔴 more
+  than half out) and who called out.
+- Call-outs only count while the raider still holds the team's role. Records
+  are kept for people who lose the role, but they no longer show.
+- The schedule message and roster refresh when members gain or lose roles,
+  join, or leave, and hourly as a safety net.
+- A raid moves into history a few hours after its start time.
 
 ## Development (GitHub Codespaces)
 
@@ -134,5 +115,5 @@ needed, with no local setup.
 
 - Everything lives in SQLite — fine at this scale (single guild, a
   few hundred interactions a week at most).
-- Timezones are per raid team (set in `/raid-setup`), so a team's raid times
+- Timezones are per raid team (set in `/raidlead team setup`), so a team's raid times
   stay correct across daylight saving changes.

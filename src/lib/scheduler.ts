@@ -4,7 +4,7 @@ import { prisma } from "./db.js";
 import { buildPublicMessage } from "./embeds.js";
 import { renderRoster, rosterMemberIds } from "./roster.js";
 
-/** How many raids /raid-calendar pages through at a time. */
+/** How many raids /schedule pages through at a time. */
 export const PAGE_SIZE = 3;
 
 /** Minimum number of future raid instances to keep generated per team. */
@@ -105,7 +105,7 @@ async function fetchWindowInstances(teamId: string, closed: boolean, skip: numbe
 
 /**
  * Fetches the PAGE_SIZE raids visible at a given offset from "now", for the personal
- * /raid-calendar view — closed (past) raids occupy negative indices, open (future)
+ * /schedule view — closed (past) raids occupy negative indices, open (future)
  * raids occupy indices starting at 0. Purely computed per-call; nothing is persisted.
  */
 export async function instancesForWindow(teamId: string, offset: number): Promise<WindowResult> {
@@ -137,7 +137,7 @@ export async function instancesForWindow(teamId: string, offset: number): Promis
   };
 }
 
-/** Clamps a requested /raid-calendar offset so the resulting window stays within available instances. */
+/** Clamps a requested /schedule offset so the resulting window stays within available instances. */
 export async function clampOffset(teamId: string, requestedOffset: number): Promise<number> {
   const closedCount = await prisma.raidInstance.count({ where: { raidTeamId: teamId, closed: true } });
   const openCount = await prisma.raidInstance.count({ where: { raidTeamId: teamId, closed: false } });
