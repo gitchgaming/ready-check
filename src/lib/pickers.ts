@@ -89,14 +89,52 @@ export async function nightChoices(team: RaidTeam): Promise<Choice[]> {
   return nights.map((n) => ({ name: formatNight(n.dayOfWeek, n.hour, n.minute), value: n.id }));
 }
 
+const FULL_DATE_FORMATS = ["yyyy-MM-dd", "M/d/yyyy", "M/d/yy", "MMM d yyyy", "MMM d, yyyy", "MMMM d yyyy", "MMMM d, yyyy"];
+const YEARLESS_DATE_FORMATS = ["M/d", "MMM d", "MMMM d"];
+const MAX_YEARS_AHEAD = 2;
+
+/**
+ * Reads a typed date (US month/day order) in the team's timezone. Year-less input
+ * means the next occurrence of that date. Returns null for past or far-off dates.
+ */
+export function parseTypedDate(typed: string, timezone: string): DateTime | null {
+  const text = typed.trim();
+  if (!text) return null;
+  const today = DateTime.now().setZone(timezone).startOf("day");
+
+  let date: DateTime | null = null;
+  for (const format of FULL_DATE_FORMATS) {
+    const parsed = DateTime.fromFormat(text, format, { zone: timezone, locale: "en-US" });
+    if (parsed.isValid) {
+      date = parsed;
+      break;
+    }
+  }
+  if (!date) {
+    for (const format of YEARLESS_DATE_FORMATS) {
+      const parsed = DateTime.fromFormat(text, format, { zone: timezone, locale: "en-US" });
+      if (parsed.isValid) {
+        date = parsed < today ? parsed.plus({ years: 1 }) : parsed;
+        break;
+      }
+    }
+  }
+
+  if (!date || date < today || date > today.plus({ years: MAX_YEARS_AHEAD })) return null;
+  return date;
+}
+
+export function dateChoice(date: DateTime): Choice {
+  return { name: date.toFormat("cccc, MMM d, yyyy"), value: date.toFormat("yyyy-MM-dd") };
+}
+
 /** The next few weeks of calendar dates, in the team's timezone, as "yyyy-MM-dd" values. */
 export function upcomingDateChoices(timezone: string, typed: string): Choice[] {
   const today = DateTime.now().setZone(timezone).startOf("day");
   const days = typed ? 120 : MAX_CHOICES;
   const choices: Choice[] = [];
   for (let i = 0; i < days; i++) {
-    const day = today.plus({ days: i });
-    choices.push({ name: day.toFormat("cccc, MMM d, yyyy"), value: day.toFormat("yyyy-MM-dd") });
+    choices.push(dateChoice(today.plus({ days: i })));
   }
   return choices;
 }

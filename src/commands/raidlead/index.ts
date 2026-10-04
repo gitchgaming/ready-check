@@ -10,7 +10,9 @@ import { OFFICER_PERMISSION, isOfficer } from "../../lib/access.js";
 import { raidDateAutocomplete, setAttendance } from "../../lib/attendance.js";
 import {
   NO_CHOICE,
+  dateChoice,
   nightChoices,
+  parseTypedDate,
   oneOffRaidChoices,
   respondFiltered,
   teamFromRoleOption,
@@ -157,7 +159,11 @@ export const data = new SlashCommandBuilder()
           .setDescription("Add a one-off raid outside the weekly nights")
           .addRoleOption(roleOption)
           .addStringOption((opt) =>
-            opt.setName("date").setDescription("The raid date").setRequired(true).setAutocomplete(true),
+            opt
+              .setName("date")
+              .setDescription("Pick a date, or type one like 3/15/2027")
+              .setRequired(true)
+              .setAutocomplete(true),
           )
           .addStringOption((opt) =>
             opt.setName("time").setDescription('Start time, 24-hour, e.g. "20:00"').setRequired(true),
@@ -268,6 +274,11 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
     await respondFiltered(interaction, await oneOffRaidChoices(raidTeam), "No upcoming one-off raids");
   } else if (key === "raid add") {
     const typed = interaction.options.getFocused();
+    const parsed = parseTypedDate(typed, raidTeam.timezone);
+    if (parsed) {
+      await interaction.respond([dateChoice(parsed)]);
+      return;
+    }
     await respondFiltered(interaction, upcomingDateChoices(raidTeam.timezone, typed), "No dates available");
   }
 }

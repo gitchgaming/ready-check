@@ -55,7 +55,9 @@ Every subcommand takes the team's `role:` first.
 - `cancel date:` — the raid stays on the schedule as 🚫 Cancelled, with its
   call-outs hidden and no date button.
 - `restore date:` — undo a cancel. Call-outs come back as they were.
-- `add date: time:` — a one-off raid outside the weekly nights.
+- `add date: time:` — a one-off raid outside the weekly nights. The picker
+  offers the next few weeks, or type any date up to two years out, like
+  `3/15/2027`, `Mar 15 2027`, or `2027-03-15`, and pick it from the list.
 - `remove date:` — delete a one-off raid entirely, along with its call-outs.
   Only one-off raids are listed. Raids on weekly nights would be recreated by
   the next sync, so use `cancel` for those.

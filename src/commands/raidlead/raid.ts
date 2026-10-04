@@ -1,7 +1,7 @@
 import type { ChatInputCommandInteraction, Client } from "discord.js";
 import { DateTime } from "luxon";
 import { prisma } from "../../lib/db.js";
-import { formatRaidLabel } from "../../lib/pickers.js";
+import { formatRaidLabel, parseTypedDate } from "../../lib/pickers.js";
 import { renderTeamMessage } from "../../lib/scheduler.js";
 import { parseHourMinute } from "../../lib/time.js";
 import { requireTeam } from "./shared.js";
@@ -81,10 +81,13 @@ export async function add(interaction: ChatInputCommandInteraction, client: Clie
   const dateInput = interaction.options.getString("date", true);
   const timeInput = interaction.options.getString("time", true);
   const time = parseHourMinute(timeInput);
-  const day = DateTime.fromFormat(dateInput, "yyyy-MM-dd", { zone: team.timezone });
+  const day = parseTypedDate(dateInput, team.timezone);
 
-  if (!day.isValid) {
-    await interaction.reply({ content: "Pick a date from the suggestions as you type.", ephemeral: true });
+  if (!day) {
+    await interaction.reply({
+      content: `Couldn't read "${dateInput}" as an upcoming date. Pick one from the suggestions, or type it like \`3/15/2027\`.`,
+      ephemeral: true,
+    });
     return;
   }
   if (!time) {
