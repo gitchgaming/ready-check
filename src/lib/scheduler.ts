@@ -160,7 +160,7 @@ export async function renderTeamMessage(client: Client, teamId: string): Promise
   const content = buildPublicMessage(team, instances, rosterIds);
 
   const channel = await client.channels.fetch(team.channelId).catch(() => null);
-  if (!channel || !channel.isTextBased()) return;
+  if (!channel || !channel.isTextBased() || !("send" in channel)) return;
 
   if (team.messageId) {
     const existing = await channel.messages.fetch(team.messageId).catch(() => null);
