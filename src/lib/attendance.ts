@@ -5,14 +5,19 @@ import { renderTeamMessage } from "./scheduler.js";
 
 export type AttendanceStatus = "IN" | "OUT";
 
+/** "TOGGLE" flips whatever the raider's current status is for the picked raid. */
+export type AttendanceChange = AttendanceStatus | "TOGGLE";
+
 /**
  * Date picker for the raids of whoever the attendance change is about. Calling
- * out lists raids they're still attending; attending lists only their call-outs.
+ * out or toggling lists every upcoming raid marked with their status (✅
+ * attending / ❌ already out, plus what picking it does when toggling);
+ * attending lists only their call-outs.
  */
 export async function raidDateAutocomplete(
   interaction: AutocompleteInteraction,
   subjectId: string | undefined,
-  status: AttendanceStatus,
+  status: AttendanceChange,
 ) {
   if (!interaction.guild) return;
   if (!subjectId) {
@@ -27,14 +32,15 @@ export async function raidDateAutocomplete(
   }
 
   const theirCallOut = { userId: subjectId, status: "OUT" };
-  const attendanceFilter = status === "IN" ? { some: theirCallOut } : { none: theirCallOut };
+  const attendanceFilter = status === "IN" ? { attendance: { some: theirCallOut } } : {};
 
   // Split the choice budget evenly so one busy team can't push the others off the list.
   const perTeam = Math.max(1, Math.floor(MAX_CHOICES / teams.length));
   const perTeamInstances = await Promise.all(
     teams.map((team) =>
       prisma.raidInstance.findMany({
-        where: { raidTeamId: team.id, closed: false, cancelled: false, attendance: attendanceFilter },
+        where: { raidTeamId: team.id, closed: false, cancelled: false, ...attendanceFilter },
+        include: { attendance: { where: theirCallOut } },
         orderBy: { startsAt: "asc" },
         take: perTeam,
       }),
@@ -48,7 +54,12 @@ export async function raidDateAutocomplete(
     .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
     .map((instance) => {
       const team = teamById.get(instance.raidTeamId)!;
-      const label = formatRaidLabel(instance.startsAt, team.timezone);
+      const date = formatRaidLabel(instance.startsAt, team.timezone);
+      const out = instance.attendance.length > 0;
+      const label =
+        status === "IN"
+          ? date
+          : `${out ? "❌" : "✅"} ${date}${status === "TOGGLE" ? (out ? " — Attend" : " — Decline") : ""}`;
       return {
         name: showTeam ? `${label} · ${teamDisplayName(team, interaction.guild)}` : label,
         value: instance.id,
@@ -58,15 +69,15 @@ export async function raidDateAutocomplete(
   await respondFiltered(
     interaction,
     choices,
-    status === "IN" ? "No call-outs to undo" : "Already called out for every upcoming raid",
+    status === "IN" ? "No call-outs to undo" : "No upcoming raids",
   );
 }
 
-/** Sets a raider's attendance for one raid and refreshes the schedule message. */
+/** Sets (or toggles) a raider's attendance for one raid and refreshes the schedule message. */
 export async function setAttendance(
   interaction: ChatInputCommandInteraction,
   client: Client,
-  status: AttendanceStatus,
+  change: AttendanceChange,
   subjectId: string,
 ): Promise<void> {
   if (!interaction.guild) return;
@@ -107,6 +118,24 @@ export async function setAttendance(
     return;
   }
 
+  const dateLabel = formatRaidLabel(instance.startsAt, instance.raidTeam.timezone);
+  const who = onBehalf ? `<@${subjectId}>` : "you";
+  const alreadyOut = await prisma.attendance.findUnique({
+    where: { raidInstanceId_userId: { raidInstanceId: instance.id, userId: subjectId } },
+  });
+  const status: AttendanceStatus = change === "TOGGLE" ? (alreadyOut ? "IN" : "OUT") : change;
+  if ((status === "OUT") === (alreadyOut !== null)) {
+    const isAre = onBehalf ? "is" : "are";
+    await interaction.reply({
+      content:
+        status === "OUT"
+          ? `${onBehalf ? who : "You"} ${isAre} already called out for ${dateLabel}.`
+          : `${onBehalf ? who : "You"} ${isAre} already attending ${dateLabel}.`,
+      ephemeral: true,
+    });
+    return;
+  }
+
   if (status === "OUT") {
     await prisma.attendance.upsert({
       where: { raidInstanceId_userId: { raidInstanceId: instance.id, userId: subjectId } },
@@ -119,8 +148,6 @@ export async function setAttendance(
 
   await renderTeamMessage(client, instance.raidTeamId);
 
-  const dateLabel = formatRaidLabel(instance.startsAt, instance.raidTeam.timezone);
-  const who = onBehalf ? `<@${subjectId}>` : "you";
   await interaction.reply({
     content:
       status === "OUT"
