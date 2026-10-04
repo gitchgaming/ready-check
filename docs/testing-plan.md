@@ -82,7 +82,7 @@ deploys. Manual Discord testing stays for visual review only.
     components (count nested); `MAX_PUBLIC_DAYS + 1` would exceed it — so a future
     layout change that breaks the budget fails here, not in production.
   - personal select ≤ 25 options; labels ≤ 100, customIds ≤ 100 chars;
-    `raids-shown` option max equals `MAX_PUBLIC_DAYS`.
+    `coming-up` option max equals `MAX_COMING_UP` (`MAX_PUBLIC_DAYS` − 1).
 
 ### Layer 3 — integration with a real SQLite DB
 - `scheduler.test.ts`: `syncRaidTeam` creates 12 future raids, is idempotent, merges

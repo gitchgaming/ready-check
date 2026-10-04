@@ -1,6 +1,5 @@
-import { EmbedBuilder, type Client, type Guild, type GuildMember } from "discord.js";
+import { EmbedBuilder, type Guild, type GuildMember } from "discord.js";
 import { CLASSES, RAID_TYPES, memberClass, memberRaidType, raidTypeIcon, type RaidType } from "./classes.js";
-import { prisma } from "./db.js";
 import { appEmoji } from "./emojis.js";
 
 const MAX_FIELD_VALUE = 1024; // Discord's cap on one embed field's text
@@ -89,23 +88,4 @@ export function buildRosterEmbed(teamName: string, members: GuildMember[]): Embe
   }
 
   return embed;
-}
-
-/** Re-renders a team's roster message from current Discord role membership. */
-export async function renderRoster(client: Client, teamId: string): Promise<void> {
-  const team = await prisma.raidTeam.findUnique({ where: { id: teamId } });
-  if (!team?.rosterChannelId || !team.rosterMessageId) return;
-
-  const guild = await client.guilds.fetch(team.guildId).catch(() => null);
-  if (!guild) return;
-
-  const members = await fetchRosterMembers(guild, team.roleId);
-  const roleName = guild.roles.cache.get(team.roleId)?.name ?? "Raid";
-  const embed = buildRosterEmbed(team.name ?? roleName, members);
-
-  const channel = await client.channels.fetch(team.rosterChannelId).catch(() => null);
-  if (!channel || !channel.isTextBased()) return;
-
-  const message = await channel.messages.fetch(team.rosterMessageId).catch(() => null);
-  if (message) await message.edit({ embeds: [embed] });
 }

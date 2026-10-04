@@ -43,6 +43,9 @@ export const MORE_DATES_VALUE = "more";
  */
 export const MAX_PUBLIC_DAYS = 9;
 
+/** The team's `coming-up` setting (`displayCount`) counts raids after Next Up. */
+export const MAX_COMING_UP = MAX_PUBLIC_DAYS - 1;
+
 /** Discord caps the text of all text blocks in one V2 message at 4,000 characters. */
 const MAX_MESSAGE_TEXT = 4000;
 
@@ -270,15 +273,29 @@ function statusButton(team: RaidTeam, instance: InstanceWithAttendance) {
     .setStyle(ButtonStyle.Secondary);
 }
 
+interface RaidCardOptions {
+  /** Small label after the team name, e.g. "NEXT UP". */
+  label: string;
+  /** Whether to include the Status ⇄ button (the public post) or not (read-only views). */
+  withButton: boolean;
+}
+
 /**
- * The Next Up hero: the next raid with its attendance bar, role summary and full
- * roster. `textBudget` is what's left of Discord's message text limit.
+ * One raid as a card: date, attendance bar, role summary and full roster. Used as
+ * the public post's Next Up hero and for the read-only /roster view.
+ * `textBudget` is what's left of Discord's message text limit.
  */
-function nextUpContainer(team: RaidTeam, instance: InstanceWithAttendance, members: GuildMember[], textBudget: number) {
+function raidCard(
+  team: RaidTeam,
+  instance: InstanceWithAttendance,
+  members: GuildMember[],
+  textBudget: number,
+  { label, withButton }: RaidCardOptions,
+) {
   const when = raidDate(instance, team.timezone);
   const unix = Math.floor(instance.startsAt.getTime() / 1000);
   const header = text(
-    `-# **${(team.name ?? "Raid").toUpperCase()} · NEXT UP**\n## ${when.toFormat("ccc, LLL d · h:mm a")}\n-# <t:${unix}:R>`,
+    `-# **${(team.name ?? "Raid").toUpperCase()} · ${label}**\n## ${when.toFormat("ccc, LLL d · h:mm a")}\n-# <t:${unix}:R>`,
   );
 
   if (instance.cancelled) {
@@ -306,17 +323,21 @@ function nextUpContainer(team: RaidTeam, instance: InstanceWithAttendance, membe
       : "";
   const roster = classLines(raid.attending, rosterBudget - calledOut.length).join("\n");
 
-  return new ContainerBuilder()
+  const card = new ContainerBuilder()
     .setAccentColor(STATUS_COLORS[raid.status])
     .addTextDisplayComponents(header, bar, summary)
     .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-    .addTextDisplayComponents(text(roster || "-# No one on the roster yet."), ...(calledOut ? [text(calledOut)] : []))
+    .addTextDisplayComponents(text(roster || "-# No one on the roster yet."), ...(calledOut ? [text(calledOut)] : []));
+  if (!withButton) return card;
+  return card
     // Buttons in a row always sit on the left; as a section's accessory the button
     // sits on the right, lined up with the Coming Up buttons. Its section's text is
-    // a braille blank (U+2800, kept but invisible) so the button always gets its
-    // own line instead of floating beside a long Called Out list.
+    // a short note on what the button does, so the button always gets its own line
+    // instead of floating beside a long Called Out list.
     .addSectionComponents(
-      new SectionBuilder().addTextDisplayComponents(text("\u2800")).setButtonAccessory(statusButton(team, instance)),
+      new SectionBuilder()
+        .addTextDisplayComponents(text("-# Can't make it, or back in? **Status** switches you between in and out."))
+        .setButtonAccessory(statusButton(team, instance)),
     );
 }
 
@@ -371,7 +392,10 @@ export function buildPublicMessage(team: RaidTeam, instances: InstanceWithAttend
 
   const comingUp = comingUpContainer(team, later, members);
   const components = next
-    ? [nextUpContainer(team, next, members, MAX_MESSAGE_TEXT - textLength(comingUp)), comingUp]
+    ? [
+        raidCard(team, next, members, MAX_MESSAGE_TEXT - textLength(comingUp), { label: "NEXT UP", withButton: true }),
+        comingUp,
+      ]
     : [
         new ContainerBuilder().addTextDisplayComponents(
           text(
@@ -381,6 +405,12 @@ export function buildPublicMessage(team: RaidTeam, instances: InstanceWithAttend
       ];
 
   return { flags: V2_FLAGS, components, allowedMentions: NO_PINGS };
+}
+
+/** A read-only card for one raid (the /roster view): like Next Up, without the Status button. */
+export function buildRaidRosterCard(team: RaidTeam, instance: InstanceWithAttendance, members: GuildMember[]) {
+  const card = raidCard(team, instance, members, MAX_MESSAGE_TEXT, { label: "ROSTER", withButton: false });
+  return { flags: V2_FLAGS, components: [card], allowedMentions: NO_PINGS };
 }
 
 /**

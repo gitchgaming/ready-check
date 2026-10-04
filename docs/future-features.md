@@ -16,17 +16,6 @@ Open questions:
 - Is raid size a property of the team, of a weekly night, or of each raid?
 - Should minimums be per role only, or per class too?
 
-## Roster printout for a specific date
-
-Replace the auto-updating roster post (`/raidlead team roster`) with an
-on-demand command that privately sends a roster for one raid date: who's in
-and who's out, grouped by class and role, ready for a raid leader to work from.
-
-- Open to everyone, not only officers.
-- Probably an ephemeral reply or a DM. Decide which when building it.
-- Once it exists, decide whether to retire the roster post. The schedule post
-  already shows the next raid's roster.
-
 ## Smaller production image
 
 npm 11 counts TypeScript as a production dependency, because Prisma lists it as

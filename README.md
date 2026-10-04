@@ -11,8 +11,8 @@ calling out further ahead.
 
 ## Who can do what
 
-- **Raiders** (anyone with a team's role) see two commands and the
-  schedule message's date buttons. They can only change their own attendance.
+- **Raiders** (anyone with a team's role) see three commands and the
+  schedule message's Status buttons. They can only change their own attendance.
 - **Officers** are the server owner and anyone with Discord's **Manage
   Events** permission. Give that permission to your officer role. Officers
   also see `/raidlead`, which is hidden from everyone else. Server admins can
@@ -30,26 +30,28 @@ All dates are picked from a list of your team's actual raids.
   (✅ attending / ❌ called out), so you can toggle any date without paging.
   Only you see it, so paging it doesn't affect anyone else. The optional `team:` picker is only needed if
   you're on more than one raid team (or are an officer viewing another team).
+- `/roster [date:]` — read-only, only you see it. With a date: that raid's
+  card, like the schedule's Next Up (attendance bar, role counts, everyone
+  attending by class, who's called out), without a Status button. Without a
+  date: the whole roster split into Tanks / Healers / DPS columns with class
+  icons. Types and classes come from roles named `Tanks`, `Healers`,
+  `Wizards`/`Phys` (DPS), and `Warriors`, `Mages`, etc.; a raider with several
+  type roles counts once, as Tank, then Healer, then DPS.
 
 ## Officer commands (`/raidlead`)
 
 Every subcommand takes the team's `role:` first.
 
 **`team`** — create and manage raid teams
-- `setup channel: timezone: [name:] [raids-shown:]` — create a team and post
-  its roster and schedule message in `channel`. The name defaults to the
+- `setup channel: timezone: [name:] [coming-up:]` — create a team and post
+  its schedule message in `channel`. The name defaults to the
   role's name.
-- `edit [channel:] [timezone:] [name:] [raids-shown:]` — change settings.
+- `edit [channel:] [timezone:] [name:] [coming-up:]` — change settings.
   Changing the channel moves the schedule message.
 - `publish` — post the schedule message in the current channel, replacing
   the old one. Use it if the message was deleted.
-- `roster` — post an auto-updating roster in the current channel, split
-  into Tanks / Healers / DPS columns with each raider's class icon. Types and
-  classes come from roles named `Tanks`, `Healers`, `Wizards`/`Phys` (DPS),
-  and `Warriors`, `Mages`, etc.; a raider with several type roles counts once,
-  as Tank, then Healer, then DPS. Icons are the images in `assets/emojis/`, uploaded with `npm run deploy-emojis`.
 - `delete` — permanently delete the team after a confirmation: its weekly
-  nights, raids, call-outs, and its schedule and roster messages. The Discord
+  nights, raids, call-outs, and its schedule message. The Discord
   role is left alone.
 
 **`nights`** — weekly recurring raid nights
@@ -75,8 +77,8 @@ Every subcommand takes the team's `role:` first.
 
 ## How it works
 
-- The schedule message shows the next `raids-shown` raids (default 3, at most
-  9). It never scrolls, since paging it would change it for everyone.
+- The schedule message shows the next raid, then `coming-up` more raids
+  (default 3, at most 8). It never scrolls, since paging it would change it for everyone.
   - **Next Up**: the next raid, with a 10-segment attendance bar, Tanks /
     Healers / DPS counts, everyone attending grouped by class (🛡️ tanks and
     healers first), and who's out. Its accent color is the raid's status.
@@ -87,7 +89,7 @@ Every subcommand takes the team's `role:` first.
     DPS 10) — then 🟡 one short, 🔴 more.
 - Call-outs only count while the raider still holds the team's role. Records
   are kept for people who lose the role, but they no longer show.
-- The schedule message and roster refresh when members gain or lose roles,
+- The schedule message (and the roster in it) refreshes when members gain or lose roles,
   join, or leave, and hourly as a safety net.
 - A raid moves into history a few hours after its start time.
 

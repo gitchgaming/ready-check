@@ -8,7 +8,6 @@ import {
 } from "discord.js";
 import { DateTime } from "luxon";
 import { prisma } from "../../lib/db.js";
-import { buildRosterEmbed, fetchRosterMembers } from "../../lib/roster.js";
 import { renderTeamMessage, syncRaidTeam } from "../../lib/scheduler.js";
 import { deleteMessage, requireTeam } from "./shared.js";
 
@@ -28,7 +27,7 @@ export async function setup(interaction: ChatInputCommandInteraction, client: Cl
   const channel = interaction.options.getChannel("channel", true);
   const timezone = interaction.options.getString("timezone", true).trim();
   const name = interaction.options.getString("name");
-  const raidsShown = interaction.options.getInteger("raids-shown");
+  const comingUp = interaction.options.getInteger("coming-up");
 
   if (invalidTimezone(timezone)) {
     await replyBadTimezone(interaction, timezone);
@@ -53,42 +52,18 @@ export async function setup(interaction: ChatInputCommandInteraction, client: Cl
       channelId: channel.id,
       timezone,
       name: name ?? role.name,
-      ...(raidsShown ? { displayCount: raidsShown } : {}),
+      ...(comingUp !== null ? { displayCount: comingUp } : {}),
     },
   });
 
   await interaction.reply({
     content:
-      `✅ Created raid team **${team.name}** for <@&${role.id}>, posting its roster and schedule in <#${channel.id}>.\n` +
+      `✅ Created raid team **${team.name}** for <@&${role.id}>, posting its schedule in <#${channel.id}>.\n` +
       "Next, add its weekly raid nights with `/raidlead nights add`.",
     flags: MessageFlags.Ephemeral,
   });
 
-  // Roster first so it sits above the schedule message.
-  await postRoster(client, team.id, channel.id).catch((err) => console.error(`Failed to post roster for ${team.id}:`, err));
   await syncRaidTeam(client, team.id).catch((err) => console.error(`Failed to sync raid team ${team.id}:`, err));
-}
-
-/** Posts a team's roster in a channel, replacing any previous roster message, and tracks it for updates. */
-async function postRoster(client: Client, teamId: string, channelId: string): Promise<boolean> {
-  const team = await prisma.raidTeam.findUniqueOrThrow({ where: { id: teamId } });
-  const channel = await client.channels.fetch(channelId).catch(() => null);
-  if (!channel?.isTextBased() || !("send" in channel)) return false;
-
-  if (team.rosterChannelId && team.rosterMessageId) {
-    await deleteMessage(client, team.rosterChannelId, team.rosterMessageId);
-  }
-
-  const guild = await client.guilds.fetch(team.guildId);
-  const members = await fetchRosterMembers(guild, team.roleId);
-  const roleName = guild.roles.cache.get(team.roleId)?.name ?? "Raid";
-  const message = await channel.send({ embeds: [buildRosterEmbed(team.name ?? roleName, members)] });
-
-  await prisma.raidTeam.update({
-    where: { id: team.id },
-    data: { rosterChannelId: channel.id, rosterMessageId: message.id },
-  });
-  return true;
 }
 
 export async function edit(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
@@ -98,9 +73,9 @@ export async function edit(interaction: ChatInputCommandInteraction, client: Cli
   const channel = interaction.options.getChannel("channel");
   const timezone = interaction.options.getString("timezone")?.trim();
   const name = interaction.options.getString("name");
-  const raidsShown = interaction.options.getInteger("raids-shown");
+  const comingUp = interaction.options.getInteger("coming-up");
 
-  if (!channel && !timezone && !name && !raidsShown) {
+  if (!channel && !timezone && !name && comingUp === null) {
     await interaction.reply({ content: "Pick at least one setting to change.", flags: MessageFlags.Ephemeral });
     return;
   }
@@ -120,7 +95,7 @@ export async function edit(interaction: ChatInputCommandInteraction, client: Cli
       ...(movingChannel ? { messageId: null } : {}),
       ...(timezone ? { timezone } : {}),
       ...(name ? { name } : {}),
-      ...(raidsShown ? { displayCount: raidsShown } : {}),
+      ...(comingUp !== null ? { displayCount: comingUp } : {}),
     },
   });
 
@@ -129,7 +104,7 @@ export async function edit(interaction: ChatInputCommandInteraction, client: Cli
       `✅ Updated **${updated.name ?? interaction.options.getRole("role", true).name}**.\n` +
       `• Channel: <#${updated.channelId}>\n` +
       `• Timezone: ${updated.timezone}\n` +
-      `• Raids shown: ${updated.displayCount}`,
+      `• Coming Up raids: ${updated.displayCount}`,
     flags: MessageFlags.Ephemeral,
   });
 
@@ -143,7 +118,7 @@ export async function remove(interaction: ChatInputCommandInteraction, _client: 
   await interaction.reply({
     content:
       `Delete **${team.name ?? "this team"}**? This permanently removes its weekly nights, raids, and ` +
-      "call-outs, and deletes its schedule and roster messages. The Discord role is not affected.",
+      "call-outs, and deletes its schedule message. The Discord role is not affected.",
     components: [
       new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder().setCustomId(`teamdelete:confirm:${team.id}`).setLabel("Delete team").setStyle(ButtonStyle.Danger),
@@ -169,17 +144,4 @@ export async function publish(interaction: ChatInputCommandInteraction, client: 
   await renderTeamMessage(client, team.id);
 
   await interaction.reply({ content: `✅ Schedule posted in <#${channel.id}>.`, flags: MessageFlags.Ephemeral });
-}
-
-export async function roster(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
-  const team = await requireTeam(interaction);
-  if (!team) return;
-
-  const channelId = interaction.channelId;
-  if (!(await postRoster(client, team.id, channelId))) {
-    await interaction.reply({ content: "Run this in a text channel.", flags: MessageFlags.Ephemeral });
-    return;
-  }
-
-  await interaction.reply({ content: `✅ Roster posted in <#${channelId}> and will stay up to date.`, flags: MessageFlags.Ephemeral });
 }

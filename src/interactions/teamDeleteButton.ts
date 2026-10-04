@@ -28,9 +28,6 @@ export async function handleTeamDeleteButton(interaction: ButtonInteraction, cli
   }
 
   if (team.messageId) await deleteMessage(client, team.channelId, team.messageId);
-  if (team.rosterChannelId && team.rosterMessageId) {
-    await deleteMessage(client, team.rosterChannelId, team.rosterMessageId);
-  }
 
   // Weekly nights, raids, and their call-outs cascade with the team.
   await prisma.raidTeam.delete({ where: { id: team.id } });

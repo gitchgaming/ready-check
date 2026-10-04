@@ -23,7 +23,7 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 
 ## Layout
 
-- `src/commands/` — `callout` (toggles), `schedule` (raider), and
+- `src/commands/` — `callout` (toggles), `schedule`, `roster` (read-only; raider), and
   `raidlead/` (officer): `index.ts` builds the command and routes by
   "group sub" key; `team.ts`, `nights.ts`, `raid.ts` hold the handlers.
 - `src/interactions/` — select and button handlers. State lives in the customId:
@@ -65,10 +65,14 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   **Coming Up** (one section per later raid with its own button, then the
   "See more dates" select). The personal view is one container, days between
   dividers. V2 caps a message at 40 components and 4,000 text characters, so
-  `displayCount` (default 3) is at most `MAX_PUBLIC_DAYS` = 9 and class lines
+  at most `MAX_PUBLIC_DAYS` = 9 raids show: Next Up plus `displayCount` (the
+  `coming-up` option, default 3, max `MAX_COMING_UP` = 8) — and class lines
   truncate with "…and N more". V2 text pings mentions, so these messages always
-  send `allowedMentions: { parse: [] }`. The separate roster post stays an
-  embed (inline-field columns).
+  send `allowedMentions: { parse: [] }`.
+- There's no roster post any more: the schedule post shows the next raid's
+  roster. `/roster` is read-only and private for everyone: with a date it's that
+  raid's card (`buildRaidRosterCard`, Next Up minus the button); without one it's
+  the Tanks/Healers/DPS columns embed (`buildRosterEmbed`).
 - Role status dots use per-type minimums in `RAID_TYPES` (`min`: Tanks 2,
   Healers 3, DPS 10). These are placeholders: the game has 40/20/10-player
   raids and the real minimums are undecided (see `docs/future-features.md`).
@@ -87,7 +91,7 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - Role membership comes from the member cache (warmed once at startup, kept
   current by member events). Never `guild.members.fetch()` per render — it hits
   Discord's gateway rate limit. Member events trigger a debounced refresh of
-  rosters and schedule messages.
+  schedule messages.
 
 ## Gotchas
 
@@ -107,7 +111,7 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 ## Pending work
 
 - `docs/future-features.md`: ideas and open questions to pick up later (role
-  minimums per raid size, a roster printout command, image size). Add new ones
+  minimums per raid size, image size). Add new ones
   there; remove them once built.
 - Automated tests: see `docs/testing-plan.md` (agreed plan, not started).
 

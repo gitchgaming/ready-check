@@ -1,6 +1,7 @@
 import type { AutocompleteInteraction, ChatInputCommandInteraction, Client } from "discord.js";
 import * as callout from "./callout.js";
 import * as raidlead from "./raidlead/index.js";
+import * as roster from "./roster.js";
 import * as schedule from "./schedule.js";
 
 export interface Command {
@@ -9,4 +10,4 @@ export interface Command {
   autocomplete?: (interaction: AutocompleteInteraction) => Promise<void>;
 }
 
-export const commands: Command[] = [callout, schedule, raidlead];
+export const commands: Command[] = [callout, schedule, roster, raidlead];

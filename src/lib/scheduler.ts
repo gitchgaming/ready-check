@@ -3,7 +3,7 @@ import { MessageFlags, type Client, type Guild } from "discord.js";
 import { prisma } from "./db.js";
 import type { RaidTeam } from "../generated/prisma/client.js";
 import { MAX_SELECT_OPTIONS, buildCalendarMessage, buildPublicMessage } from "./embeds.js";
-import { fetchRosterMembers, renderRoster, rosterMemberIds } from "./roster.js";
+import { fetchRosterMembers, rosterMemberIds } from "./roster.js";
 
 /** How many raids /schedule pages through at a time. */
 export const PAGE_SIZE = 3;
@@ -50,7 +50,7 @@ export async function syncRaidTeam(client: Client, teamId: string): Promise<void
   const team = await prisma.raidTeam.findUnique({ where: { id: teamId }, include: { slots: true } });
   if (!team) return;
 
-  const generateCount = Math.max(MIN_FUTURE_GENERATE_COUNT, team.displayCount);
+  const generateCount = Math.max(MIN_FUTURE_GENERATE_COUNT, team.displayCount + 1);
 
   if (team.slots.length > 0) {
     const candidates = team.slots.flatMap((slot) =>
@@ -164,7 +164,8 @@ export async function renderTeamMessage(client: Client, teamId: string): Promise
   const team = await prisma.raidTeam.findUnique({ where: { id: teamId } });
   if (!team) return;
 
-  const instances = await nextOpenInstances(team.id, team.displayCount);
+  // Next Up plus `displayCount` raids under Coming Up.
+  const instances = await nextOpenInstances(team.id, team.displayCount + 1);
   const guild = await client.guilds.fetch(team.guildId).catch(() => null);
   if (!guild) return;
   const members = await fetchRosterMembers(guild, team.roleId);
@@ -193,9 +194,6 @@ export async function syncAllRaidTeams(client: Client): Promise<void> {
   for (const team of teams) {
     await syncRaidTeam(client, team.id).catch((err) => {
       console.error(`Failed to sync raid team ${team.id}:`, err);
-    });
-    await renderRoster(client, team.id).catch((err) => {
-      console.error(`Failed to refresh roster for raid team ${team.id}:`, err);
     });
   }
 }

@@ -9,7 +9,7 @@ import {
 } from "discord.js";
 import { OFFICER_PERMISSION, isOfficer } from "../../lib/access.js";
 import { raidDateAutocomplete, setAttendance } from "../../lib/attendance.js";
-import { MAX_PUBLIC_DAYS } from "../../lib/embeds.js";
+import { MAX_COMING_UP } from "../../lib/embeds.js";
 import {
   NO_CHOICE,
   dateChoice,
@@ -56,10 +56,10 @@ export const data = new SlashCommandBuilder()
           .addStringOption((opt) => opt.setName("name").setDescription('Display name, e.g. "Main Raid"'))
           .addIntegerOption((opt) =>
             opt
-              .setName("raids-shown")
-              .setDescription("Upcoming raids on the schedule message (default 3)")
-              .setMinValue(1)
-              .setMaxValue(MAX_PUBLIC_DAYS),
+              .setName("coming-up")
+              .setDescription("Raids listed under Coming Up, after the next raid (default 3)")
+              .setMinValue(0)
+              .setMaxValue(MAX_COMING_UP),
           ),
       )
       .addSubcommand((sub) =>
@@ -79,22 +79,16 @@ export const data = new SlashCommandBuilder()
           .addStringOption((opt) => opt.setName("name").setDescription("Display name"))
           .addIntegerOption((opt) =>
             opt
-              .setName("raids-shown")
-              .setDescription("Upcoming raids on the schedule message")
-              .setMinValue(1)
-              .setMaxValue(MAX_PUBLIC_DAYS),
+              .setName("coming-up")
+              .setDescription("Raids listed under Coming Up, after the next raid")
+              .setMinValue(0)
+              .setMaxValue(MAX_COMING_UP),
           ),
       )
       .addSubcommand((sub) =>
         sub
           .setName("publish")
           .setDescription("Post the team's schedule message in this channel")
-          .addRoleOption(roleOption),
-      )
-      .addSubcommand((sub) =>
-        sub
-          .setName("roster")
-          .setDescription("Post an auto-updating roster in this channel")
           .addRoleOption(roleOption),
       )
       .addSubcommand((sub) =>
@@ -206,7 +200,6 @@ const handlers: Record<string, Handler> = {
   "team setup": team.setup,
   "team edit": team.edit,
   "team publish": team.publish,
-  "team roster": team.roster,
   "team delete": team.remove,
   "nights add": nights.add,
   "nights remove": nights.remove,
