@@ -1,9 +1,8 @@
 import { SlashCommandBuilder, type AutocompleteInteraction, type ChatInputCommandInteraction, type Client } from "discord.js";
 import { isOfficer } from "../lib/access.js";
-import { buildCalendarMessage } from "../lib/embeds.js";
+import { asEphemeral } from "../lib/embeds.js";
 import { respondFiltered, teamDisplayName, viewableTeams } from "../lib/pickers.js";
-import { rosterMemberIds } from "../lib/roster.js";
-import { instancesForWindow } from "../lib/scheduler.js";
+import { personalCalendar } from "../lib/scheduler.js";
 
 export const data = new SlashCommandBuilder()
   .setName("schedule")
@@ -41,10 +40,5 @@ export async function execute(interaction: ChatInputCommandInteraction, _client:
     return;
   }
 
-  const { instances, canEarlier, canLater } = await instancesForWindow(team.id, 0);
-  const rosterIds = await rosterMemberIds(interaction.guild, team.roleId);
-  await interaction.reply({
-    ...buildCalendarMessage(team, instances, 0, { canEarlier, canLater }, rosterIds),
-    ephemeral: true,
-  });
+  await interaction.reply(asEphemeral(await personalCalendar(team, interaction.guild, 0, interaction.user.id)));
 }

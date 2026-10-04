@@ -5,12 +5,13 @@ Discord bot for WoW raid scheduling and one-click attendance call-outs.
 Each raid team is a Discord role. Everyone with the role is assumed to be
 attending every raid unless they call out. The bot keeps one auto-updating
 schedule message per team, with a card for each upcoming raid and a date
-button to toggle your own call-out.
+button to toggle your own call-out. Its **See more dates** menu opens your
+full schedule privately, for calling out further ahead.
 
 ## Who can do what
 
-- **Raiders** (anyone with a team's role) see three commands and the
-  schedule message's buttons. They can only change their own attendance.
+- **Raiders** (anyone with a team's role) see two commands and the
+  schedule message's date buttons. They can only change their own attendance.
 - **Officers** are the server owner and anyone with Discord's **Manage
   Events** permission. Give that permission to your officer role. Officers
   also see `/raidlead`, which is hidden from everyone else. Server admins can
@@ -20,11 +21,13 @@ button to toggle your own call-out.
 
 All dates are picked from a list of your team's actual raids.
 
-- `/callout date:` — call out for a raid.
-- `/attend date:` — undo a call-out.
+- `/callout date:` — toggle your attendance for a raid. The picker lists
+  every upcoming raid marked ✅ (attending — "Decline") or ❌ (called
+  out — "Attend"), so the same command calls out and switches back.
 - `/schedule` — a private, scrollable view of your team's raids, past and
-  future, with the same call-out buttons. Only you see it, so paging it
-  doesn't affect anyone else. The optional `team:` picker is only needed if
+  future. Its date menu lists every upcoming raid with your own status
+  (✅ attending / ❌ called out), so you can toggle any date without paging.
+  Only you see it, so paging it doesn't affect anyone else. The optional `team:` picker is only needed if
   you're on more than one raid team (or are an officer viewing another team).
 
 ## Officer commands (`/raidlead`)
@@ -39,7 +42,11 @@ Every subcommand takes the team's `role:` first.
   Changing the channel moves the schedule message.
 - `publish` — post the schedule message in the current channel, replacing
   the old one. Use it if the message was deleted.
-- `roster` — post an auto-updating roster in the current channel.
+- `roster` — post an auto-updating roster in the current channel, split
+  into Tanks / Healers / DPS columns with each raider's class icon. Types and
+  classes come from roles named `Tanks`, `Healers`, `Wizards`/`Phys` (DPS),
+  and `Warriors`, `Mages`, etc.; a raider with several type roles counts once,
+  as Tank, then Healer, then DPS. Icons are the images in `assets/emojis/`, uploaded with `npm run deploy-emojis`.
 - `delete` — permanently delete the team after a confirmation: its weekly
   nights, raids, call-outs, and its schedule and roster messages. The Discord
   role is left alone.
@@ -67,9 +74,9 @@ Every subcommand takes the team's `role:` first.
 
 ## How it works
 
-- The schedule message shows the next `raids-shown` raids (default 3). Discord
-  caps embed cards at 3 per row, so 3 is the largest count that fits on one
-  row. The message never scrolls, since paging it would change it for everyone.
+- The schedule message shows the next `raids-shown` raids (default 3, at most
+  6), one per row between dividers, each with its own ⇄ button beside it.
+  The message never scrolls, since paging it would change it for everyone.
 - Each card shows an attendance count (🟢 everyone in, 🟡 some out, 🔴 more
   than half out) and who called out.
 - Call-outs only count while the raider still holds the team's role. Records

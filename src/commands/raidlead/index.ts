@@ -8,6 +8,7 @@ import {
 } from "discord.js";
 import { OFFICER_PERMISSION, isOfficer } from "../../lib/access.js";
 import { raidDateAutocomplete, setAttendance } from "../../lib/attendance.js";
+import { MAX_PUBLIC_DAYS } from "../../lib/embeds.js";
 import {
   NO_CHOICE,
   dateChoice,
@@ -57,7 +58,7 @@ export const data = new SlashCommandBuilder()
               .setName("raids-shown")
               .setDescription("Upcoming raids on the schedule message (default 3)")
               .setMinValue(1)
-              .setMaxValue(10),
+              .setMaxValue(MAX_PUBLIC_DAYS),
           ),
       )
       .addSubcommand((sub) =>
@@ -80,7 +81,7 @@ export const data = new SlashCommandBuilder()
               .setName("raids-shown")
               .setDescription("Upcoming raids on the schedule message")
               .setMinValue(1)
-              .setMaxValue(10),
+              .setMaxValue(MAX_PUBLIC_DAYS),
           ),
       )
       .addSubcommand((sub) =>

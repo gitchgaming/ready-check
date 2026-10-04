@@ -1,8 +1,6 @@
 import type { ButtonInteraction, Client } from "discord.js";
 import { prisma } from "../lib/db.js";
-import { buildCalendarMessage } from "../lib/embeds.js";
-import { rosterMemberIds } from "../lib/roster.js";
-import { PAGE_SIZE, clampOffset, instancesForWindow } from "../lib/scheduler.js";
+import { PAGE_SIZE, clampOffset, personalCalendar } from "../lib/scheduler.js";
 
 /**
  * customId shape: "mynav:<earlier|later>:<raidTeamId>:<currentOffset>"
@@ -24,10 +22,6 @@ export async function handleNavButton(interaction: ButtonInteraction, client: Cl
   if (!team) return;
 
   const newOffset = await clampOffset(team.id, requestedOffset);
-  const { instances, canEarlier, canLater } = await instancesForWindow(team.id, newOffset);
   const guild = await client.guilds.fetch(team.guildId);
-  const rosterIds = await rosterMemberIds(guild, team.roleId);
-  await interaction.update(
-    buildCalendarMessage(team, instances, newOffset, { canEarlier, canLater }, rosterIds),
-  );
+  await interaction.update(await personalCalendar(team, guild, newOffset, interaction.user.id));
 }

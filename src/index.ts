@@ -1,10 +1,11 @@
 import "dotenv/config";
 import { Client, Events, GatewayIntentBits } from "discord.js";
 import { commands } from "./commands/index.js";
-import { isAttendanceButton, handleAttendanceButton } from "./interactions/attendanceButton.js";
+import { isAttendanceControl, handleAttendanceControl } from "./interactions/attendanceControls.js";
 import { isNavButton, handleNavButton } from "./interactions/navButton.js";
 import { isTeamDeleteButton, handleTeamDeleteButton } from "./interactions/teamDeleteButton.js";
 import { prisma } from "./lib/db.js";
+import { loadAppEmojis } from "./lib/emojis.js";
 import { ensureMembersCached, renderRoster } from "./lib/roster.js";
 import { renderTeamMessage, syncAllRaidTeams } from "./lib/scheduler.js";
 
@@ -50,6 +51,7 @@ client.on(Events.GuildMemberRemove, (member) => scheduleRosterRefresh(member.gui
 
 client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Logged in as ${readyClient.user.tag}`);
+  await loadAppEmojis(readyClient).catch((err) => console.error("Loading application emojis failed:", err));
   for (const guild of readyClient.guilds.cache.values()) {
     await ensureMembersCached(guild).catch((err) => console.error("Member cache warmup failed:", err));
   }
@@ -75,8 +77,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
-    if (interaction.isButton() && isAttendanceButton(interaction.customId)) {
-      await handleAttendanceButton(interaction, client);
+    if ((interaction.isButton() || interaction.isStringSelectMenu()) && isAttendanceControl(interaction.customId)) {
+      await handleAttendanceControl(interaction, client);
       return;
     }
 

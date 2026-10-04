@@ -1,7 +1,8 @@
 import { DateTime } from "luxon";
-import type { Client } from "discord.js";
+import { MessageFlags, type Client, type Guild } from "discord.js";
 import { prisma } from "./db.js";
-import { buildPublicMessage } from "./embeds.js";
+import type { RaidTeam } from "@prisma/client";
+import { MAX_SELECT_OPTIONS, buildCalendarMessage, buildPublicMessage } from "./embeds.js";
 import { renderRoster, rosterMemberIds } from "./roster.js";
 
 /** How many raids /schedule pages through at a time. */
@@ -137,6 +138,16 @@ export async function instancesForWindow(teamId: string, offset: number): Promis
   };
 }
 
+/** Builds one viewer's personal schedule: the paged window plus every open raid for the select. */
+export async function personalCalendar(team: RaidTeam, guild: Guild, offset: number, viewerId: string) {
+  const [{ instances, canEarlier, canLater }, openInstances, rosterIds] = await Promise.all([
+    instancesForWindow(team.id, offset),
+    nextOpenInstances(team.id, MAX_SELECT_OPTIONS),
+    rosterMemberIds(guild, team.roleId),
+  ]);
+  return buildCalendarMessage(team, instances, offset, { canEarlier, canLater }, rosterIds, openInstances, viewerId);
+}
+
 /** Clamps a requested /schedule offset so the resulting window stays within available instances. */
 export async function clampOffset(teamId: string, requestedOffset: number): Promise<number> {
   const closedCount = await prisma.raidInstance.count({ where: { raidTeamId: teamId, closed: true } });
@@ -164,10 +175,13 @@ export async function renderTeamMessage(client: Client, teamId: string): Promise
 
   if (team.messageId) {
     const existing = await channel.messages.fetch(team.messageId).catch(() => null);
-    if (existing) {
+    // A message posted before the Components V2 layout can't be edited into it,
+    // so it's replaced once with a fresh post.
+    if (existing?.flags.has(MessageFlags.IsComponentsV2)) {
       await existing.edit(content);
       return;
     }
+    await existing?.delete().catch(() => null);
   }
 
   const message = await channel.send(content);
