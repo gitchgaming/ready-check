@@ -102,12 +102,8 @@ function buildScheduleContainer(
     .setAccentColor(instances.length > 0 && !anyOpen ? 0x6b7280 : 0x5865f2)
     .addTextDisplayComponents(text(`## ${team.name ?? "Raid"} — schedule\n${intro}`));
 
-  const next = instances.find((i) => !i.closed);
   for (const instance of instances) {
     container.addSeparatorComponents(divider());
-    // The label sits above the day's section, not in it, so the button still
-    // lines up with the date and time.
-    if (instance === next) container.addTextDisplayComponents(text("**NEXT RAID**"));
     container.addTextDisplayComponents(dayBlocks(instance, rosterIds));
   }
 
