@@ -86,6 +86,12 @@ needed, with no local setup.
 4. Register slash commands: `npm run deploy-commands`
 5. Run the bot: `npm run dev`
 
+If old or duplicate commands linger in Discord after a reload, they may have
+been registered globally at some point. `npm run clear-global-commands` lists
+and removes all global commands. Production uses global commands, so if your
+test and production bots share one Discord application, run
+`npm run deploy-commands` without `DISCORD_GUILD_ID` afterward to restore them.
+
 ## Creating the Discord application
 
 1. https://discord.com/developers/applications → **New Application**.
