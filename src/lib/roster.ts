@@ -1,5 +1,5 @@
 import { EmbedBuilder, type Client, type Guild, type GuildMember } from "discord.js";
-import { CLASSES, RAID_TYPES, memberClass, memberRaidType, type RaidType } from "./classes.js";
+import { CLASSES, RAID_TYPES, memberClass, memberRaidType, raidTypeIcon, type RaidType } from "./classes.js";
 import { prisma } from "./db.js";
 import { appEmoji } from "./emojis.js";
 
@@ -74,7 +74,7 @@ export function buildRosterEmbed(teamName: string, members: GuildMember[]): Embe
   for (const type of RAID_TYPES) {
     const group = byType.get(type) ?? [];
     embed.addFields({
-      name: `${type.emoji ? appEmoji(type.emoji, type.icon) : type.icon} ${type.label} (${group.length})`,
+      name: `${raidTypeIcon(type)} ${type.label} (${group.length})`,
       value: fitEntries(memberEntries(group), "\n", MAX_FIELD_VALUE),
       inline: true,
     });

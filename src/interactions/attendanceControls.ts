@@ -2,7 +2,7 @@ import type { ButtonInteraction, Client, StringSelectMenuInteraction } from "dis
 import { MessageFlags } from "discord.js";
 import { prisma } from "../lib/db.js";
 import { MORE_DATES_VALUE, asEphemeral } from "../lib/embeds.js";
-import { formatRaidLabel } from "../lib/pickers.js";
+import { DateTime } from "luxon";
 import { personalCalendar, renderTeamMessage } from "../lib/scheduler.js";
 
 type AttendanceInteraction = ButtonInteraction | StringSelectMenuInteraction;
@@ -96,9 +96,9 @@ async function applySelection(
     return;
   }
 
-  const dateLabel = formatRaidLabel(instance.startsAt, instance.raidTeam.timezone);
+  const dateLabel = DateTime.fromJSDate(instance.startsAt).setZone(instance.raidTeam.timezone).toFormat("ccc, LLL d");
   await interaction.reply({
-    content: currentlyOut ? `✅ Marked you as in for ${dateLabel}.` : `❌ Marked you as called out for ${dateLabel}.`,
+    content: currentlyOut ? `You're back in for ${dateLabel}.` : `You're out for ${dateLabel}. Click again to undo.`,
     flags: MessageFlags.Ephemeral,
   });
 }

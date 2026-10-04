@@ -9,10 +9,14 @@ import {
   SeparatorSpacingSize,
   StringSelectMenuBuilder,
   TextDisplayBuilder,
+  escapeMarkdown,
+  type GuildMember,
   type MessageActionRowComponentBuilder,
 } from "discord.js";
 import type { Attendance, RaidInstance, RaidTeam } from "../generated/prisma/client.js";
 import { DateTime } from "luxon";
+import { CLASSES, RAID_TYPES, memberClass, memberRaidType, raidTypeIcon } from "./classes.js";
+import { appEmoji } from "./emojis.js";
 import { formatRaidLabel } from "./pickers.js";
 
 type InstanceWithAttendance = RaidInstance & { attendance: Attendance[] };
@@ -30,11 +34,15 @@ export const MORE_DATES_VALUE = "more";
 
 /**
  * Discord caps a Components V2 message at 40 components, nested ones included.
- * Each day on the public message costs 5 components (divider, section, two text
- * blocks, button), plus 1 for the "Next raid" label; the header, closing divider,
- * select row and container cost 5. So it fits (40 - 5 - 1) / 5 = 6.8 → 6 days.
+ * The public message's Next Up container costs 8 (container, 4 text blocks,
+ * divider, button row, button) and the Coming Up container 4 (container, header,
+ * select row, select) plus 3 per later raid (section, text, button). So it fits
+ * 12 + 3 × (days − 1) ≤ 40 → 10 days.
  */
-export const MAX_PUBLIC_DAYS = 6;
+export const MAX_PUBLIC_DAYS = 10;
+
+/** Discord caps the text of all text blocks in one V2 message at 4,000 characters. */
+const MAX_MESSAGE_TEXT = 4000;
 
 const V2_FLAGS = [MessageFlags.IsComponentsV2] as const;
 
@@ -70,16 +78,12 @@ function dayBlocks(instance: InstanceWithAttendance, rosterIds: Set<string>) {
   return [when, text(`${dot} **${attending} of ${total} attending**${calledOut}`)];
 }
 
-/**
- * The schedule card: a header, then each raid day between dividers. When
- * `dayButton` is given, open days get it beside them; other days are text only.
- */
+/** The personal schedule card: a header, then each raid day between dividers. */
 function buildScheduleContainer(
   team: RaidTeam,
   instances: InstanceWithAttendance[],
   rosterIds: Set<string>,
   openPrompt: string,
-  dayButton?: (instance: InstanceWithAttendance) => ButtonBuilder,
 ) {
   const anyOpen = instances.some((i) => !i.closed);
   const intro =
@@ -99,14 +103,7 @@ function buildScheduleContainer(
     // The label sits above the day's section, not in it, so the button still
     // lines up with the date and time.
     if (instance === next) container.addTextDisplayComponents(text("**NEXT RAID**"));
-    const blocks = dayBlocks(instance, rosterIds);
-    if (dayButton && !instance.closed && !instance.cancelled) {
-      container.addSectionComponents(
-        new SectionBuilder().addTextDisplayComponents(blocks).setButtonAccessory(dayButton(instance)),
-      );
-    } else {
-      container.addTextDisplayComponents(blocks);
-    }
+    container.addTextDisplayComponents(dayBlocks(instance, rosterIds));
   }
 
   container.addSeparatorComponents(divider());
@@ -121,25 +118,181 @@ function selectRow(select: StringSelectMenuBuilder) {
   return new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(select);
 }
 
+const STATUS_COLORS = { green: 0x3ba55c, yellow: 0xf0b232, red: 0xed4245, grey: 0x6b7280 } as const;
+const DOT_FALLBACKS = { green: "🟢", yellow: "🟡", red: "🔴", grey: "⚪" } as const;
+type Status = keyof typeof DOT_FALLBACKS;
+
+const BAR_SEGMENTS = 10;
+const GAP = "\u2003\u2003"; // two em spaces between role summary items
+// Discord has no indent and strips leading whitespace, so the line starts with
+// an invisible braille blank (U+2800) that keeps the spaces after it. Together
+// they're about the width of the large status dot plus its space above.
+const INDENT = "\u2800\u2003";
+
+/** Small status dot (padded image) for use beside text; `large` for the raid's own status. */
+function dot(status: Status, large = false): string {
+  return appEmoji(large ? `dot_lg_${status}` : `dot_${status}`, DOT_FALLBACKS[status]);
+}
+
+/** Whole-raid status: everyone in → green, at least half → yellow, else red. */
+function raidStatus(attending: number, total: number): Status {
+  return attending === total ? "green" : attending * 2 >= total ? "yellow" : "red";
+}
+
+/** Role status: enough (or all of that role) in → grey, one short → yellow, else red. */
+function roleStatus(inCount: number, rosterCount: number, min: number): Status {
+  if (inCount === rosterCount || inCount >= min) return "grey";
+  return inCount === min - 1 ? "yellow" : "red";
+}
+
 /**
- * The public, non-scrolling team message: always the next N upcoming raids, no nav.
- * Each day's button toggles the clicker's call-out. It's shared, so it can't show
- * anyone's own status; the select at the bottom only opens the personal schedule.
+ * Small status dots stay grey when things are fine, so only problems draw the
+ * eye. The large dot before each Coming Up date keeps green: it stands in for
+ * the accent bar the Next Up container has.
  */
-export function buildPublicMessage(team: RaidTeam, instances: InstanceWithAttendance[], rosterIds: Set<string>) {
-  const container = buildScheduleContainer(
-    team,
-    instances.slice(0, MAX_PUBLIC_DAYS),
-    rosterIds,
-    "Click a date ⇄ to call out or switch back.",
-    (instance) =>
-      new ButtonBuilder()
-        .setCustomId(`attendance:btn:${team.id}:${instance.id}`)
-        .setLabel(`${shortDateLabel(instance.startsAt, team.timezone)} ⇄`) // ⇄ marks it as a toggle
-        .setStyle(ButtonStyle.Primary),
+function statusDot(status: Status): string {
+  return dot(status === "green" ? "grey" : status);
+}
+
+/** 10 segments; any call-out shows at least one red one. */
+function attendanceBar(attending: number, total: number): string {
+  const green = attending === total ? BAR_SEGMENTS : Math.min(BAR_SEGMENTS - 1, Math.floor((BAR_SEGMENTS * attending) / total));
+  return appEmoji("seg_green", "🟩").repeat(green) + appEmoji("seg_red", "🟥").repeat(BAR_SEGMENTS - green);
+}
+
+/** Who's in and out of one raid, and per-role counts, from the current roster. */
+function raidAttendance(instance: InstanceWithAttendance, members: GuildMember[]) {
+  const outIds = new Set(instance.attendance.filter((a) => a.status === "OUT").map((a) => a.userId));
+  const attending = members.filter((m) => !outIds.has(m.id));
+  const out = members.filter((m) => outIds.has(m.id));
+  const roles = RAID_TYPES.map((type) => {
+    const rosterCount = members.filter((m) => memberRaidType(m) === type).length;
+    const inCount = attending.filter((m) => memberRaidType(m) === type).length;
+    return { type, inCount, rosterCount, status: roleStatus(inCount, rosterCount, type.min) };
+  });
+  return { attending, out, total: members.length, roles, status: raidStatus(attending.length, members.length) };
+}
+
+function raidDate(instance: InstanceWithAttendance, timezone: string) {
+  return DateTime.fromJSDate(instance.startsAt).setZone(timezone);
+}
+
+/**
+ * One line per class with someone attending, in CLASSES order, then "Other" for
+ * raiders with no class role. Within a line: tanks (🛡️), healers (healer icon),
+ * then everyone else, each alphabetical. Stops with "…and N more" past `budget`.
+ */
+function classLines(attending: GuildMember[], budget: number): string[] {
+  const typeRank = (m: GuildMember) => {
+    const type = memberRaidType(m);
+    return type ? RAID_TYPES.indexOf(type) : RAID_TYPES.length;
+  };
+  const marker = (m: GuildMember) => {
+    const type = memberRaidType(m);
+    return type && type !== RAID_TYPES[RAID_TYPES.length - 1] ? raidTypeIcon(type) : "";
+  };
+
+  const groups: { heading: string; members: GuildMember[] }[] = [
+    ...CLASSES.map((c) => ({
+      heading: `${appEmoji(c.emoji)} **${c.label}**`.trim(),
+      members: attending.filter((m) => memberClass(m) === c),
+    })),
+    { heading: "**Other**", members: attending.filter((m) => !memberClass(m)) },
+  ].filter((g) => g.members.length > 0);
+
+  const lines: string[] = [];
+  let length = 0;
+  let shown = 0;
+  for (const group of groups) {
+    const entries = [...group.members]
+      .sort((a, b) => typeRank(a) - typeRank(b) || a.displayName.localeCompare(b.displayName))
+      .map((m) => `${marker(m)}${escapeMarkdown(m.displayName)}`);
+    let line = group.heading;
+    for (const [i, entry] of entries.entries()) {
+      const piece = `${i === 0 ? " " : ", "}${entry}`;
+      if (length + line.length + piece.length + 1 > budget) {
+        lines.push(line, `-# …and ${attending.length - shown} more`);
+        return lines;
+      }
+      line += piece;
+      shown++;
+    }
+    lines.push(line);
+    length += line.length + 1;
+  }
+  return lines;
+}
+
+function callOutButton(team: RaidTeam, instance: InstanceWithAttendance) {
+  return new ButtonBuilder()
+    .setCustomId(`attendance:btn:${team.id}:${instance.id}`)
+    .setLabel("Call out ⇄") // ⇄ marks it as a toggle; it's shared, so it can't show the clicker's state
+    .setStyle(ButtonStyle.Secondary);
+}
+
+/** The Next Up hero: the next raid with its attendance bar, role summary and full roster. */
+function nextUpContainer(team: RaidTeam, instance: InstanceWithAttendance, members: GuildMember[]) {
+  const when = raidDate(instance, team.timezone);
+  const unix = Math.floor(instance.startsAt.getTime() / 1000);
+  const header = text(
+    `-# **${(team.name ?? "Raid").toUpperCase()} · NEXT UP**\n## ${when.toFormat("ccc, LLL d · h:mm a")}\n-# <t:${unix}:R>`,
   );
 
-  container.addActionRowComponents(
+  if (instance.cancelled) {
+    return new ContainerBuilder()
+      .setAccentColor(STATUS_COLORS.grey)
+      .addTextDisplayComponents(header, text("🚫 **Cancelled**"));
+  }
+
+  const raid = raidAttendance(instance, members);
+  const bar = text(`${attendanceBar(raid.attending.length, raid.total)}  **${raid.attending.length}/${raid.total} ready**`);
+  const summary = text(
+    raid.roles
+      .map((r) => `${raidTypeIcon(r.type)} ${r.type.label} **${r.inCount}/${r.rosterCount}** ${statusDot(r.status)}`)
+      .join(GAP),
+  );
+  const outLine = raid.out.length > 0 ? `-# Out (${raid.out.length}): ${raid.out.map((m) => `<@${m.id}>`).join(" ")}` : "";
+
+  const fixedText = [header, bar, summary].reduce((n, t) => n + (t.data.content?.length ?? 0), 0);
+  // Leave room for the Coming Up container's text too.
+  const budget = MAX_MESSAGE_TEXT - fixedText - outLine.length - 1200;
+  const roster = [...classLines(raid.attending, budget), outLine].filter(Boolean).join("\n");
+
+  return new ContainerBuilder()
+    .setAccentColor(STATUS_COLORS[raid.status])
+    .addTextDisplayComponents(header, bar, summary)
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+    .addTextDisplayComponents(text(roster || "-# No one on the roster yet."))
+    .addActionRowComponents(
+      new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(callOutButton(team, instance)),
+    );
+}
+
+/** Coming Up: each later raid on one line with its role counts, plus the "See more dates" select. */
+function comingUpContainer(team: RaidTeam, later: InstanceWithAttendance[], members: GuildMember[]) {
+  const container = new ContainerBuilder();
+  if (later.length > 0) container.addTextDisplayComponents(text("-# **COMING UP**"));
+
+  for (const instance of later) {
+    const when = raidDate(instance, team.timezone);
+    if (instance.cancelled) {
+      container.addTextDisplayComponents(text(`🚫 **${when.toFormat("ccc, LLL d")}** · Cancelled`));
+      continue;
+    }
+    const raid = raidAttendance(instance, members);
+    const roles = raid.roles.map((r) => `${statusDot(r.status)} ${r.type.short} ${r.inCount}/${r.rosterCount}`).join("\u2003");
+    container.addSectionComponents(
+      new SectionBuilder()
+        .addTextDisplayComponents(
+          text(
+            `${dot(raid.status, true)} **${when.toFormat("ccc, LLL d")}** ${when.toFormat("h:mm a")} · ${raid.attending.length}/${raid.total}\n-# ${INDENT}${roles}`,
+          ),
+        )
+        .setButtonAccessory(callOutButton(team, instance)),
+    );
+  }
+
+  return container.addActionRowComponents(
     selectRow(
       new StringSelectMenuBuilder()
         .setCustomId(`attendance:pub:${team.id}`)
@@ -152,8 +305,29 @@ export function buildPublicMessage(team: RaidTeam, instances: InstanceWithAttend
         }),
     ),
   );
+}
 
-  return { flags: V2_FLAGS, components: [container], allowedMentions: NO_PINGS };
+/**
+ * The public, non-scrolling team message: the next raid as a Next Up hero with the
+ * full roster, then the following raids under Coming Up. Every raid's "Call out ⇄"
+ * button toggles the clicker's call-out. It's shared, so it can't show anyone's own
+ * status; the select at the bottom opens the personal schedule for that.
+ */
+export function buildPublicMessage(team: RaidTeam, instances: InstanceWithAttendance[], members: GuildMember[]) {
+  const shown = instances.slice(0, MAX_PUBLIC_DAYS);
+  const [next, ...later] = shown;
+
+  const components = next
+    ? [nextUpContainer(team, next, members), comingUpContainer(team, later, members)]
+    : [
+        new ContainerBuilder().addTextDisplayComponents(
+          text(
+            `## ${team.name ?? "Raid"} — schedule\nNo raids to show here yet. Officers can add weekly raid nights with \`/raidlead nights add\`.`,
+          ),
+        ),
+      ];
+
+  return { flags: V2_FLAGS, components, allowedMentions: NO_PINGS };
 }
 
 /**
@@ -207,8 +381,4 @@ export function buildCalendarMessage(
   );
 
   return { flags: V2_FLAGS, components: [container], allowedMentions: NO_PINGS };
-}
-
-function shortDateLabel(date: Date, timezone: string): string {
-  return DateTime.fromJSDate(date).setZone(timezone).toFormat("MMM d");
 }

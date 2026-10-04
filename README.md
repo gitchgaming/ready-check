@@ -4,9 +4,10 @@ Discord bot for WoW raid scheduling and one-click attendance call-outs.
 
 Each raid team is a Discord role. Everyone with the role is assumed to be
 attending every raid unless they call out. The bot keeps one auto-updating
-schedule message per team, with a card for each upcoming raid and a date
-button to toggle your own call-out. Its **See more dates** menu opens your
-full schedule privately, for calling out further ahead.
+schedule message per team: the next raid up top with its full roster, then
+the following raids, each with a **Call out ⇄** button to toggle your own
+call-out. Its **See more dates** menu opens your full schedule privately, for
+calling out further ahead.
 
 ## Who can do what
 
@@ -75,10 +76,15 @@ Every subcommand takes the team's `role:` first.
 ## How it works
 
 - The schedule message shows the next `raids-shown` raids (default 3, at most
-  6), one per row between dividers, each with its own ⇄ button beside it.
-  The message never scrolls, since paging it would change it for everyone.
-- Each card shows an attendance count (🟢 everyone in, 🟡 some out, 🔴 more
-  than half out) and who called out.
+  10). It never scrolls, since paging it would change it for everyone.
+  - **Next Up**: the next raid, with a 10-segment attendance bar, Tanks /
+    Healers / DPS counts, everyone attending grouped by class (🛡️ tanks and
+    healers first), and who's out. Its accent color is the raid's status.
+  - **Coming Up**: one line per later raid with its count and role counts.
+  - Raid status (accent bar and the dot before each Coming Up date): 🟢 everyone
+    in, 🟡 at least half in, 🔴 fewer. The small role dots stay ⚪ when
+    fine — all of that role in, or at least the minimum (Tanks 2, Healers 3,
+    DPS 10) — then 🟡 one short, 🔴 more.
 - Call-outs only count while the raider still holds the team's role. Records
   are kept for people who lose the role, but they no longer show.
 - The schedule message and roster refresh when members gain or lose roles,

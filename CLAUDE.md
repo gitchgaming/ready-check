@@ -37,6 +37,7 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   (all autocomplete), `access.ts`, `classes.ts` (class/type role names),
   `emojis.ts` (loads application emojis by name).
 - `assets/emojis/` — images uploaded as application emojis by `deploy-emojis`.
+- `branding/` — the app icon (PNG + SVG); upload it as each Discord app's icon.
 
 ## Decisions to keep
 
@@ -57,12 +58,18 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - Icons are application emojis (owned by the bot, not a server), uploaded from
   `assets/emojis/` by `deploy-emojis` and looked up by name — IDs differ between the
   dev and production apps, so never hard-code them.
-- Schedule messages (public and personal) use Components V2: one container,
-  each raid day between dividers, public days as a section with their toggle
-  button beside them. V2 caps a message at 40 components, so `displayCount`
-  (default 3) is at most `MAX_PUBLIC_DAYS` = 6. V2 text pings mentions, so these
-  messages always send `allowedMentions: { parse: [] }`. Rosters stay embeds
-  (inline-field columns).
+- Schedule messages use Components V2. The public one (design 9a) is two
+  containers: **Next Up** (next raid: attendance bar, role summary, attending
+  roster by class, Out line, one Call out button; accent = raid status) and
+  **Coming Up** (one section per later raid with its own button, then the
+  "See more dates" select). The personal view is one container, days between
+  dividers. V2 caps a message at 40 components and 4,000 text characters, so
+  `displayCount` (default 3) is at most `MAX_PUBLIC_DAYS` = 10 and class lines
+  truncate with "…and N more". V2 text pings mentions, so these messages always
+  send `allowedMentions: { parse: [] }`. The separate roster post stays an
+  embed (inline-field columns).
+- Role status dots use per-type minimums in `RAID_TYPES` (`min`: Tanks 2,
+  Healers 3, DPS 10) — a design assumption pending the owner's confirmation.
 - Attendance rows exist only for call-outs (status "OUT"); attending = no row.
   Call-outs are only displayed/counted for current role holders.
 - Raids are generated from weekly nights (`RaidSlot`, called "nights" in the

@@ -3,7 +3,7 @@ import { MessageFlags, type Client, type Guild } from "discord.js";
 import { prisma } from "./db.js";
 import type { RaidTeam } from "../generated/prisma/client.js";
 import { MAX_SELECT_OPTIONS, buildCalendarMessage, buildPublicMessage } from "./embeds.js";
-import { renderRoster, rosterMemberIds } from "./roster.js";
+import { fetchRosterMembers, renderRoster, rosterMemberIds } from "./roster.js";
 
 /** How many raids /schedule pages through at a time. */
 export const PAGE_SIZE = 3;
@@ -167,8 +167,8 @@ export async function renderTeamMessage(client: Client, teamId: string): Promise
   const instances = await nextOpenInstances(team.id, team.displayCount);
   const guild = await client.guilds.fetch(team.guildId).catch(() => null);
   if (!guild) return;
-  const rosterIds = await rosterMemberIds(guild, team.roleId);
-  const content = buildPublicMessage(team, instances, rosterIds);
+  const members = await fetchRosterMembers(guild, team.roleId);
+  const content = buildPublicMessage(team, instances, members);
 
   const channel = await client.channels.fetch(team.channelId).catch(() => null);
   if (!channel || !channel.isTextBased() || !("send" in channel)) return;
