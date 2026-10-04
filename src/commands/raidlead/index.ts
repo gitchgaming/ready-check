@@ -11,6 +11,7 @@ import { raidDateAutocomplete, setAttendance } from "../../lib/attendance.js";
 import {
   NO_CHOICE,
   nightChoices,
+  oneOffRaidChoices,
   respondFiltered,
   teamFromRoleOption,
   teamRaidChoices,
@@ -155,6 +156,15 @@ export const data = new SlashCommandBuilder()
           .addStringOption((opt) =>
             opt.setName("time").setDescription('Start time, 24-hour, e.g. "20:00"').setRequired(true),
           ),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("remove")
+          .setDescription("Delete a one-off raid from the schedule")
+          .addRoleOption(roleOption)
+          .addStringOption((opt) =>
+            opt.setName("date").setDescription("The one-off raid").setRequired(true).setAutocomplete(true),
+          ),
       ),
   )
   .addSubcommand((sub) =>
@@ -189,6 +199,7 @@ const handlers: Record<string, Handler> = {
   "raid cancel": raid.cancel,
   "raid restore": raid.restore,
   "raid add": raid.add,
+  "raid remove": raid.remove,
   callout: (i, c) => setAttendance(i, c, "OUT", i.options.getUser("user", true).id),
   attend: (i, c) => setAttendance(i, c, "IN", i.options.getUser("user", true).id),
 };
@@ -246,6 +257,8 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
     await respondFiltered(interaction, await teamRaidChoices(raidTeam, false), "No upcoming raids to cancel");
   } else if (key === "raid restore") {
     await respondFiltered(interaction, await teamRaidChoices(raidTeam, true), "No cancelled raids to restore");
+  } else if (key === "raid remove") {
+    await respondFiltered(interaction, await oneOffRaidChoices(raidTeam), "No upcoming one-off raids");
   } else if (key === "raid add") {
     const typed = interaction.options.getFocused();
     await respondFiltered(interaction, upcomingDateChoices(raidTeam.timezone, typed), "No dates available");

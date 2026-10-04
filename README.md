@@ -53,6 +53,9 @@ Every subcommand takes the team's `role:` first.
   call-outs hidden and no date button.
 - `restore date:` — undo a cancel. Call-outs come back as they were.
 - `add date: time:` — a one-off raid outside the weekly nights.
+- `remove date:` — delete a one-off raid entirely, along with its call-outs.
+  Only one-off raids are listed. Raids on weekly nights would be recreated by
+  the next sync, so use `cancel` for those.
 
 **On behalf of a raider**
 - `callout user: date:` and `attend user: date:`

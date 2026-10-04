@@ -46,6 +46,34 @@ export async function restore(interaction: ChatInputCommandInteraction, client: 
   await setCancelled(interaction, client, false);
 }
 
+export async function remove(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
+  const team = await requireTeam(interaction);
+  if (!team) return;
+
+  const instanceId = interaction.options.getString("date", true);
+  const instance = await prisma.raidInstance.findFirst({ where: { id: instanceId, raidTeamId: team.id } });
+  if (!instance) {
+    await interaction.reply({ content: "Couldn't find that raid. Pick one from the suggestions.", ephemeral: true });
+    return;
+  }
+  if (!instance.oneOff) {
+    await interaction.reply({
+      content: "That raid is on a weekly raid night, so it would come back. Cancel it instead with `/raidlead raid cancel`.",
+      ephemeral: true,
+    });
+    return;
+  }
+
+  // Attendance rows cascade with the raid.
+  await prisma.raidInstance.delete({ where: { id: instance.id } });
+  await renderTeamMessage(client, team.id);
+
+  await interaction.reply({
+    content: `🗑️ Removed the one-off raid on ${formatRaidLabel(instance.startsAt, team.timezone)}.`,
+    ephemeral: true,
+  });
+}
+
 export async function add(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
   const team = await requireTeam(interaction);
   if (!team) return;
@@ -84,7 +112,9 @@ export async function add(interaction: ChatInputCommandInteraction, client: Clie
   if (existing) {
     await prisma.raidInstance.update({ where: { id: existing.id }, data: { cancelled: false } });
   } else {
-    await prisma.raidInstance.create({ data: { raidTeamId: team.id, startsAt: startsAt.toJSDate() } });
+    await prisma.raidInstance.create({
+      data: { raidTeamId: team.id, startsAt: startsAt.toJSDate(), oneOff: true },
+    });
   }
   await renderTeamMessage(client, team.id);
 

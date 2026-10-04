@@ -66,6 +66,9 @@ model RaidInstance {
   // Cancelled raids are hidden from the schedule and reject call-outs. Kept
   // rather than deleted so the hourly sync doesn't regenerate them.
   cancelled  Boolean  @default(false)
+  // Added with /raidlead raid add rather than generated from a weekly night.
+  // Only these can be removed outright, since the sync never regenerates them.
+  oneOff     Boolean  @default(false)
 
   raidTeam   RaidTeam     @relation(fields: [raidTeamId], references: [id], onDelete: Cascade)
   attendance Attendance[]

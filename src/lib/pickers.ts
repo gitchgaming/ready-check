@@ -68,6 +68,19 @@ export async function teamRaidChoices(team: RaidTeam, cancelled: boolean): Promi
   return instances.map((i) => ({ name: formatRaidLabel(i.startsAt, team.timezone), value: i.id }));
 }
 
+/** Upcoming one-off raids for a team, including cancelled ones. */
+export async function oneOffRaidChoices(team: RaidTeam): Promise<Choice[]> {
+  const instances = await prisma.raidInstance.findMany({
+    where: { raidTeamId: team.id, closed: false, oneOff: true },
+    orderBy: { startsAt: "asc" },
+    take: MAX_CHOICES,
+  });
+  return instances.map((i) => ({
+    name: formatRaidLabel(i.startsAt, team.timezone) + (i.cancelled ? " (cancelled)" : ""),
+    value: i.id,
+  }));
+}
+
 export async function nightChoices(team: RaidTeam): Promise<Choice[]> {
   const nights = await prisma.raidSlot.findMany({
     where: { raidTeamId: team.id },
