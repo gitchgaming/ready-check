@@ -118,16 +118,18 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 ## Production hosting (Railway)
 
 - Railway deploys the `production` branch. Work happens on `main`; release by
-  fast-forwarding `production` to `main` and pushing.
+  fast-forwarding `production` to `main` and pushing
+  (`git push origin main:production`). Only release when the user asks.
 - The container runs `prisma migrate deploy`, then `deploy-commands`, then
   `deploy-emojis`, then the bot. A failed command registration stops boot
   (Railway retries); a failed emoji upload only logs, since icons are cosmetic.
 - Production is a separate Discord application from the dev bot, so the same
   token never runs in two places and neither clobbers the other's commands.
   The dev bot lives only in a private test server; keep it out of the raid guild.
-
-Still to do (by the user):
-1. Create the production Discord application and invite it to the raid guild.
-2. Railway: deploy from GitHub (`production` branch), volume at `/data`,
-   `DATABASE_URL=file:/data/prod.db`, production
-   `DISCORD_TOKEN`/`DISCORD_CLIENT_ID`/`DISCORD_GUILD_ID`, one instance.
+- Live since 2026-10-04 as `ready-check#2607` (production app; the dev bot is
+  `ready-check#7940`). Railway: Hobby plan, Dockerfile build, volume at
+  `/data`, `DATABASE_URL=file:/data/prod.db`, one replica, no public domain.
+- Production leaves `DISCORD_GUILD_ID` unset, so commands register globally
+  (the bot may serve a second server). Dev sets it for instant updates.
+- Railway's **Wait for CI** is off until a GitHub Actions workflow exists
+  (see `docs/testing-plan.md`); turn it on then.
