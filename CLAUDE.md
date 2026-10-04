@@ -65,17 +65,18 @@ TypeScript (ESM, NodeNext) + discord.js v14 + Prisma 5 on SQLite + Luxon.
 - During autocomplete, read other options as raw values
   (`options.get("role")?.value`); only the focused option is fully resolved.
 
-## Pending: production hosting (Railway)
+## Production hosting (Railway)
 
-Agreed plan, not yet done:
-1. Move `prisma` from devDependencies to dependencies (runtime stage runs
-   `npm ci --omit=dev` but needs the CLI for `postinstall` and `migrate deploy`).
-2. Add `RUN apk add --no-cache openssl` to both Dockerfile stages (Prisma's
-   engine needs it on Alpine).
-3. Register commands on container start, after migrations
-   (`node dist/deploy-commands.js`).
-4. Production uses a separate Discord application from the dev bot, so the
-   same token never runs in two places.
-5. Railway: deploy from GitHub, volume at `/data`, `DATABASE_URL=file:/data/prod.db`,
-   production `DISCORD_TOKEN`/`DISCORD_CLIENT_ID`/`DISCORD_GUILD_ID`, one instance.
-6. Open question for the user: deploy from `main`, or from a `production` branch.
+- Railway deploys the `production` branch. Work happens on `main`; release by
+  fast-forwarding `production` to `main` and pushing.
+- The container runs `prisma migrate deploy`, then `deploy-commands`, then the
+  bot. A failed command registration stops boot (Railway retries).
+- Production is a separate Discord application from the dev bot, so the same
+  token never runs in two places and neither clobbers the other's commands.
+  The dev bot lives only in a private test server; keep it out of the raid guild.
+
+Still to do (by the user):
+1. Create the production Discord application and invite it to the raid guild.
+2. Railway: deploy from GitHub (`production` branch), volume at `/data`,
+   `DATABASE_URL=file:/data/prod.db`, production
+   `DISCORD_TOKEN`/`DISCORD_CLIENT_ID`/`DISCORD_GUILD_ID`, one instance.
