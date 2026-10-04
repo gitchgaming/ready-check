@@ -7,7 +7,7 @@ import {
 } from "discord.js";
 import { DateTime } from "luxon";
 import { prisma } from "../../lib/db.js";
-import { buildRosterEmbed, fetchRosterNames } from "../../lib/roster.js";
+import { buildRosterEmbed, fetchRosterMembers } from "../../lib/roster.js";
 import { renderTeamMessage, syncRaidTeam } from "../../lib/scheduler.js";
 import { deleteMessage, requireTeam } from "./shared.js";
 
@@ -79,9 +79,9 @@ async function postRoster(client: Client, teamId: string, channelId: string): Pr
   }
 
   const guild = await client.guilds.fetch(team.guildId);
-  const names = await fetchRosterNames(guild, team.roleId);
+  const members = await fetchRosterMembers(guild, team.roleId);
   const roleName = guild.roles.cache.get(team.roleId)?.name ?? "Raid";
-  const message = await channel.send({ embeds: [buildRosterEmbed(team.name ?? roleName, names)] });
+  const message = await channel.send({ embeds: [buildRosterEmbed(team.name ?? roleName, members)] });
 
   await prisma.raidTeam.update({
     where: { id: team.id },

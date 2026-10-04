@@ -15,6 +15,7 @@ COPY package*.json ./
 COPY prisma ./prisma
 RUN npm ci --omit=dev && npx prisma generate
 COPY --from=build /app/dist ./dist
+COPY assets ./assets
 
 # Railway: mount a volume at /data and set DATABASE_URL=file:/data/prod.db
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/deploy-commands.js && node dist/index.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/deploy-commands.js && (node dist/deploy-emojis.js || true) && node dist/index.js"]
