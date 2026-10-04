@@ -6,7 +6,8 @@ the user-facing command reference.
 
 ## Stack and commands
 
-TypeScript (ESM, NodeNext) + discord.js v14 + Prisma 5 on SQLite + Luxon.
+Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
+(`better-sqlite3` driver adapter) + Luxon.
 
 - `npm run dev` — run the bot with `tsx watch`
 - `npx tsc --noEmit` — type-check; run before every commit
@@ -79,10 +80,14 @@ TypeScript (ESM, NodeNext) + discord.js v14 + Prisma 5 on SQLite + Luxon.
 
 ## Gotchas
 
-- Prisma resolves a relative SQLite `file:` URL against `prisma/`, so `.env`
-  uses `DATABASE_URL="file:./dev.db"` (→ `prisma/dev.db`). If a
-  `prisma/prisma/dev.db` appears, a stale `DATABASE_URL` env var is overriding
-  `.env` (dotenv never overrides existing vars). Check `echo $DATABASE_URL`.
+- A relative SQLite `file:` URL resolves from the repo root (Prisma 7 CLI and
+  the runtime adapter both), so `.env` uses `DATABASE_URL="file:./prisma/dev.db"`.
+  If the bot sees an empty database or a stray `dev.db` appears at the root, a
+  stale `DATABASE_URL` env var may be overriding `.env` (dotenv never overrides
+  existing vars). Check `echo $DATABASE_URL`.
+- Prisma 7 generates the client into `src/generated/prisma/` (gitignored;
+  `npm install` regenerates it). Import Prisma types from there, not
+  `@prisma/client`. The CLI reads `prisma.config.ts`, which loads `.env` itself.
 - In discord.js 14.16+, `isTextBased()` includes group DMs, which have no
   `send`; also check `"send" in channel` before sending.
 - During autocomplete, read other options as raw values

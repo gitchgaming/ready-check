@@ -1,5 +1,5 @@
 import type { AutocompleteInteraction, Guild } from "discord.js";
-import type { RaidTeam } from "@prisma/client";
+import type { RaidTeam } from "../generated/prisma/client.js";
 import { DateTime } from "luxon";
 import { prisma } from "./db.js";
 import { weekdayName } from "./weekdays.js";

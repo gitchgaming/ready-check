@@ -9,3 +9,4 @@ prisma/*.db-journal
 
 # Prisma generated client (regenerated via postinstall)
 generated/
+src/generated/

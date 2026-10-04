@@ -1,19 +1,23 @@
 FROM node:26-alpine AS build
 WORKDIR /app
-RUN apk add --no-cache openssl
-COPY package*.json ./
+# openssl: Prisma's migration engine. python3/make/g++: fallback for building
+# better-sqlite3's native module if no prebuilt binary matches this platform.
+RUN apk add --no-cache openssl python3 make g++
+COPY package*.json prisma.config.ts ./
 COPY prisma ./prisma
 RUN npm ci
 COPY . .
-RUN npm run build
+RUN npm run build && npm prune --omit=dev
 
+# Runtime image: only production dependencies (already compiled for this
+# platform in the build stage), the compiled bot, and what migrations need.
 FROM node:26-alpine
 WORKDIR /app
 RUN apk add --no-cache openssl
 ENV NODE_ENV=production
-COPY package*.json ./
-COPY prisma ./prisma
-RUN npm ci --omit=dev && npx prisma generate
+COPY --from=build /app/package*.json /app/prisma.config.ts ./
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/dist ./dist
 COPY assets ./assets
 

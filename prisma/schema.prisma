@@ -1,10 +1,14 @@
+// The connection URL lives in prisma.config.ts (CLI) and src/lib/db.ts (runtime).
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
 }
 
+// Generated into src/ so tsc compiles it into dist/ with the rest of the bot.
 generator client {
-  provider = "prisma-client-js"
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
 }
 
 // One RaidTeam = one Discord role whose members are assumed required for

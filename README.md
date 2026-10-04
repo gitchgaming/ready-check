@@ -87,7 +87,7 @@ Every subcommand takes the team's `role:` first.
 
 ## Development (GitHub Codespaces)
 
-This repo has a `.devcontainer` so Codespaces gives you Node 20 + everything
+This repo has a `.devcontainer` so Codespaces gives you Node 26 + everything
 needed, with no local setup.
 
 1. On GitHub: **Code → Codespaces → Create codespace on main**.
@@ -126,8 +126,8 @@ test and production bots share one Discord application, run
    will build from the `Dockerfile` automatically.
 2. Add a **volume**, mounted at `/data`.
 3. Set environment variables: `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, and
-   `DATABASE_URL=file:/data/prod.db`. Leave `DISCORD_GUILD_ID` unset so
-   commands register globally.
+   `DATABASE_URL=file:/data/prod.db`, and `DISCORD_GUILD_ID` set to the raid
+   guild so commands register there instantly.
 4. Deploy. The container runs `prisma migrate deploy` on boot, applying the
    committed migrations to the fresh database automatically.
 5. Run `npm run deploy-commands` once from Codespaces (pointed at production

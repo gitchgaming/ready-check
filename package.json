@@ -20,11 +20,13 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@prisma/client": "^5.20.0",
+    "@prisma/adapter-better-sqlite3": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "better-sqlite3": "^12.11.1",
     "discord.js": "^14.16.3",
     "dotenv": "^18.0.5",
     "luxon": "^3.5.0",
-    "prisma": "^5.22.0"
+    "prisma": "^7.10.0"
   },
   "devDependencies": {
     "@types/luxon": "^3.4.2",

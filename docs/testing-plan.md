@@ -21,8 +21,8 @@ deploys. Manual Discord testing stays for visual review only.
 ### Tooling
 - **Vitest** (devDependency): native ESM + TypeScript, resolves our NodeNext `./x.js`
   imports to `.ts`, built-in mocks and fake clock. No ts-jest/babel setup.
-- `vitest.config.ts`: `test.env.DATABASE_URL = "file:./test.db"` (→ `prisma/test.db`,
-  already gitignored by `prisma/*.db`), `fileParallelism: false` (one shared SQLite
+- `vitest.config.ts`: `test.env.DATABASE_URL = "file:./prisma/test.db"` (gitignored by
+  `prisma/*.db`), `fileParallelism: false` (one shared SQLite
   file), `globalSetup` that runs `prisma migrate reset --force --skip-seed` once.
 - Scripts: `"test": "vitest run"`, `"test:watch": "vitest"`.
 - Fake clock: `vi.useFakeTimers({ toFake: ["Date"] })` + `vi.setSystemTime(...)` —
@@ -104,7 +104,7 @@ deploys. Manual Discord testing stays for visual review only.
   handler errors produce the "Something went wrong" reply.
 
 ### CI and deploy gate
-- `.github/workflows/ci.yml` on push and PR: Node 20, `npm ci`, `npx prisma generate`,
+- `.github/workflows/ci.yml` on push and PR: Node 26, `npm ci` (its postinstall runs `prisma generate`),
   `npx tsc --noEmit`, `npm test`.
 - Railway (user, in dashboard when setting up the service): enable **Wait for CI**
   on the `production` deploy so it only deploys commits whose checks passed.

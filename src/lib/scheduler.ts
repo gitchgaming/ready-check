@@ -1,7 +1,7 @@
 import { DateTime } from "luxon";
 import { MessageFlags, type Client, type Guild } from "discord.js";
 import { prisma } from "./db.js";
-import type { RaidTeam } from "@prisma/client";
+import type { RaidTeam } from "../generated/prisma/client.js";
 import { MAX_SELECT_OPTIONS, buildCalendarMessage, buildPublicMessage } from "./embeds.js";
 import { renderRoster, rosterMemberIds } from "./roster.js";
 

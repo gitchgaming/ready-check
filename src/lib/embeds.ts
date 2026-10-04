@@ -11,7 +11,7 @@ import {
   TextDisplayBuilder,
   type MessageActionRowComponentBuilder,
 } from "discord.js";
-import type { Attendance, RaidInstance, RaidTeam } from "@prisma/client";
+import type { Attendance, RaidInstance, RaidTeam } from "../generated/prisma/client.js";
 import { DateTime } from "luxon";
 import { formatRaidLabel } from "./pickers.js";
 

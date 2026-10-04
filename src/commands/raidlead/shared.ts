@@ -1,5 +1,5 @@
 import type { ChatInputCommandInteraction, Client } from "discord.js";
-import type { RaidTeam } from "@prisma/client";
+import type { RaidTeam } from "../../generated/prisma/client.js";
 import { prisma } from "../../lib/db.js";
 
 /** Looks up the team for the command's role option, replying with an error if there isn't one. */
