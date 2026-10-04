@@ -9,7 +9,7 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function autocomplete(interaction: AutocompleteInteraction): Promise<void> {
-  await raidDateAutocomplete(interaction, interaction.user.id);
+  await raidDateAutocomplete(interaction, interaction.user.id, "OUT");
 }
 
 export async function execute(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {

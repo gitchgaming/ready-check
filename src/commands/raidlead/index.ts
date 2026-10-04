@@ -226,7 +226,11 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
   }
 
   if (key === "callout" || key === "attend") {
-    await raidDateAutocomplete(interaction, interaction.options.get("user")?.value as string | undefined);
+    await raidDateAutocomplete(
+      interaction,
+      interaction.options.get("user")?.value as string | undefined,
+      key === "attend" ? "IN" : "OUT",
+    );
     return;
   }
 

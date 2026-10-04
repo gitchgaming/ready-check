@@ -5,8 +5,15 @@ import { renderTeamMessage } from "./scheduler.js";
 
 export type AttendanceStatus = "IN" | "OUT";
 
-/** Date picker for the raids of whoever the attendance change is about. */
-export async function raidDateAutocomplete(interaction: AutocompleteInteraction, subjectId: string | undefined) {
+/**
+ * Date picker for the raids of whoever the attendance change is about. Calling
+ * out lists raids they're still attending; attending lists only their call-outs.
+ */
+export async function raidDateAutocomplete(
+  interaction: AutocompleteInteraction,
+  subjectId: string | undefined,
+  status: AttendanceStatus,
+) {
   if (!interaction.guild) return;
   if (!subjectId) {
     await interaction.respond([{ name: "Pick a raider first", value: NO_CHOICE }]);
@@ -19,12 +26,15 @@ export async function raidDateAutocomplete(interaction: AutocompleteInteraction,
     return;
   }
 
+  const theirCallOut = { userId: subjectId, status: "OUT" };
+  const attendanceFilter = status === "IN" ? { some: theirCallOut } : { none: theirCallOut };
+
   // Split the choice budget evenly so one busy team can't push the others off the list.
   const perTeam = Math.max(1, Math.floor(MAX_CHOICES / teams.length));
   const perTeamInstances = await Promise.all(
     teams.map((team) =>
       prisma.raidInstance.findMany({
-        where: { raidTeamId: team.id, closed: false, cancelled: false },
+        where: { raidTeamId: team.id, closed: false, cancelled: false, attendance: attendanceFilter },
         orderBy: { startsAt: "asc" },
         take: perTeam,
       }),
@@ -45,7 +55,11 @@ export async function raidDateAutocomplete(interaction: AutocompleteInteraction,
       };
     });
 
-  await respondFiltered(interaction, choices, "No upcoming raids found");
+  await respondFiltered(
+    interaction,
+    choices,
+    status === "IN" ? "No call-outs to undo" : "Already called out for every upcoming raid",
+  );
 }
 
 /** Sets a raider's attendance for one raid and refreshes the schedule message. */
