@@ -1,4 +1,10 @@
-import type { ChatInputCommandInteraction, Client } from "discord.js";
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  type ChatInputCommandInteraction,
+  type Client,
+} from "discord.js";
 import { DateTime } from "luxon";
 import { prisma } from "../../lib/db.js";
 import { buildRosterEmbed, fetchRosterNames } from "../../lib/roster.js";
@@ -127,6 +133,24 @@ export async function edit(interaction: ChatInputCommandInteraction, client: Cli
   });
 
   await syncRaidTeam(client, team.id).catch((err) => console.error(`Failed to sync raid team ${team.id}:`, err));
+}
+
+export async function remove(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
+  const team = await requireTeam(interaction);
+  if (!team) return;
+
+  await interaction.reply({
+    content:
+      `Delete **${team.name ?? "this team"}**? This permanently removes its weekly nights, raids, and ` +
+      "call-outs, and deletes its schedule and roster messages. The Discord role is not affected.",
+    components: [
+      new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder().setCustomId(`teamdelete:confirm:${team.id}`).setLabel("Delete team").setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId(`teamdelete:abort:${team.id}`).setLabel("Keep team").setStyle(ButtonStyle.Secondary),
+      ),
+    ],
+    ephemeral: true,
+  });
 }
 
 export async function publish(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {

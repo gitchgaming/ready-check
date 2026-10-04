@@ -40,6 +40,9 @@ Every subcommand takes the team's `role:` first.
 - `publish` — post the schedule message in the current channel, replacing
   the old one. Use it if the message was deleted.
 - `roster` — post an auto-updating roster in the current channel.
+- `delete` — permanently delete the team after a confirmation: its weekly
+  nights, raids, call-outs, and its schedule and roster messages. The Discord
+  role is left alone.
 
 **`nights`** — weekly recurring raid nights
 - `add day: time:` — e.g. Wednesday, `20:00`. Times are 24-hour, in the

@@ -3,6 +3,7 @@ import { Client, Events, GatewayIntentBits } from "discord.js";
 import { commands } from "./commands/index.js";
 import { isAttendanceButton, handleAttendanceButton } from "./interactions/attendanceButton.js";
 import { isNavButton, handleNavButton } from "./interactions/navButton.js";
+import { isTeamDeleteButton, handleTeamDeleteButton } from "./interactions/teamDeleteButton.js";
 import { prisma } from "./lib/db.js";
 import { ensureMembersCached, renderRoster } from "./lib/roster.js";
 import { renderTeamMessage, syncAllRaidTeams } from "./lib/scheduler.js";
@@ -81,6 +82,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (interaction.isButton() && isNavButton(interaction.customId)) {
       await handleNavButton(interaction, client);
+      return;
+    }
+
+    if (interaction.isButton() && isTeamDeleteButton(interaction.customId)) {
+      await handleTeamDeleteButton(interaction, client);
       return;
     }
   } catch (err) {

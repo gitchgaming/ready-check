@@ -92,6 +92,12 @@ export const data = new SlashCommandBuilder()
           .setName("roster")
           .setDescription("Post an auto-updating roster in this channel")
           .addRoleOption(roleOption),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("delete")
+          .setDescription("Permanently delete a raid team and its schedule")
+          .addRoleOption(roleOption),
       ),
   )
   .addSubcommandGroup((group) =>
@@ -193,6 +199,7 @@ const handlers: Record<string, Handler> = {
   "team edit": team.edit,
   "team publish": team.publish,
   "team roster": team.roster,
+  "team delete": team.remove,
   "nights add": nights.add,
   "nights remove": nights.remove,
   "nights list": nights.list,
