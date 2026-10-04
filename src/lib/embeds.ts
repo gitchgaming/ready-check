@@ -35,13 +35,13 @@ export const MORE_DATES_VALUE = "more";
 
 /**
  * Discord caps a Components V2 message at 40 components, nested ones included.
- * The public message's Next Up container costs 9 (container, 5 text blocks,
- * divider, and a section holding the Called Out text beside the button) and
- * the Coming Up container
- * 4 (container, header, select row, select) plus 3 per later raid (section, text,
- * button). So it fits 13 + 3 × (days − 1) ≤ 40 → 10 days.
+ * The public message's Next Up container costs up to 11 (container, 5 text
+ * blocks, divider, and a section with a blank text block beside the button) and
+ * the Coming Up container 4 (container, header, select row, select) plus 3 per
+ * later raid (section, text, button). So it fits 15 + 3 × (days − 1) ≤ 40 →
+ * 9 days.
  */
-export const MAX_PUBLIC_DAYS = 10;
+export const MAX_PUBLIC_DAYS = 9;
 
 /** Discord caps the text of all text blocks in one V2 message at 4,000 characters. */
 const MAX_MESSAGE_TEXT = 4000;
@@ -263,10 +263,10 @@ function fitEntries(entries: string[], separator: string, max: number): string {
   return result;
 }
 
-function callOutButton(team: RaidTeam, instance: InstanceWithAttendance) {
+function statusButton(team: RaidTeam, instance: InstanceWithAttendance) {
   return new ButtonBuilder()
     .setCustomId(`attendance:btn:${team.id}:${instance.id}`)
-    .setLabel("Call out ⇄") // ⇄ marks it as a toggle; it's shared, so it can't show the clicker's state
+    .setLabel("Status ⇄") // ⇄ marks it as a toggle; it's shared, so it can't show the clicker's state
     .setStyle(ButtonStyle.Secondary);
 }
 
@@ -310,14 +310,13 @@ function nextUpContainer(team: RaidTeam, instance: InstanceWithAttendance, membe
     .setAccentColor(STATUS_COLORS[raid.status])
     .addTextDisplayComponents(header, bar, summary)
     .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-    .addTextDisplayComponents(text(roster || "-# No one on the roster yet."))
+    .addTextDisplayComponents(text(roster || "-# No one on the roster yet."), ...(calledOut ? [text(calledOut)] : []))
     // Buttons in a row always sit on the left; as a section's accessory the button
-    // sits on the right, lined up with the Coming Up buttons. It rides beside the
-    // Called Out block, or a braille blank (U+2800, kept but invisible) if no one's out.
+    // sits on the right, lined up with the Coming Up buttons. Its section's text is
+    // a braille blank (U+2800, kept but invisible) so the button always gets its
+    // own line instead of floating beside a long Called Out list.
     .addSectionComponents(
-      new SectionBuilder()
-        .addTextDisplayComponents(text(calledOut || "\u2800"))
-        .setButtonAccessory(callOutButton(team, instance)),
+      new SectionBuilder().addTextDisplayComponents(text("\u2800")).setButtonAccessory(statusButton(team, instance)),
     );
 }
 
@@ -341,7 +340,7 @@ function comingUpContainer(team: RaidTeam, later: InstanceWithAttendance[], memb
             `${dot(raid.status, true)} **${when.toFormat("ccc, LLL d")}** ${when.toFormat("h:mm a")} · ${raid.attending.length}/${raid.total}\n-# ${INDENT}${roles}`,
           ),
         )
-        .setButtonAccessory(callOutButton(team, instance)),
+        .setButtonAccessory(statusButton(team, instance)),
     );
   }
 
@@ -362,7 +361,7 @@ function comingUpContainer(team: RaidTeam, later: InstanceWithAttendance[], memb
 
 /**
  * The public, non-scrolling team message: the next raid as a Next Up hero with the
- * full roster, then the following raids under Coming Up. Every raid's "Call out ⇄"
+ * full roster, then the following raids under Coming Up. Every raid's "Status ⇄"
  * button toggles the clicker's call-out. It's shared, so it can't show anyone's own
  * status; the select at the bottom opens the personal schedule for that.
  */

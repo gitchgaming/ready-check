@@ -5,7 +5,7 @@ Discord bot for WoW raid scheduling and one-click attendance call-outs.
 Each raid team is a Discord role. Everyone with the role is assumed to be
 attending every raid unless they call out. The bot keeps one auto-updating
 schedule message per team: the next raid up top with its full roster, then
-the following raids, each with a **Call out ⇄** button to toggle your own
+the following raids, each with a **Status ⇄** button to toggle your own
 call-out. Its **See more dates** menu opens your full schedule privately, for
 calling out further ahead.
 
@@ -76,7 +76,7 @@ Every subcommand takes the team's `role:` first.
 ## How it works
 
 - The schedule message shows the next `raids-shown` raids (default 3, at most
-  10). It never scrolls, since paging it would change it for everyone.
+  9). It never scrolls, since paging it would change it for everyone.
   - **Next Up**: the next raid, with a 10-segment attendance bar, Tanks /
     Healers / DPS counts, everyone attending grouped by class (🛡️ tanks and
     healers first), and who's out. Its accent color is the raid's status.

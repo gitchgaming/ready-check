@@ -60,11 +60,12 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   dev and production apps, so never hard-code them.
 - Schedule messages use Components V2. The public one (design 9a) is two
   containers: **Next Up** (next raid: attendance bar, role summary, attending
-  roster by class, Out line, one Call out button; accent = raid status) and
+  roster by class, Called Out block, one Status ⇄ button on its own line;
+  accent = raid status) and
   **Coming Up** (one section per later raid with its own button, then the
   "See more dates" select). The personal view is one container, days between
   dividers. V2 caps a message at 40 components and 4,000 text characters, so
-  `displayCount` (default 3) is at most `MAX_PUBLIC_DAYS` = 10 and class lines
+  `displayCount` (default 3) is at most `MAX_PUBLIC_DAYS` = 9 and class lines
   truncate with "…and N more". V2 text pings mentions, so these messages always
   send `allowedMentions: { parse: [] }`. The separate roster post stays an
   embed (inline-field columns).
