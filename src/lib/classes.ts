@@ -32,6 +32,8 @@ export interface RaidType {
   icon: string;
   /** Application emoji used instead of `icon` when it's been uploaded. */
   emoji?: string;
+  /** Small padded app emoji marking this role beside a name on the schedule roster. */
+  marker?: string;
   /**
    * How many of this role a raid needs. Drives the role status dots on the
    * schedule. A design assumption for now; could become a per-team setting.
@@ -42,8 +44,8 @@ export interface RaidType {
 
 /** In priority order: a raider with several type roles counts as their first match. */
 export const RAID_TYPES: RaidType[] = [
-  { label: "Tanks", short: "Tanks", icon: "🛡️", min: 2, roles: ["Tanks", "Tank"] },
-  { label: "Healers", short: "Heals", icon: "➕", emoji: "healer", min: 3, roles: ["Healers", "Healer"] },
+  { label: "Tanks", short: "Tanks", icon: "🛡️", marker: "mark_tank", min: 2, roles: ["Tanks", "Tank"] },
+  { label: "Healers", short: "Heals", icon: "➕", emoji: "healer", marker: "mark_healer", min: 3, roles: ["Healers", "Healer"] },
   { label: "DPS", short: "DPS", icon: "⚔️", min: 10, roles: ["DPS", "Wizards", "Phys"] },
 ];
 

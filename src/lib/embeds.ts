@@ -9,6 +9,7 @@ import {
   SeparatorSpacingSize,
   StringSelectMenuBuilder,
   TextDisplayBuilder,
+  ComponentType,
   escapeMarkdown,
   type GuildMember,
   type MessageActionRowComponentBuilder,
@@ -34,10 +35,11 @@ export const MORE_DATES_VALUE = "more";
 
 /**
  * Discord caps a Components V2 message at 40 components, nested ones included.
- * The public message's Next Up container costs 8 (container, 4 text blocks,
- * divider, button row, button) and the Coming Up container 4 (container, header,
- * select row, select) plus 3 per later raid (section, text, button). So it fits
- * 12 + 3 × (days − 1) ≤ 40 → 10 days.
+ * The public message's Next Up container costs 9 (container, 5 text blocks,
+ * divider, and a section holding the Called Out text beside the button) and
+ * the Coming Up container
+ * 4 (container, header, select row, select) plus 3 per later raid (section, text,
+ * button). So it fits 13 + 3 × (days − 1) ≤ 40 → 10 days.
  */
 export const MAX_PUBLIC_DAYS = 10;
 
@@ -178,8 +180,8 @@ function raidDate(instance: InstanceWithAttendance, timezone: string) {
 }
 
 /**
- * One line per class with someone attending, in CLASSES order, then "Other" for
- * raiders with no class role. Within a line: tanks (🛡️), healers (healer icon),
+ * One line per class, in CLASSES order, always shown ("—" when no one of that
+ * class is attending), then "Other" for raiders with no class role, if any. Within a line: tanks (🛡️), healers (healer icon),
  * then everyone else, each alphabetical. Stops with "…and N more" past `budget`.
  */
 function classLines(attending: GuildMember[], budget: number): string[] {
@@ -189,16 +191,17 @@ function classLines(attending: GuildMember[], budget: number): string[] {
   };
   const marker = (m: GuildMember) => {
     const type = memberRaidType(m);
-    return type && type !== RAID_TYPES[RAID_TYPES.length - 1] ? raidTypeIcon(type) : "";
+    return type?.marker ? appEmoji(type.marker, raidTypeIcon(type)) : "";
   };
 
+  const others = attending.filter((m) => !memberClass(m));
   const groups: { heading: string; members: GuildMember[] }[] = [
     ...CLASSES.map((c) => ({
       heading: `${appEmoji(c.emoji)} **${c.label}**`.trim(),
       members: attending.filter((m) => memberClass(m) === c),
     })),
-    { heading: "**Other**", members: attending.filter((m) => !memberClass(m)) },
-  ].filter((g) => g.members.length > 0);
+    ...(others.length > 0 ? [{ heading: "**Other**", members: others }] : []),
+  ];
 
   const lines: string[] = [];
   let length = 0;
@@ -207,7 +210,7 @@ function classLines(attending: GuildMember[], budget: number): string[] {
     const entries = [...group.members]
       .sort((a, b) => typeRank(a) - typeRank(b) || a.displayName.localeCompare(b.displayName))
       .map((m) => `${marker(m)}${escapeMarkdown(m.displayName)}`);
-    let line = group.heading;
+    let line = entries.length > 0 ? group.heading : `${group.heading} —`;
     for (const [i, entry] of entries.entries()) {
       const piece = `${i === 0 ? " " : ", "}${entry}`;
       if (length + line.length + piece.length + 1 > budget) {
@@ -223,6 +226,43 @@ function classLines(attending: GuildMember[], budget: number): string[] {
   return lines;
 }
 
+/** Called-out raiders as class icon + mention, grouped in CLASSES order then by name. */
+function outEntries(out: GuildMember[]): string[] {
+  const classOrder = (m: GuildMember) => {
+    const c = memberClass(m);
+    return c ? CLASSES.indexOf(c) : CLASSES.length;
+  };
+  return [...out]
+    .sort((a, b) => classOrder(a) - classOrder(b) || a.displayName.localeCompare(b.displayName))
+    .map((m) => {
+      const c = memberClass(m);
+      const icon = c ? appEmoji(c.emoji) : "";
+      return icon ? `${icon} <@${m.id}>` : `<@${m.id}>`;
+    });
+}
+
+/** Total characters in a component tree's text blocks (what Discord's 4,000 limit counts). */
+function textLength(component: { toJSON(): unknown }): number {
+  let total = 0;
+  const walk = (c: { type?: number; content?: string; components?: unknown[]; accessory?: unknown }) => {
+    if (c.type === ComponentType.TextDisplay) total += c.content?.length ?? 0;
+    for (const child of c.components ?? []) walk(child as typeof c);
+  };
+  walk(component.toJSON() as Parameters<typeof walk>[0]);
+  return total;
+}
+
+/** Joins as many entries as fit in `max` characters, ending with "…and N more" if some don't. */
+function fitEntries(entries: string[], separator: string, max: number): string {
+  let result = "";
+  for (const [i, entry] of entries.entries()) {
+    const next = (i === 0 ? "" : separator) + entry;
+    if (result.length + next.length + 20 > max && i < entries.length - 1) return `${result} …and ${entries.length - i} more`;
+    result += next;
+  }
+  return result;
+}
+
 function callOutButton(team: RaidTeam, instance: InstanceWithAttendance) {
   return new ButtonBuilder()
     .setCustomId(`attendance:btn:${team.id}:${instance.id}`)
@@ -230,8 +270,11 @@ function callOutButton(team: RaidTeam, instance: InstanceWithAttendance) {
     .setStyle(ButtonStyle.Secondary);
 }
 
-/** The Next Up hero: the next raid with its attendance bar, role summary and full roster. */
-function nextUpContainer(team: RaidTeam, instance: InstanceWithAttendance, members: GuildMember[]) {
+/**
+ * The Next Up hero: the next raid with its attendance bar, role summary and full
+ * roster. `textBudget` is what's left of Discord's message text limit.
+ */
+function nextUpContainer(team: RaidTeam, instance: InstanceWithAttendance, members: GuildMember[], textBudget: number) {
   const when = raidDate(instance, team.timezone);
   const unix = Math.floor(instance.startsAt.getTime() / 1000);
   const header = text(
@@ -251,20 +294,30 @@ function nextUpContainer(team: RaidTeam, instance: InstanceWithAttendance, membe
       .map((r) => `${raidTypeIcon(r.type)} ${r.type.label} **${r.inCount}/${r.rosterCount}** ${statusDot(r.status)}`)
       .join(GAP),
   );
-  const outLine = raid.out.length > 0 ? `-# Out (${raid.out.length}): ${raid.out.map((m) => `<@${m.id}>`).join(" ")}` : "";
-
   const fixedText = [header, bar, summary].reduce((n, t) => n + (t.data.content?.length ?? 0), 0);
-  // Leave room for the Coming Up container's text too.
-  const budget = MAX_MESSAGE_TEXT - fixedText - outLine.length - 1200;
-  const roster = [...classLines(raid.attending, budget), outLine].filter(Boolean).join("\n");
+  const rosterBudget = textBudget - fixedText;
+
+  // Its own text block, so Discord leaves a gap above it. Gets up to a third of
+  // the roster budget; the class lines get the rest.
+  const outHeading = `-# **CALLED OUT (${raid.out.length})**\n`;
+  const calledOut =
+    raid.out.length > 0
+      ? outHeading + fitEntries(outEntries(raid.out), "  ", Math.floor(rosterBudget / 3) - outHeading.length)
+      : "";
+  const roster = classLines(raid.attending, rosterBudget - calledOut.length).join("\n");
 
   return new ContainerBuilder()
     .setAccentColor(STATUS_COLORS[raid.status])
     .addTextDisplayComponents(header, bar, summary)
     .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(text(roster || "-# No one on the roster yet."))
-    .addActionRowComponents(
-      new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(callOutButton(team, instance)),
+    // Buttons in a row always sit on the left; as a section's accessory the button
+    // sits on the right, lined up with the Coming Up buttons. It rides beside the
+    // Called Out block, or a braille blank (U+2800, kept but invisible) if no one's out.
+    .addSectionComponents(
+      new SectionBuilder()
+        .addTextDisplayComponents(text(calledOut || "\u2800"))
+        .setButtonAccessory(callOutButton(team, instance)),
     );
 }
 
@@ -317,8 +370,9 @@ export function buildPublicMessage(team: RaidTeam, instances: InstanceWithAttend
   const shown = instances.slice(0, MAX_PUBLIC_DAYS);
   const [next, ...later] = shown;
 
+  const comingUp = comingUpContainer(team, later, members);
   const components = next
-    ? [nextUpContainer(team, next, members), comingUpContainer(team, later, members)]
+    ? [nextUpContainer(team, next, members, MAX_MESSAGE_TEXT - textLength(comingUp)), comingUp]
     : [
         new ContainerBuilder().addTextDisplayComponents(
           text(

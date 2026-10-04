@@ -24,3 +24,7 @@ Schedule status (from the schedule-post design handoff): `dot_green`
 Discord draws every custom emoji at the same size, so the dots are drawn at
 about half the canvas with transparent padding to sit smaller than the text.
 `dot_lg_*` are the same dots at 75%, for each raid's own status.
+
+Roster markers: `mark_tank` (an original flat shield) and `mark_healer` (the
+healer plus), both at 65% with padding so they sit smaller than the names they
+mark. Fallbacks: 🛡️ and the healer icon.
