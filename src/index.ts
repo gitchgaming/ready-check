@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { Client, Events, GatewayIntentBits } from "discord.js";
+import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
 import { commands } from "./commands/index.js";
 import { isAttendanceControl, handleAttendanceControl } from "./interactions/attendanceControls.js";
 import { isNavButton, handleNavButton } from "./interactions/navButton.js";
@@ -94,7 +94,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   } catch (err) {
     console.error("Error handling interaction:", err);
     if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-      await interaction.reply({ content: "Something went wrong handling that.", ephemeral: true }).catch(() => null);
+      await interaction.reply({ content: "Something went wrong handling that.", flags: MessageFlags.Ephemeral }).catch(() => null);
     }
   }
 });

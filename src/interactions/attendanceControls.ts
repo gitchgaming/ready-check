@@ -1,4 +1,5 @@
 import type { ButtonInteraction, Client, StringSelectMenuInteraction } from "discord.js";
+import { MessageFlags } from "discord.js";
 import { prisma } from "../lib/db.js";
 import { MORE_DATES_VALUE, asEphemeral } from "../lib/embeds.js";
 import { formatRaidLabel } from "../lib/pickers.js";
@@ -57,17 +58,17 @@ async function applySelection(
   });
 
   if (!instance || instance.raidTeamId !== teamId) {
-    await interaction.reply({ content: "This raid no longer exists.", ephemeral: true });
+    await interaction.reply({ content: "This raid no longer exists.", flags: MessageFlags.Ephemeral });
     return;
   }
 
   if (instance.cancelled) {
-    await interaction.reply({ content: "This raid has been cancelled.", ephemeral: true });
+    await interaction.reply({ content: "This raid has been cancelled.", flags: MessageFlags.Ephemeral });
     return;
   }
 
   if (instance.closed) {
-    await interaction.reply({ content: "This raid has already started or passed.", ephemeral: true });
+    await interaction.reply({ content: "This raid has already started or passed.", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -75,7 +76,7 @@ async function applySelection(
   if (!member || !member.roles.cache.has(instance.raidTeam.roleId)) {
     await interaction.reply({
       content: `You're not on <@&${instance.raidTeam.roleId}>'s roster, so there's nothing to update here.`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -98,6 +99,6 @@ async function applySelection(
   const dateLabel = formatRaidLabel(instance.startsAt, instance.raidTeam.timezone);
   await interaction.reply({
     content: currentlyOut ? `✅ Marked you as in for ${dateLabel}.` : `❌ Marked you as called out for ${dateLabel}.`,
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 }

@@ -5,6 +5,7 @@ import {
   type ChatInputCommandInteraction,
   type Client,
   type SlashCommandRoleOption,
+  MessageFlags,
 } from "discord.js";
 import { OFFICER_PERMISSION, isOfficer } from "../../lib/access.js";
 import { raidDateAutocomplete, setAttendance } from "../../lib/attendance.js";
@@ -224,11 +225,11 @@ function routeKey(group: string | null, sub: string): string {
 
 export async function execute(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
   if (!interaction.guild) {
-    await interaction.reply({ content: "This command only works in a server.", ephemeral: true });
+    await interaction.reply({ content: "This command only works in a server.", flags: MessageFlags.Ephemeral });
     return;
   }
   if (!isOfficer(interaction)) {
-    await interaction.reply({ content: "Only officers can use /raidlead.", ephemeral: true });
+    await interaction.reply({ content: "Only officers can use /raidlead.", flags: MessageFlags.Ephemeral });
     return;
   }
 

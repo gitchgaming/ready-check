@@ -1,4 +1,5 @@
 import type { ChatInputCommandInteraction, Client } from "discord.js";
+import { MessageFlags } from "discord.js";
 import type { RaidTeam } from "../../generated/prisma/client.js";
 import { prisma } from "../../lib/db.js";
 
@@ -11,7 +12,7 @@ export async function requireTeam(interaction: ChatInputCommandInteraction): Pro
   if (!team) {
     await interaction.reply({
       content: `<@&${role.id}> isn't a raid team yet. Create it with \`/raidlead team setup\`.`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
   return team;

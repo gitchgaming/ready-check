@@ -4,6 +4,7 @@ import {
   ButtonStyle,
   type ChatInputCommandInteraction,
   type Client,
+  MessageFlags,
 } from "discord.js";
 import { DateTime } from "luxon";
 import { prisma } from "../../lib/db.js";
@@ -18,7 +19,7 @@ function invalidTimezone(timezone: string): boolean {
 async function replyBadTimezone(interaction: ChatInputCommandInteraction, timezone: string) {
   await interaction.reply({
     content: `"${timezone}" isn't a recognized timezone. Pick one from the suggestions as you type.`,
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 }
 
@@ -40,7 +41,7 @@ export async function setup(interaction: ChatInputCommandInteraction, client: Cl
   if (existing) {
     await interaction.reply({
       content: `<@&${role.id}> is already a raid team. Change its settings with \`/raidlead team edit\`.`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -60,7 +61,7 @@ export async function setup(interaction: ChatInputCommandInteraction, client: Cl
     content:
       `✅ Created raid team **${team.name}** for <@&${role.id}>, posting its roster and schedule in <#${channel.id}>.\n` +
       "Next, add its weekly raid nights with `/raidlead nights add`.",
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 
   // Roster first so it sits above the schedule message.
@@ -100,7 +101,7 @@ export async function edit(interaction: ChatInputCommandInteraction, client: Cli
   const raidsShown = interaction.options.getInteger("raids-shown");
 
   if (!channel && !timezone && !name && !raidsShown) {
-    await interaction.reply({ content: "Pick at least one setting to change.", ephemeral: true });
+    await interaction.reply({ content: "Pick at least one setting to change.", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -129,7 +130,7 @@ export async function edit(interaction: ChatInputCommandInteraction, client: Cli
       `• Channel: <#${updated.channelId}>\n` +
       `• Timezone: ${updated.timezone}\n` +
       `• Raids shown: ${updated.displayCount}`,
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 
   await syncRaidTeam(client, team.id).catch((err) => console.error(`Failed to sync raid team ${team.id}:`, err));
@@ -149,7 +150,7 @@ export async function remove(interaction: ChatInputCommandInteraction, _client: 
         new ButtonBuilder().setCustomId(`teamdelete:abort:${team.id}`).setLabel("Keep team").setStyle(ButtonStyle.Secondary),
       ),
     ],
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 }
 
@@ -159,7 +160,7 @@ export async function publish(interaction: ChatInputCommandInteraction, client: 
 
   const channel = interaction.channel;
   if (!channel?.isTextBased()) {
-    await interaction.reply({ content: "Run this in a text channel.", ephemeral: true });
+    await interaction.reply({ content: "Run this in a text channel.", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -167,7 +168,7 @@ export async function publish(interaction: ChatInputCommandInteraction, client: 
   await prisma.raidTeam.update({ where: { id: team.id }, data: { channelId: channel.id, messageId: null } });
   await renderTeamMessage(client, team.id);
 
-  await interaction.reply({ content: `✅ Schedule posted in <#${channel.id}>.`, ephemeral: true });
+  await interaction.reply({ content: `✅ Schedule posted in <#${channel.id}>.`, flags: MessageFlags.Ephemeral });
 }
 
 export async function roster(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
@@ -176,9 +177,9 @@ export async function roster(interaction: ChatInputCommandInteraction, client: C
 
   const channelId = interaction.channelId;
   if (!(await postRoster(client, team.id, channelId))) {
-    await interaction.reply({ content: "Run this in a text channel.", ephemeral: true });
+    await interaction.reply({ content: "Run this in a text channel.", flags: MessageFlags.Ephemeral });
     return;
   }
 
-  await interaction.reply({ content: `✅ Roster posted in <#${channelId}> and will stay up to date.`, ephemeral: true });
+  await interaction.reply({ content: `✅ Roster posted in <#${channelId}> and will stay up to date.`, flags: MessageFlags.Ephemeral });
 }

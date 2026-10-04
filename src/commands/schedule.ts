@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, type AutocompleteInteraction, type ChatInputCommandInteraction, type Client } from "discord.js";
+import { SlashCommandBuilder, type AutocompleteInteraction, type ChatInputCommandInteraction, type Client, MessageFlags } from "discord.js";
 import { isOfficer } from "../lib/access.js";
 import { asEphemeral } from "../lib/embeds.js";
 import { respondFiltered, teamDisplayName, viewableTeams } from "../lib/pickers.js";
@@ -24,7 +24,7 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
 
 export async function execute(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
   if (!interaction.guild) {
-    await interaction.reply({ content: "This command only works in a server.", ephemeral: true });
+    await interaction.reply({ content: "This command only works in a server.", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -35,7 +35,7 @@ export async function execute(interaction: ChatInputCommandInteraction, _client:
   if (!team) {
     await interaction.reply({
       content: teamId ? "Couldn't find that team. Pick one from the suggestions." : "You're not on any raid team.",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }

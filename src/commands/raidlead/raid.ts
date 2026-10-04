@@ -1,4 +1,5 @@
 import type { ChatInputCommandInteraction, Client } from "discord.js";
+import { MessageFlags } from "discord.js";
 import { DateTime } from "luxon";
 import { prisma } from "../../lib/db.js";
 import { formatRaidLabel, parseTypedDate } from "../../lib/pickers.js";
@@ -13,17 +14,17 @@ async function setCancelled(interaction: ChatInputCommandInteraction, client: Cl
   const instanceId = interaction.options.getString("date", true);
   const instance = await prisma.raidInstance.findFirst({ where: { id: instanceId, raidTeamId: team.id } });
   if (!instance) {
-    await interaction.reply({ content: "Couldn't find that raid. Pick one from the suggestions.", ephemeral: true });
+    await interaction.reply({ content: "Couldn't find that raid. Pick one from the suggestions.", flags: MessageFlags.Ephemeral });
     return;
   }
   if (instance.closed) {
-    await interaction.reply({ content: "That raid has already started or passed.", ephemeral: true });
+    await interaction.reply({ content: "That raid has already started or passed.", flags: MessageFlags.Ephemeral });
     return;
   }
   if (instance.cancelled === cancelled) {
     await interaction.reply({
       content: cancelled ? "That raid is already cancelled." : "That raid isn't cancelled.",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -34,7 +35,7 @@ async function setCancelled(interaction: ChatInputCommandInteraction, client: Cl
   const label = formatRaidLabel(instance.startsAt, team.timezone);
   await interaction.reply({
     content: cancelled ? `🚫 Cancelled the raid on ${label}.` : `✅ Restored the raid on ${label}.`,
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 }
 
@@ -53,13 +54,13 @@ export async function remove(interaction: ChatInputCommandInteraction, client: C
   const instanceId = interaction.options.getString("date", true);
   const instance = await prisma.raidInstance.findFirst({ where: { id: instanceId, raidTeamId: team.id } });
   if (!instance) {
-    await interaction.reply({ content: "Couldn't find that raid. Pick one from the suggestions.", ephemeral: true });
+    await interaction.reply({ content: "Couldn't find that raid. Pick one from the suggestions.", flags: MessageFlags.Ephemeral });
     return;
   }
   if (!instance.oneOff) {
     await interaction.reply({
       content: "That raid is on a weekly raid night, so it would come back. Cancel it instead with `/raidlead raid cancel`.",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -70,7 +71,7 @@ export async function remove(interaction: ChatInputCommandInteraction, client: C
 
   await interaction.reply({
     content: `🗑️ Removed the one-off raid on ${formatRaidLabel(instance.startsAt, team.timezone)}.`,
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 }
 
@@ -86,21 +87,21 @@ export async function add(interaction: ChatInputCommandInteraction, client: Clie
   if (!day) {
     await interaction.reply({
       content: `Couldn't read "${dateInput}" as an upcoming date. Pick one from the suggestions, or type it like \`3/15/2027\`.`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
   if (!time) {
     await interaction.reply({
       content: `"${timeInput}" isn't a valid 24-hour time. Use \`HH:MM\`, e.g. \`20:00\`.`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
 
   const startsAt = day.set(time);
   if (startsAt <= DateTime.now()) {
-    await interaction.reply({ content: "That time has already passed.", ephemeral: true });
+    await interaction.reply({ content: "That time has already passed.", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -108,7 +109,7 @@ export async function add(interaction: ChatInputCommandInteraction, client: Clie
     where: { raidTeamId_startsAt: { raidTeamId: team.id, startsAt: startsAt.toJSDate() } },
   });
   if (existing && !existing.cancelled) {
-    await interaction.reply({ content: "A raid is already scheduled at that time.", ephemeral: true });
+    await interaction.reply({ content: "A raid is already scheduled at that time.", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -123,6 +124,6 @@ export async function add(interaction: ChatInputCommandInteraction, client: Clie
 
   await interaction.reply({
     content: `✅ Added a raid on ${formatRaidLabel(startsAt.toJSDate(), team.timezone)} (${team.timezone}).`,
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 }

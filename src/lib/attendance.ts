@@ -1,4 +1,5 @@
 import type { AutocompleteInteraction, ChatInputCommandInteraction, Client } from "discord.js";
+import { MessageFlags } from "discord.js";
 import { prisma } from "./db.js";
 import { MAX_CHOICES, NO_CHOICE, formatRaidLabel, respondFiltered, teamDisplayName, teamsForMember } from "./pickers.js";
 import { renderTeamMessage } from "./scheduler.js";
@@ -92,18 +93,18 @@ export async function setAttendance(
   if (!instance || instance.raidTeam.guildId !== interaction.guild.id) {
     await interaction.reply({
       content: "Couldn't find that raid. Pick one from the suggestions as you type.",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
 
   if (instance.closed) {
-    await interaction.reply({ content: "That raid has already started or passed.", ephemeral: true });
+    await interaction.reply({ content: "That raid has already started or passed.", flags: MessageFlags.Ephemeral });
     return;
   }
 
   if (instance.cancelled) {
-    await interaction.reply({ content: "That raid has been cancelled.", ephemeral: true });
+    await interaction.reply({ content: "That raid has been cancelled.", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -113,7 +114,7 @@ export async function setAttendance(
       content: onBehalf
         ? `<@${subjectId}> isn't on <@&${instance.raidTeam.roleId}>'s roster.`
         : `You're not on <@&${instance.raidTeam.roleId}>'s roster.`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -131,7 +132,7 @@ export async function setAttendance(
         status === "OUT"
           ? `${onBehalf ? who : "You"} ${isAre} already called out for ${dateLabel}.`
           : `${onBehalf ? who : "You"} ${isAre} already attending ${dateLabel}.`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -153,6 +154,6 @@ export async function setAttendance(
       status === "OUT"
         ? `❌ Marked ${who} as called out for ${dateLabel}.`
         : `✅ Marked ${who} as attending ${dateLabel}.`,
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 }

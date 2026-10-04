@@ -1,4 +1,5 @@
 import type { ChatInputCommandInteraction, Client } from "discord.js";
+import { MessageFlags } from "discord.js";
 import { prisma } from "../../lib/db.js";
 import { formatNight } from "../../lib/pickers.js";
 import { syncRaidTeam } from "../../lib/scheduler.js";
@@ -15,7 +16,7 @@ export async function add(interaction: ChatInputCommandInteraction, client: Clie
   if (!time) {
     await interaction.reply({
       content: `"${timeInput}" isn't a valid 24-hour time. Use \`HH:MM\`, e.g. \`20:00\`.`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -30,7 +31,7 @@ export async function add(interaction: ChatInputCommandInteraction, client: Clie
 
   await interaction.reply({
     content: `✅ Added ${formatNight(day, time.hour, time.minute)} (${team.timezone}) as a weekly raid night.`,
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 
   await syncRaidTeam(client, team.id).catch((err) => console.error(`Failed to sync raid team ${team.id}:`, err));
@@ -43,7 +44,7 @@ export async function remove(interaction: ChatInputCommandInteraction, _client: 
   const nightId = interaction.options.getString("night", true);
   const night = await prisma.raidSlot.findFirst({ where: { id: nightId, raidTeamId: team.id } });
   if (!night) {
-    await interaction.reply({ content: "Couldn't find that raid night. Pick one from the suggestions.", ephemeral: true });
+    await interaction.reply({ content: "Couldn't find that raid night. Pick one from the suggestions.", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -52,7 +53,7 @@ export async function remove(interaction: ChatInputCommandInteraction, _client: 
     content:
       `🗑️ Removed ${formatNight(night.dayOfWeek, night.hour, night.minute)} as a weekly raid night. ` +
       "Raids already on the schedule stay; cancel them with `/raidlead raid cancel` if needed.",
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 }
 
@@ -70,6 +71,6 @@ export async function list(interaction: ChatInputCommandInteraction, _client: Cl
       nights.length === 0
         ? "No weekly raid nights yet. Add one with `/raidlead nights add`."
         : nights.map((n) => `• ${formatNight(n.dayOfWeek, n.hour, n.minute)}`).join("\n") + `\n(${team.timezone})`,
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 }
