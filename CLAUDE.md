@@ -69,7 +69,10 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   send `allowedMentions: { parse: [] }`. The separate roster post stays an
   embed (inline-field columns).
 - Role status dots use per-type minimums in `RAID_TYPES` (`min`: Tanks 2,
-  Healers 3, DPS 10) — a design assumption pending the owner's confirmation.
+  Healers 3, DPS 10). These are placeholders: the game has 40/20/10-player
+  raids and the real minimums are undecided (see `docs/future-features.md`).
+- A cancelled raid stays in the Next Up spot until it closes (a few hours
+  after its start), rather than promoting the next raid.
 - Attendance rows exist only for call-outs (status "OUT"); attending = no row.
   Call-outs are only displayed/counted for current role holders.
 - Raids are generated from weekly nights (`RaidSlot`, called "nights" in the
@@ -102,6 +105,9 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 
 ## Pending work
 
+- `docs/future-features.md`: ideas and open questions to pick up later (role
+  minimums per raid size, a roster printout command, image size). Add new ones
+  there; remove them once built.
 - Automated tests: see `docs/testing-plan.md` (agreed plan, not started).
 
 ## Production hosting (Railway)
