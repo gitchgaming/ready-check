@@ -32,7 +32,9 @@ All dates are picked from a list of your team's actual raids.
 Every subcommand takes the team's `role:` first.
 
 **`team`** — create and manage raid teams
-- `setup channel: timezone: [name:] [raids-shown:]` — create a team.
+- `setup channel: timezone: [name:] [raids-shown:]` — create a team and post
+  its roster and schedule message in `channel`. The name defaults to the
+  role's name.
 - `edit [channel:] [timezone:] [name:] [raids-shown:]` — change settings.
   Changing the channel moves the schedule message.
 - `publish` — post the schedule message in the current channel, replacing

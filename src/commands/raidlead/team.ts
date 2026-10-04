@@ -45,19 +45,43 @@ export async function setup(interaction: ChatInputCommandInteraction, client: Cl
       roleId: role.id,
       channelId: channel.id,
       timezone,
-      name,
+      name: name ?? role.name,
       ...(raidsShown ? { displayCount: raidsShown } : {}),
     },
   });
 
   await interaction.reply({
     content:
-      `✅ Created raid team **${team.name ?? role.name}** for <@&${role.id}>, posting in <#${channel.id}>.\n` +
-      "Next, add its weekly raid times with `/raidlead nights add`.",
+      `✅ Created raid team **${team.name}** for <@&${role.id}>, posting its roster and schedule in <#${channel.id}>.\n` +
+      "Next, add its weekly raid nights with `/raidlead nights add`.",
     ephemeral: true,
   });
 
+  // Roster first so it sits above the schedule message.
+  await postRoster(client, team.id, channel.id).catch((err) => console.error(`Failed to post roster for ${team.id}:`, err));
   await syncRaidTeam(client, team.id).catch((err) => console.error(`Failed to sync raid team ${team.id}:`, err));
+}
+
+/** Posts a team's roster in a channel, replacing any previous roster message, and tracks it for updates. */
+async function postRoster(client: Client, teamId: string, channelId: string): Promise<boolean> {
+  const team = await prisma.raidTeam.findUniqueOrThrow({ where: { id: teamId } });
+  const channel = await client.channels.fetch(channelId).catch(() => null);
+  if (!channel?.isTextBased() || !("send" in channel)) return false;
+
+  if (team.rosterChannelId && team.rosterMessageId) {
+    await deleteMessage(client, team.rosterChannelId, team.rosterMessageId);
+  }
+
+  const guild = await client.guilds.fetch(team.guildId);
+  const names = await fetchRosterNames(guild, team.roleId);
+  const roleName = guild.roles.cache.get(team.roleId)?.name ?? "Raid";
+  const message = await channel.send({ embeds: [buildRosterEmbed(team.name ?? roleName, names)] });
+
+  await prisma.raidTeam.update({
+    where: { id: team.id },
+    data: { rosterChannelId: channel.id, rosterMessageId: message.id },
+  });
+  return true;
 }
 
 export async function edit(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
@@ -126,24 +150,11 @@ export async function roster(interaction: ChatInputCommandInteraction, client: C
   const team = await requireTeam(interaction);
   if (!team) return;
 
-  const channel = interaction.channel;
-  if (!channel?.isTextBased() || !("send" in channel)) {
+  const channelId = interaction.channelId;
+  if (!(await postRoster(client, team.id, channelId))) {
     await interaction.reply({ content: "Run this in a text channel.", ephemeral: true });
     return;
   }
 
-  if (team.rosterChannelId && team.rosterMessageId) {
-    await deleteMessage(client, team.rosterChannelId, team.rosterMessageId);
-  }
-
-  const role = interaction.options.getRole("role", true);
-  const names = await fetchRosterNames(interaction.guild!, role.id);
-  const message = await channel.send({ embeds: [buildRosterEmbed(team.name ?? role.name, names)] });
-
-  await prisma.raidTeam.update({
-    where: { id: team.id },
-    data: { rosterChannelId: channel.id, rosterMessageId: message.id },
-  });
-
-  await interaction.reply({ content: `✅ Roster posted in <#${channel.id}> and will stay up to date.`, ephemeral: true });
+  await interaction.reply({ content: `✅ Roster posted in <#${channelId}> and will stay up to date.`, ephemeral: true });
 }
