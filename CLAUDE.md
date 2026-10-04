@@ -88,6 +88,10 @@ TypeScript (ESM, NodeNext) + discord.js v14 + Prisma 5 on SQLite + Luxon.
 - During autocomplete, read other options as raw values
   (`options.get("role")?.value`); only the focused option is fully resolved.
 
+## Pending work
+
+- Automated tests: see `docs/testing-plan.md` (agreed plan, not started).
+
 ## Production hosting (Railway)
 
 - Railway deploys the `production` branch. Work happens on `main`; release by
