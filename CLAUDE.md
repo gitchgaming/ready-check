@@ -135,6 +135,10 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - Live since 2026-10-04 as `ready-check#2607` (production app; the dev bot is
   `ready-check#7940`). Railway: Hobby plan, Dockerfile build, volume at
   `/data`, `DATABASE_URL=file:/data/prod.db`, one replica, no public domain.
+- Cloud sessions get the Railway CLI from the SessionStart hook, authenticated
+  by `RAILWAY_TOKEN` (a project token for the production environment). Claude
+  may read status, deployments and logs freely, but must ask the user before
+  any redeploy, restart, rollback, variable change or other mutation.
 - Production leaves `DISCORD_GUILD_ID` unset, so commands register globally
   (the bot may serve a second server). Dev sets it for instant updates.
 - CI (`.github/workflows/ci.yml`) runs `prisma validate` and `tsc --noEmit` on

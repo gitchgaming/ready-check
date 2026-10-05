@@ -43,5 +43,31 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
 fi
 export PATH="$bin:$PATH"
 
+# Railway CLI for reading production status and logs (RAILWAY_TOKEN comes from
+# the cloud environment). Kept out of package.json so the Docker image never
+# carries it. Railway publishes no checksums, so the SHA-256 of each release
+# tarball is pinned here; bump the version and both hashes together.
+railway_version=5.63.1
+if ! "$bin/railway" --version 2>/dev/null | grep -q " $railway_version\$"; then
+  case "$(uname -m)" in
+    x86_64)
+      target=x86_64-unknown-linux-musl
+      sha=cbb559de44cd304cf9d6598a4ea77575035a0e6e3215370bb3b105b8f48235cc ;;
+    aarch64 | arm64)
+      target=aarch64-unknown-linux-musl
+      sha=6a43ab738a596bffbe0ea946a4a5d38321d78b3957b7be3b09b962256cb5a761 ;;
+    *) echo "Unsupported architecture $(uname -m)" >&2; exit 1 ;;
+  esac
+  rtmp=$(mktemp -d)
+  file="railway-v$railway_version-$target.tar.gz"
+  curl -fsSL "https://github.com/railwayapp/cli/releases/download/v$railway_version/$file" -o "$rtmp/$file"
+  echo "$sha  $rtmp/$file" | sha256sum -c --quiet -
+  mkdir -p "$bin"
+  tar -xzf "$rtmp/$file" -C "$rtmp" railway
+  install -m 755 "$rtmp/railway" "$bin/railway"
+  rm -rf "$rtmp"
+fi
+echo "Using $(railway --version)"
+
 echo "Using node $(node --version), npm $(npm --version)"
 npm install --no-audit --no-fund
