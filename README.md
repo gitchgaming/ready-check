@@ -130,6 +130,11 @@ test and production bots share one Discord application, run
 
 ## Deploying (Railway)
 
+Releases are cut by the **Release** GitHub Actions workflow, which tags
+`main` and moves the `production` branch that Railway deploys. See
+[docs/releasing.md](docs/releasing.md) for the branching model, releases, and
+rollbacks. First-time setup:
+
 1. New Railway project → **Deploy from GitHub repo** → pick this repo. It
    will build from the `Dockerfile` automatically.
 2. Add a **volume**, mounted at `/data`.

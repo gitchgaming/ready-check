@@ -1,0 +1,94 @@
+# Cut a release from main: run CI on the commit, tag it vX.Y.Z, fast-forward
+# `production` to it (Railway deploys that branch), and publish a GitHub
+# Release with notes generated from the merged PRs.
+#
+# Run it from Actions → Release → Run workflow, with "Use workflow from" = main.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump from the latest tag (ignored when version is set)
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      version:
+        description: Exact version instead, e.g. 1.0.0 (optional)
+        required: false
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # The exact commit CI just checked, with all tags and branches.
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Work out the version
+        id: version
+        env:
+          BUMP: ${{ inputs.bump }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          latest=$(git tag --list 'v[0-9]*' --sort=-v:refname | head -n1)
+          if [ -n "$VERSION" ]; then
+            next="${VERSION#v}"
+          else
+            IFS=. read -r major minor patch <<< "${latest#v}"
+            major=${major:-0} minor=${minor:-0} patch=${patch:-0}
+            case "$BUMP" in
+              major) next="$((major + 1)).0.0" ;;
+              minor) next="$major.$((minor + 1)).0" ;;
+              *)     next="$major.$minor.$((patch + 1))" ;;
+            esac
+          fi
+          if ! [[ "$next" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'$next' is not a MAJOR.MINOR.PATCH version"; exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/v$next" > /dev/null; then
+            echo "::error::Tag v$next already exists"; exit 1
+          fi
+          if [ -n "$latest" ] && [ "$(git rev-list --count "$latest..HEAD")" = 0 ]; then
+            echo "::error::Nothing to release: main has no commits since $latest"; exit 1
+          fi
+          echo "tag=v$next" >> "$GITHUB_OUTPUT"
+          echo "Releasing v$next (previous: ${latest:-none})"
+
+      # production must only ever move forward along main. If someone pushed
+      # to it directly, stop rather than overwrite their commit.
+      - name: Check production can fast-forward
+        run: |
+          if ! git merge-base --is-ancestor origin/production HEAD; then
+            echo "::error::origin/production has commits that are not on main. Merge them into main first."
+            exit 1
+          fi
+
+      - name: Tag and promote to production
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "$TAG"
+          git push origin "refs/tags/$TAG"
+          git push origin HEAD:refs/heads/production
+
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: gh release create "$TAG" --verify-tag --title "$TAG" --generate-notes
