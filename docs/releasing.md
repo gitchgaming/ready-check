@@ -23,16 +23,24 @@ one commit on `main`; the PR title becomes the commit message and the release no
 
 ## Environments
 
-- **Local** — `npm run dev` with your own dev Discord app, in the private test server.
 - **Staging** — a Railway environment that tracks `main`, so every merge is live
-  in the test server within minutes. It needs its own Discord application
-  (a bot token can only run in one place, so it can't share the local dev
-  bot's), its own volume, and `DISCORD_GUILD_ID` set to the test server.
+  in the private test server within minutes. It runs the dev Discord app
+  (`ready-check#7940`) with `DISCORD_GUILD_ID` set to the test server, and its
+  own volume (`DATABASE_URL=file:/data/staging.db`).
+- **Local** — `npm run dev` with the same dev app, for testing a branch before
+  it merges. A bot token must run in only one place, or both copies answer
+  every interaction, so stop staging first (`railway down` in the staging
+  environment, or remove its active deployment in the dashboard) and redeploy
+  it when you're done. `npm run dev` runs `npm run check-staging` first and
+  refuses to start while staging is up; that needs `RAILWAY_STAGING_TOKEN`
+  (a Railway project token for staging) in `.env` or the environment, and
+  only warns without it. `SKIP_STAGING_CHECK=1` bypasses it. A merge to `main`
+  redeploys staging, so don't merge while the local bot is running.
 - **Production** — the Railway environment that tracks `production`, in the raid
   guild. Only a release changes it.
 
-Staging is optional: without it, test locally before merging and treat `main`
-as the release candidate.
+Staging and local each have their own database, so a team set up in one
+doesn't exist in the other.
 
 ## Releasing
 
@@ -87,5 +95,8 @@ Set these once in the web UIs (they aren't stored in the repo):
   and turn on "Automatically delete head branches".
 - **Railway → production service → Settings**: branch `production`, **Wait for
   CI** on.
-- **Railway → staging environment** (optional): branch `main`, Wait for CI on,
-  its own variables and volume.
+- **Railway → staging environment**: branch `main`, **Wait for CI** on, a volume
+  at `/data`, and the dev app's `DISCORD_TOKEN` and `DISCORD_CLIENT_ID`,
+  `DISCORD_GUILD_ID` = the test server, `DATABASE_URL=file:/data/staging.db`.
+  Create a project token for it and set it as `RAILWAY_STAGING_TOKEN` in your
+  `.env` and in the Claude Code cloud environment.

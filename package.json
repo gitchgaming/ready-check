@@ -8,7 +8,8 @@
     "node": ">=26"
   },
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx src/check-staging.ts && tsx watch src/index.ts",
+    "check-staging": "tsx src/check-staging.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "deploy-commands": "tsx src/deploy-commands.ts",
