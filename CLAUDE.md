@@ -143,4 +143,5 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   (the bot may serve a second server). Dev sets it for instant updates.
 - CI (`.github/workflows/ci.yml`) runs `prisma validate` and `tsc --noEmit` on
   PRs and pushes to `main`; add `npm test` there once the suite in
-  `docs/testing-plan.md` exists. Turn on Railway's **Wait for CI** now that it does.
+  `docs/testing-plan.md` exists. Railway's **Wait for CI** is on, so a
+  `production` deploy waits for those checks to pass.
