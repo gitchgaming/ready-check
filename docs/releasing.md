@@ -80,8 +80,9 @@ Set these once in the web UIs (they aren't stored in the repo):
 - **GitHub → Settings → Rules → Rulesets**, for `main`: require a pull request
   and the `check` status check (from CI); block force pushes and deletion. For
   `production`: block deletion.
-- **GitHub → Settings → Actions → General → Workflow permissions**: Read and
-  write (the Release workflow pushes the tag and `production`).
+- **GitHub → Settings → Actions → General → Workflow permissions**: leave the
+  default (read-only). The Release and Rollback jobs request
+  `contents: write` themselves to push the tag and `production`.
 - **GitHub → Settings → General → Pull Requests**: allow squash merging only,
   and turn on "Automatically delete head branches".
 - **Railway → production service → Settings**: branch `production`, **Wait for
