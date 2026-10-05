@@ -35,7 +35,7 @@ one commit on `main`; the PR title becomes the commit message and the release no
   refuses to start while staging is up; that needs `RAILWAY_STAGING_TOKEN`
   (a Railway project token for staging) in `.env` or the environment, and
   only warns without it. `SKIP_STAGING_CHECK=1` bypasses it. A merge to `main`
-  redeploys staging, so don't merge while the local bot is running.
+  redeploys staging, so stop the local bot before merging.
 - **Production** — the Railway environment that tracks `production`, in the raid
   guild. Only a release changes it.
 

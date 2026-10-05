@@ -136,10 +136,11 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - Staging is a Railway environment that deploys `main` (Wait for CI on) with
   the dev bot's token, `DISCORD_GUILD_ID` = the test server, and its own volume
   (`file:/data/staging.db`). Local `npm run dev` shares that token, so the two
-  must never run at once. Before starting the local bot, check staging
-  (`npm run check-staging`); if it's up, ask the user before stopping it, and
-  offer to bring it back (redeploy) when they're done. Don't merge into `main`
-  while the local bot runs: the merge redeploys staging.
+  must never run at once. When the user asks to run dev, that is permission
+  to stop staging: check it (`npm run check-staging`), stop it if it's up,
+  then start the local bot. Offer to bring staging back (redeploy) when
+  they're done. Before merging a PR into `main`, stop the local bot if it ran
+  this session, since the merge redeploys staging.
 - Live since 2026-10-04 as `ready-check#2607` (production app; the dev bot is
   `ready-check#7940`). Railway: Hobby plan, Dockerfile build, volume at
   `/data`, `DATABASE_URL=file:/data/prod.db`, one replica, no public domain.
@@ -148,7 +149,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   `RAILWAY_STAGING_TOKEN` covers staging (`RAILWAY_TOKEN=$RAILWAY_STAGING_TOKEN
   railway status`). Claude may read status, deployments and logs freely, but
   must ask the user before any redeploy, restart, rollback, variable change or
-  other mutation, in either environment.
+  other mutation, in either environment. The one exception: stopping staging
+  when the user asks to run dev (above).
 - Production leaves `DISCORD_GUILD_ID` unset, so commands register globally
   (the bot may serve a second server). Dev sets it for instant updates.
 - CI (`.github/workflows/ci.yml`) runs `prisma validate` and `tsc --noEmit` on
