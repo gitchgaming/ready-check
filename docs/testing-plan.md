@@ -106,11 +106,11 @@ deploys. Manual Discord testing stays for visual review only.
 ### CI and deploy gate
 - `.github/workflows/ci.yml` on push and PR: Node 26, `npm ci` (its postinstall runs `prisma generate`),
   `npx tsc --noEmit`, `npm test`.
-- Railway (user, in dashboard when setting up the service): enable **Wait for CI**
-  on the `production` deploy so it only deploys commits whose checks passed.
+- Railway: **Wait for CI** on the `production` deploy, so it only deploys
+  commits whose checks passed. Done (2026-10-05).
 - CLAUDE.md: add `npm test` to commands ("run with tsc before every commit"), a
-  short Testing section (layers, fakes, `vitest -u` for intended snapshot changes),
-  and the Railway Wait-for-CI step to the user's to-do list.
+  and a short Testing section (layers, fakes, `vitest -u` for intended snapshot
+  changes).
 
 ### Order (one commit per step, per commit-as-you-go)
 1. Vitest + config + `test/` helpers + Layer 1 + Layer 2 (no refactors needed beyond
