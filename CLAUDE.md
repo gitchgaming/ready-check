@@ -9,7 +9,8 @@ the user-facing command reference.
 Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 (`better-sqlite3` driver adapter) + Luxon.
 
-- `npm run dev` — run the bot with `tsx watch`
+- `npm run dev` — run the bot with `tsx watch`, after `npm run check-staging`
+  (refuses while Railway staging, which shares the dev bot's token, is up)
 - `npx tsc --noEmit` — type-check; run before every commit
 - `npx prisma migrate dev --name <change>` — after any schema change; commit the
   new folder under `prisma/migrations/` (production applies them on boot)
@@ -132,13 +133,24 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - Production is a separate Discord application from the dev bot, so the same
   token never runs in two places and neither clobbers the other's commands.
   The dev bot lives only in a private test server; keep it out of the raid guild.
+- Staging is a Railway environment that deploys `main` (Wait for CI on) with
+  the dev bot's token, `DISCORD_GUILD_ID` = the test server, and its own volume
+  (`file:/data/staging.db`). Local `npm run dev` shares that token, so the two
+  must never run at once. When the user asks to run dev, that is permission
+  to stop staging: check it (`npm run check-staging`), stop it if it's up,
+  then start the local bot. Offer to bring staging back (redeploy) when
+  they're done. Before merging a PR into `main`, stop the local bot if it ran
+  this session, since the merge redeploys staging.
 - Live since 2026-10-04 as `ready-check#2607` (production app; the dev bot is
   `ready-check#7940`). Railway: Hobby plan, Dockerfile build, volume at
   `/data`, `DATABASE_URL=file:/data/prod.db`, one replica, no public domain.
 - Cloud sessions get the Railway CLI from the SessionStart hook, authenticated
-  by `RAILWAY_TOKEN` (a project token for the production environment). Claude
-  may read status, deployments and logs freely, but must ask the user before
-  any redeploy, restart, rollback, variable change or other mutation.
+  by `RAILWAY_TOKEN` (a project token for the production environment);
+  `RAILWAY_STAGING_TOKEN` covers staging (`RAILWAY_TOKEN=$RAILWAY_STAGING_TOKEN
+  railway status`). Claude may read status, deployments and logs freely, but
+  must ask the user before any redeploy, restart, rollback, variable change or
+  other mutation, in either environment. The one exception: stopping staging
+  when the user asks to run dev (above).
 - Production leaves `DISCORD_GUILD_ID` unset, so commands register globally
   (the bot may serve a second server). Dev sets it for instant updates.
 - CI (`.github/workflows/ci.yml`) runs `prisma validate` and `tsc --noEmit` on
