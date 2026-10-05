@@ -1,0 +1,36 @@
+# Point `production` back at an earlier release tag; Railway redeploys it.
+# The next Release fast-forwards production from there as usual.
+#
+# Database migrations are not reversed. Only roll back past a release that
+# added a migration if the older code still works with the newer schema.
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to put back into production, e.g. v1.2.0
+        required: true
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Move production to the tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          sha=$(git rev-parse -q --verify "refs/tags/$TAG^{commit}") || {
+            echo "::error::No tag named $TAG"; exit 1; }
+          git push --force-with-lease=production:origin/production origin "$sha:refs/heads/production"
+          echo "production → $TAG ($sha)"

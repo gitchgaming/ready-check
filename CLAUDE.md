@@ -117,9 +117,12 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 
 ## Production hosting (Railway)
 
-- Railway deploys the `production` branch. Work happens on `main`; release by
-  fast-forwarding `production` to `main` and pushing
-  (`git push origin main:production`). Only release when the user asks.
+- Trunk-based: every change is a short-lived branch → PR → squash-merge into
+  `main`. No `develop` branch. See `docs/releasing.md`.
+- Railway deploys the `production` branch, which only the **Release** workflow
+  (`.github/workflows/release.yml`: CI, tag `vX.Y.Z`, fast-forward
+  `production`, GitHub Release) and **Rollback** workflow move. Never push to
+  `production` by hand. Only release when the user asks.
 - The container runs `prisma migrate deploy`, then `deploy-commands`, then
   `deploy-emojis`, then the bot. A failed command registration stops boot
   (Railway retries); a failed emoji upload only logs, since icons are cosmetic.
@@ -131,5 +134,6 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   `/data`, `DATABASE_URL=file:/data/prod.db`, one replica, no public domain.
 - Production leaves `DISCORD_GUILD_ID` unset, so commands register globally
   (the bot may serve a second server). Dev sets it for instant updates.
-- Railway's **Wait for CI** is off until a GitHub Actions workflow exists
-  (see `docs/testing-plan.md`); turn it on then.
+- CI (`.github/workflows/ci.yml`) runs `prisma validate` and `tsc --noEmit` on
+  PRs and pushes to `main`; add `npm test` there once the suite in
+  `docs/testing-plan.md` exists. Turn on Railway's **Wait for CI** now that it does.
