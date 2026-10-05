@@ -95,6 +95,9 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 
 ## Gotchas
 
+- Claude Code cloud sessions start on Node 22. `.claude/hooks/session-start.sh`
+  installs the Node major in `.nvmrc` into `~/.local/bin` and runs `npm install`;
+  bump `.nvmrc` (and `engines`) together when moving to a new Node major.
 - A relative SQLite `file:` URL resolves from the repo root (Prisma 7 CLI and
   the runtime adapter both), so `.env` uses `DATABASE_URL="file:./prisma/dev.db"`.
   If the bot sees an empty database or a stray `dev.db` appears at the root, a
