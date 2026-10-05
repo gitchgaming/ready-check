@@ -108,7 +108,7 @@ deploys. Manual Discord testing stays for visual review only.
   `npx tsc --noEmit`, `npm test`.
 - Railway: **Wait for CI** on the `production` deploy, so it only deploys
   commits whose checks passed. Done (2026-10-05).
-- CLAUDE.md: add `npm test` to commands ("run with tsc before every commit"), a
+- CLAUDE.md: add `npm test` to commands ("run with tsc before every commit")
   and a short Testing section (layers, fakes, `vitest -u` for intended snapshot
   changes).
 
