@@ -118,6 +118,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   minimums per raid size, image size). Add new ones
   there; remove them once built.
 - Automated tests: see `docs/testing-plan.md` (agreed plan, not started).
+- Staging environment: see `docs/staging-plan.md` (repo side done; Railway
+  environment and `RAILWAY_STAGING_TOKEN` still to create).
 
 ## Production hosting (Railway)
 

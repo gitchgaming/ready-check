@@ -26,3 +26,8 @@ builds can be tested (first Railway deploy).
 ## Automated tests
 
 See `docs/testing-plan.md`: agreed plan, not started.
+
+## Staging environment
+
+See `docs/staging-plan.md`: repo side done, Railway environment and token not
+created yet.
