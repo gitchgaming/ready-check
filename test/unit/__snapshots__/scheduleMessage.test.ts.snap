@@ -1,0 +1,337 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`snapshots > personal schedule 1`] = `
+{
+  "allowedMentions": {
+    "parse": [],
+  },
+  "components": [
+    {
+      "accent_color": 5793266,
+      "components": [
+        {
+          "content": "## Main Raid — schedule
+Pick any date below to call out or switch back.",
+          "type": 10,
+        },
+        {
+          "divider": true,
+          "spacing": 2,
+          "type": 14,
+        },
+        {
+          "content": "**<t:1790816400:D>**
+<t:1790816400:t> · <t:1790816400:R>",
+          "type": 10,
+        },
+        {
+          "content": "🟡 **9 of 10 attending**
+❌ <@u-tank1>",
+          "type": 10,
+        },
+        {
+          "divider": true,
+          "spacing": 2,
+          "type": 14,
+        },
+        {
+          "content": "**<t:1791421200:D>**
+<t:1791421200:t> · <t:1791421200:R>",
+          "type": 10,
+        },
+        {
+          "content": "🟡 **8 of 10 attending**
+❌ <@u-mage>
+❌ <@u-heal2>",
+          "type": 10,
+        },
+        {
+          "divider": true,
+          "spacing": 2,
+          "type": 14,
+        },
+        {
+          "content": "**<t:1792026000:D>**
+<t:1792026000:t> · <t:1792026000:R>",
+          "type": 10,
+        },
+        {
+          "content": "🟡 **9 of 10 attending**
+❌ <@u-tank1>",
+          "type": 10,
+        },
+        {
+          "divider": true,
+          "spacing": 2,
+          "type": 14,
+        },
+        {
+          "components": [
+            {
+              "custom_id": "attendance:cal:c00000000000000000000team:-1",
+              "options": [
+                {
+                  "description": "You're attending — pick to call out",
+                  "emoji": {
+                    "animated": false,
+                    "id": undefined,
+                    "name": "✅",
+                  },
+                  "label": "Wed, Oct 7 · 8:00 PM",
+                  "value": "c0000000000000000000raid0",
+                },
+                {
+                  "description": "You're called out — pick to switch back in",
+                  "emoji": {
+                    "animated": false,
+                    "id": undefined,
+                    "name": "❌",
+                  },
+                  "label": "Wed, Oct 14 · 8:00 PM",
+                  "value": "c0000000000000000000raid1",
+                },
+                {
+                  "description": "You're attending — pick to call out",
+                  "emoji": {
+                    "animated": false,
+                    "id": undefined,
+                    "name": "✅",
+                  },
+                  "label": "Wed, Oct 28 · 8:00 PM",
+                  "value": "c0000000000000000000raid3",
+                },
+              ],
+              "placeholder": "Call out or switch back…",
+              "type": 3,
+            },
+          ],
+          "type": 1,
+        },
+        {
+          "components": [
+            {
+              "custom_id": "mynav:earlier:c00000000000000000000team:-1",
+              "disabled": true,
+              "emoji": undefined,
+              "label": "← Earlier",
+              "style": 2,
+              "type": 2,
+            },
+            {
+              "custom_id": "mynav:later:c00000000000000000000team:-1",
+              "disabled": false,
+              "emoji": undefined,
+              "label": "Later →",
+              "style": 2,
+              "type": 2,
+            },
+          ],
+          "type": 1,
+        },
+      ],
+      "type": 17,
+    },
+  ],
+  "flags": [
+    32768,
+    64,
+  ],
+}
+`;
+
+exports[`snapshots > public message 1`] = `
+{
+  "allowedMentions": {
+    "parse": [],
+  },
+  "components": [
+    {
+      "accent_color": 15774258,
+      "components": [
+        {
+          "content": "-# **MAIN RAID · NEXT UP**
+## Wed, Oct 7 · 8:00 PM
+-# <t:1791421200:R>",
+          "type": 10,
+        },
+        {
+          "content": "🟩🟩🟩🟩🟩🟩🟩🟩🟥🟥  **8/10 ready**",
+          "type": 10,
+        },
+        {
+          "content": "🛡️ Tanks **2/2** ⚪  ➕ Healers **2/3** 🟡  ⚔️ DPS **3/4** 🔴",
+          "type": 10,
+        },
+        {
+          "divider": true,
+          "spacing": 1,
+          "type": 14,
+        },
+        {
+          "content": "<:warrior:9000> **Warrior** <:mark_tank:9002>Tankalot, Axe
+**Paladin** <:mark_tank:9002>Shieldy
+**Hunter** Arrow
+**Rogue** Stabby
+<:priest:9001> **Priest** <:mark_healer:9003>Mendy
+**Shaman** <:mark_healer:9003>Totem
+**Mage** —
+**Warlock** —
+**Druid** —
+**Other** Newbie",
+          "type": 10,
+        },
+        {
+          "content": "-# **CALLED OUT (2)**
+<@u-heal2>  <@u-mage>",
+          "type": 10,
+        },
+        {
+          "accessory": {
+            "custom_id": "attendance:btn:c00000000000000000000team:c0000000000000000000raid0",
+            "emoji": undefined,
+            "label": "Status ⇄",
+            "style": 2,
+            "type": 2,
+          },
+          "components": [
+            {
+              "content": "-# Can't make it, or back in? **Status** switches you between in and out.",
+              "type": 10,
+            },
+          ],
+          "type": 9,
+        },
+      ],
+      "type": 17,
+    },
+    {
+      "components": [
+        {
+          "content": "-# **COMING UP**",
+          "type": 10,
+        },
+        {
+          "accessory": {
+            "custom_id": "attendance:btn:c00000000000000000000team:c0000000000000000000raid1",
+            "emoji": undefined,
+            "label": "Status ⇄",
+            "style": 2,
+            "type": 2,
+          },
+          "components": [
+            {
+              "content": "🟡 **Wed, Oct 14** 8:00 PM · 9/10
+-# ⠀ 🟡 Tanks 1/2 ⚪ Heals 3/3 ⚪ DPS 4/4",
+              "type": 10,
+            },
+          ],
+          "type": 9,
+        },
+        {
+          "content": "🚫 **Wed, Oct 21** · Cancelled",
+          "type": 10,
+        },
+        {
+          "accessory": {
+            "custom_id": "attendance:btn:c00000000000000000000team:c0000000000000000000raid3",
+            "emoji": undefined,
+            "label": "Status ⇄",
+            "style": 2,
+            "type": 2,
+          },
+          "components": [
+            {
+              "content": "<:dot_lg_green:9004> **Wed, Oct 28** 8:00 PM · 10/10
+-# ⠀ ⚪ Tanks 2/2 ⚪ Heals 3/3 ⚪ DPS 4/4",
+              "type": 10,
+            },
+          ],
+          "type": 9,
+        },
+        {
+          "components": [
+            {
+              "custom_id": "attendance:pub:c00000000000000000000team",
+              "options": [
+                {
+                  "description": "Privately see your full schedule and call out further ahead",
+                  "emoji": {
+                    "animated": false,
+                    "id": undefined,
+                    "name": "📅",
+                  },
+                  "label": "See more dates",
+                  "value": "more",
+                },
+              ],
+              "placeholder": "📅 See more dates…",
+              "type": 3,
+            },
+          ],
+          "type": 1,
+        },
+      ],
+      "type": 17,
+    },
+  ],
+  "flags": [
+    32768,
+  ],
+}
+`;
+
+exports[`snapshots > raid roster card 1`] = `
+{
+  "allowedMentions": {
+    "parse": [],
+  },
+  "components": [
+    {
+      "accent_color": 15774258,
+      "components": [
+        {
+          "content": "-# **MAIN RAID · ROSTER**
+## Wed, Oct 7 · 8:00 PM
+-# <t:1791421200:R>",
+          "type": 10,
+        },
+        {
+          "content": "🟩🟩🟩🟩🟩🟩🟩🟩🟥🟥  **8/10 ready**",
+          "type": 10,
+        },
+        {
+          "content": "🛡️ Tanks **2/2** ⚪  ➕ Healers **2/3** 🟡  ⚔️ DPS **3/4** 🔴",
+          "type": 10,
+        },
+        {
+          "divider": true,
+          "spacing": 1,
+          "type": 14,
+        },
+        {
+          "content": "<:warrior:9000> **Warrior** <:mark_tank:9002>Tankalot, Axe
+**Paladin** <:mark_tank:9002>Shieldy
+**Hunter** Arrow
+**Rogue** Stabby
+<:priest:9001> **Priest** <:mark_healer:9003>Mendy
+**Shaman** <:mark_healer:9003>Totem
+**Mage** —
+**Warlock** —
+**Druid** —
+**Other** Newbie",
+          "type": 10,
+        },
+        {
+          "content": "-# **CALLED OUT (2)**
+<@u-heal2>  <@u-mage>",
+          "type": 10,
+        },
+      ],
+      "type": 17,
+    },
+  ],
+  "flags": [
+    32768,
+  ],
+}
+`;
