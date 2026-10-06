@@ -23,14 +23,6 @@ an optional peer. That puts about 27 MB of TypeScript compiler binaries in the
 production image, unused. Trim it, e.g. with an extra prune step, once Docker
 builds can be tested (first Railway deploy).
 
-## Timezone changes and existing raids
-
-`/raidlead team edit timezone:` leaves already-generated raids at the old zone's
-times (generated raids are never deleted), and the next sync adds raids at the
-new zone's local time, so each night shows twice until the old ones close.
-Likely fix: when the timezone changes, move upcoming generated raids that have no
-call-outs, or ask the officer.
-
 ## Staging environment
 
 See `docs/staging-plan.md`: repo side done, Railway environment and token not
