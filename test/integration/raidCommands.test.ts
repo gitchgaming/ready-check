@@ -26,6 +26,28 @@ function setup(extraChannels: FakeChannel[] = []) {
 const raids = (teamId: string) => prisma.raidInstance.findMany({ where: { raidTeamId: teamId }, orderBy: { startsAt: "asc" } });
 const team = (id: string) => prisma.raidTeam.findUniqueOrThrow({ where: { id } });
 
+describe("role option that isn't a raid team", () => {
+  it.each([
+    ["nights", "add", { day: "3", time: "20:00" }],
+    ["nights", "remove", { night: "x" }],
+    ["nights", "list", {}],
+    ["raid", "cancel", { date: "x" }],
+    ["raid", "restore", { date: "x" }],
+    ["raid", "remove", { date: "x" }],
+    ["team", "edit", { name: "New" }],
+    ["team", "delete", {}],
+    ["team", "publish", {}],
+  ])("%s %s says how to create the team and changes nothing", async (group, sub, options) => {
+    const t = await makeTeam();
+    const { run, channel } = setup();
+    const reply = onlyReply(await run(group, sub, { role: "role-x", ...options }, { channel }));
+    expect(reply).toBe("<@&role-x> isn't a raid team yet. Create it with `/raidlead team setup`.");
+    expect(await prisma.raidSlot.count()).toBe(0);
+    expect(await team(t.id)).toMatchObject({ name: "Main Raid", messageId: null });
+    expect(channel.sent).toHaveLength(0);
+  });
+});
+
 describe("raid add", () => {
   it("adds a one-off raid from a typed date and time, in the team's timezone", async () => {
     const t = await makeTeam();
@@ -271,6 +293,17 @@ describe("team setup", () => {
     expect(await prisma.raidTeam.findFirst()).toMatchObject({ name: "Weekend", displayCount: 0 });
   });
 
+  it("still creates the team and replies when the schedule can't be posted (e.g. no Send Messages)", async () => {
+    const { run, channel } = setup();
+    channel.send = async () => {
+      throw new Error("Missing Permissions");
+    };
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(onlyReply(await run("team", "setup", { role: ROLE_ID, channel: CHANNEL_ID, timezone: TZ }))).toMatch(/^✅ Created raid team/);
+    expect(await prisma.raidTeam.count()).toBe(1);
+    expect(errors).toHaveBeenCalledWith(expect.stringContaining("Failed to sync raid team"), expect.any(Error));
+  });
+
   it("rejects an unknown timezone and a role that's already a team", async () => {
     const { run } = setup();
     expect(onlyReply(await run("team", "setup", { role: ROLE_ID, channel: CHANNEL_ID, timezone: "Mars/Olympus" }))).toBe(
@@ -315,6 +348,27 @@ describe("team edit", () => {
     expect(old.deleted).toBe(true);
     expect(newChannel.sent).toHaveLength(1);
     expect(await team(t.id)).toMatchObject({ channelId: "channel-2", messageId: newChannel.sent[0]!.id });
+  });
+
+  it("moves away from a channel that no longer exists", async () => {
+    const t = await makeTeam({ channelId: "deleted-channel", messageId: "lost" });
+    const newChannel = fakeChannel("channel-2");
+    const { run } = setup([newChannel]);
+    onlyReply(await run("team", "edit", { role: ROLE_ID, channel: "channel-2" }));
+    expect(newChannel.sent).toHaveLength(1);
+    expect(await team(t.id)).toMatchObject({ channelId: "channel-2", messageId: newChannel.sent[0]!.id });
+  });
+
+  it("still saves and replies when re-rendering fails", async () => {
+    const t = await makeTeam({ messageId: "public" });
+    const { run, channel } = setup();
+    channel.seedMessage("public").edit = async () => {
+      throw new Error("Missing Access");
+    };
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(onlyReply(await run("team", "edit", { role: ROLE_ID, name: "Core" }))).toMatch(/^✅ Updated \*\*Core\*\*/);
+    expect((await team(t.id)).name).toBe("Core");
+    expect(errors).toHaveBeenCalled();
   });
 
   it("naming the current channel is not a move", async () => {

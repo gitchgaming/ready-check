@@ -91,6 +91,14 @@ describe("public date button", () => {
     expect(await prisma.attendance.count()).toBe(0);
   });
 
+  it("rejects someone who has left the server", async () => {
+    const { team, raid, client, guild } = await setup();
+    const click = fakeButton(`attendance:btn:${team.id}:${raid.id}`, { guild, userId: "u-gone" });
+    await handleAttendanceControl(click, client);
+    expect(onlyReply(click)).toMatch(/^You're not on <@&role-team>'s roster/);
+    expect(await prisma.attendance.count()).toBe(0);
+  });
+
   it("re-renders the public message even when handling the click throws", async () => {
     const { team, raid, client, base, renders } = await setup();
     const click = fakeButton(`attendance:btn:${team.id}:${raid.id}`, base);

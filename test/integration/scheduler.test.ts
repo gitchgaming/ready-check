@@ -50,6 +50,20 @@ describe("syncRaidTeam", () => {
     expect(local(raids[11]!.startsAt).toISODate()).toBe("2026-12-23");
   });
 
+  it("includes tonight's raid when it's still ahead, and skips to next week when today's has passed", async () => {
+    // It's 7:00 AM Tuesday in Chicago.
+    const later = await makeTeam();
+    await makeSlot(later.id, 2, 20, 0);
+    const earlier = await makeTeam({ roleId: "role-early" });
+    await makeSlot(earlier.id, 2, 6, 30);
+    const { client } = world();
+    await syncRaidTeam(client, later.id);
+    await syncRaidTeam(client, earlier.id);
+
+    expect(local((await raidsOf(later.id))[0]!.startsAt).toISO()).toBe("2026-10-06T20:00:00.000-05:00");
+    expect(local((await raidsOf(earlier.id))[0]!.startsAt).toISO()).toBe("2026-10-13T06:30:00.000-05:00");
+  });
+
   it("is idempotent: a second sync at the same time adds nothing and keeps the same rows", async () => {
     const team = await makeTeam();
     await makeSlot(team.id, 3);
