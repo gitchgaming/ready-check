@@ -11,7 +11,10 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 
 - `npm run dev` — run the bot with `tsx watch`, after `npm run check-staging`
   (refuses while Railway staging, which shares the dev bot's token, is up)
-- `npx tsc --noEmit` — type-check; run before every commit
+- `npx tsc --noEmit` — type-check; run before every commit, with `npx tsc -p test`
+  (the tests) and `npm test`
+- `npm test` — the Vitest suite (see Testing); `npm run test:watch`,
+  `npm run test:coverage` (text summary, HTML report in `coverage/`)
 - `npx prisma migrate dev --name <change>` — after any schema change; commit the
   new folder under `prisma/migrations/` (production applies them on boot)
 - `npm run deploy-commands` — re-register slash commands after any change to a
@@ -27,7 +30,9 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - `src/commands/` — `callout` (toggles), `schedule`, `roster` (read-only; raider), and
   `raidlead/` (officer): `index.ts` builds the command and routes by
   "group sub" key; `team.ts`, `nights.ts`, `raid.ts` hold the handlers.
-- `src/interactions/` — select and button handlers. State lives in the customId:
+- `src/interactions/` — `router.ts` (routes every interaction by command name
+  or customId prefix; `index.ts` only sets up the client), then the select and
+  button handlers. State lives in the customId:
   `attendance:btn:<teamId>:<raidId>` (public date buttons),
   `attendance:pub:<teamId>` (public "See more dates" select, value `more`),
   `attendance:cal:<teamId>:<offset>` (personal date select, value is a raid id),
@@ -38,6 +43,7 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   (all autocomplete), `access.ts`, `classes.ts` (class/type role names),
   `emojis.ts` (loads application emojis by name).
 - `assets/emojis/` — images uploaded as application emojis by `deploy-emojis`.
+- `test/` — the Vitest suite (see Testing).
 - `branding/` — the app icon (PNG + SVG); upload it as each Discord app's icon.
 
 ## Decisions to keep
@@ -112,12 +118,34 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - During autocomplete, read other options as raw values
   (`options.get("role")?.value`); only the focused option is fully resolved.
 
+## Testing
+
+Vitest, in `test/`; it runs in CI and gates production deploys. Manual Discord
+testing is for look and feel only.
+
+- `test/unit/` — pure tests, no database: pickers, recurrence (including DST),
+  classes, emojis, roster embed, message builders (with snapshots), and
+  `discordLimits.test.ts`, which pins Discord's hard limits (40 components and
+  4,000 text characters per V2 message, select/choice/customId lengths, command
+  definitions) at worst-case rosters. `fixtures.ts` builds plain Prisma-shaped rows.
+- `test/integration/` — real SQLite (`prisma/test.db`, rebuilt from the
+  migrations once per run by `test/globalSetup.ts`; files run one at a time):
+  scheduler, attendance, buttons/selects, every command, the router.
+  `world.ts` resets the DB and freezes the clock at Tue 2026-10-06 12:00Z.
+- `test/db.ts` — `resetDb` and factories. `test/discord.ts` — minimal discord.js
+  fakes (guild, members, channel, client, interactions) that record replies,
+  updates, autocomplete responses and posted/edited messages for assertions.
+- Fake only `Date` (`vi.useFakeTimers({ toFake: ["Date"] })`) so Prisma's timers work.
+- Snapshot changes from an intended layout change: review the diff, then
+  `npx vitest run -u`.
+- A bug a test uncovers gets fixed in its own commit; a test for an undecided
+  behaviour can sit as `it.fails` with a `// BUG:` note until it's decided.
+
 ## Pending work
 
 - `docs/future-features.md`: ideas and open questions to pick up later (role
   minimums per raid size, image size). Add new ones
   there; remove them once built.
-- Automated tests: see `docs/testing-plan.md` (agreed plan, not started).
 - Staging environment: see `docs/staging-plan.md` (repo side done; Railway
   environment and `RAILWAY_STAGING_TOKEN` still to create).
 - Fixed team time, clearly labelled: see `docs/timezone-plan.md` (agreed, not
@@ -158,6 +186,5 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - Production leaves `DISCORD_GUILD_ID` unset, so commands register globally
   (the bot may serve a second server). Dev sets it for instant updates.
 - CI (`.github/workflows/ci.yml`) runs `prisma validate` and `tsc --noEmit` on
-  PRs and pushes to `main`; add `npm test` there once the suite in
-  `docs/testing-plan.md` exists. Railway's **Wait for CI** is on, so a
+  PRs and pushes to `main`, then type-checks the tests and runs `npm test`. Railway's **Wait for CI** is on, so a
   `production` deploy waits for those checks to pass.

@@ -14,7 +14,7 @@ const MIN_FUTURE_GENERATE_COUNT = 12;
 /** How long after a raid's start time before it moves into history. */
 const CLOSE_GRACE_HOURS = 3;
 
-function nextOccurrence(
+export function nextOccurrence(
   dayOfWeek: number,
   hour: number,
   minute: number,
@@ -28,7 +28,7 @@ function nextOccurrence(
   return candidate;
 }
 
-function nextOccurrences(
+export function nextOccurrences(
   dayOfWeek: number,
   hour: number,
   minute: number,
