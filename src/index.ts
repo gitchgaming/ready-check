@@ -1,9 +1,6 @@
 import "dotenv/config";
-import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
-import { commands } from "./commands/index.js";
-import { isAttendanceControl, handleAttendanceControl } from "./interactions/attendanceControls.js";
-import { isNavButton, handleNavButton } from "./interactions/navButton.js";
-import { isTeamDeleteButton, handleTeamDeleteButton } from "./interactions/teamDeleteButton.js";
+import { Client, Events, GatewayIntentBits } from "discord.js";
+import { routeInteraction } from "./interactions/router.js";
 import { prisma } from "./lib/db.js";
 import { loadAppEmojis } from "./lib/emojis.js";
 import { ensureMembersCached } from "./lib/roster.js";
@@ -19,8 +16,6 @@ const SYNC_INTERVAL_MS = 60 * 60 * 1000; // re-check schedules hourly
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
 });
-
-const commandsByName = new Map(commands.map((c) => [c.data.name, c]));
 
 const MEMBER_REFRESH_DEBOUNCE_MS = 3000;
 const memberRefreshTimers = new Map<string, NodeJS.Timeout>();
@@ -60,42 +55,6 @@ client.once(Events.ClientReady, async (readyClient) => {
   }, SYNC_INTERVAL_MS);
 });
 
-client.on(Events.InteractionCreate, async (interaction) => {
-  try {
-    if (interaction.isChatInputCommand()) {
-      const command = commandsByName.get(interaction.commandName);
-      if (!command) return;
-      await command.execute(interaction, client);
-      return;
-    }
-
-    if (interaction.isAutocomplete()) {
-      const command = commandsByName.get(interaction.commandName);
-      if (!command?.autocomplete) return;
-      await command.autocomplete(interaction);
-      return;
-    }
-
-    if ((interaction.isButton() || interaction.isStringSelectMenu()) && isAttendanceControl(interaction.customId)) {
-      await handleAttendanceControl(interaction, client);
-      return;
-    }
-
-    if (interaction.isButton() && isNavButton(interaction.customId)) {
-      await handleNavButton(interaction, client);
-      return;
-    }
-
-    if (interaction.isButton() && isTeamDeleteButton(interaction.customId)) {
-      await handleTeamDeleteButton(interaction, client);
-      return;
-    }
-  } catch (err) {
-    console.error("Error handling interaction:", err);
-    if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-      await interaction.reply({ content: "Something went wrong handling that.", flags: MessageFlags.Ephemeral }).catch(() => null);
-    }
-  }
-});
+client.on(Events.InteractionCreate, (interaction) => routeInteraction(interaction, client));
 
 client.login(token);
