@@ -35,10 +35,10 @@ export const MORE_DATES_VALUE = "more";
 
 /**
  * Discord caps a Components V2 message at 40 components, nested ones included.
- * The public message's Next Up container costs up to 11 (container, 5 text
- * blocks, divider, and a section with a blank text block beside the button) and
- * the Coming Up container 4 (container, header, select row, select) plus 3 per
- * later raid (section, text, button). So it fits 15 + 3 × (days − 1) ≤ 40 →
+ * The public message's Next Up container costs up to 10 (container, 5 text
+ * blocks, divider, and a section with a short note beside the button) and the
+ * Coming Up container 4 (container, header, select row, select) plus 3 per
+ * later raid (section, text, button). So it fits 14 + 3 × (days − 1) ≤ 40 →
  * 9 days.
  */
 export const MAX_PUBLIC_DAYS = 9;

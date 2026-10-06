@@ -23,9 +23,20 @@ an optional peer. That puts about 27 MB of TypeScript compiler binaries in the
 production image, unused. Trim it, e.g. with an extra prune step, once Docker
 builds can be tested (first Railway deploy).
 
-## Automated tests
+## Timezone changes and existing raids
 
-See `docs/testing-plan.md`: agreed plan, not started.
+`/raidlead team edit timezone:` leaves already-generated raids at the old zone's
+times (generated raids are never deleted), and the next sync adds raids at the
+new zone's local time, so each night shows twice until the old ones close.
+Likely fix: when the timezone changes, move upcoming generated raids that have no
+call-outs, or ask the officer.
+
+## Personal schedule text limit
+
+The personal `/schedule` view lists every call-out on each shown day with no
+truncation. Around 60+ raiders all called out across the 3 shown days would pass
+Discord's 4,000-character limit. Truncate like the public message if rosters get
+that big.
 
 ## Staging environment
 

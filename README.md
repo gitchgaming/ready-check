@@ -109,7 +109,8 @@ needed, with no local setup.
    This creates `prisma/migrations/`, which **must be committed** — production
    uses it to set up its own database.
 4. Register slash commands: `npm run deploy-commands`
-5. Run the bot: `npm run dev`. It first checks that Railway staging, which
+5. Run the tests: `npm test` (Vitest; `npm run test:coverage` for coverage).
+6. Run the bot: `npm run dev`. It first checks that Railway staging, which
    runs the same dev bot, is stopped (see `docs/releasing.md` → Environments).
 
 If old or duplicate commands linger in Discord after a reload, they may have
