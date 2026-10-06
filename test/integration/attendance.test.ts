@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { MessageFlags } from "discord.js";
 import { raidDateAutocomplete, setAttendance, type AttendanceChange } from "../../src/lib/attendance.js";
 import {
   nightChoices,
@@ -118,11 +119,11 @@ describe("setAttendance", () => {
     expect(await prisma.attendance.count()).toBe(0);
   });
 
-  it("does nothing outside a server", async () => {
+  it("only replies outside a server", async () => {
     const { raid, client } = await setup();
     const dm = fakeChatInput({ guild: null, userId: "u-alice", options: { date: raid.id } });
     await setAttendance(dm, client, "TOGGLE", "u-alice");
-    expect(dm.replies).toHaveLength(0);
+    expect(dm.replies).toEqual([{ content: "This command only works in a server.", flags: MessageFlags.Ephemeral }]);
     expect(await prisma.attendance.count()).toBe(0);
   });
 });

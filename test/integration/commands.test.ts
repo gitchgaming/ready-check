@@ -47,15 +47,11 @@ describe("/callout", () => {
     expect(ac.responses).toEqual([[{ name: `✅ ${TUE_LABEL} — Decline`, value: raid.id }]]);
   });
 
-  // BUG: /callout has no DM guard (unlike /schedule and /roster). Global commands can be
-  // used in a DM with the bot, where setAttendance returns without replying, so Discord
-  // shows "The application did not respond". Expected: an ephemeral "only works in a
-  // server" reply. Actual: no reply at all.
-  it.fails("replies when used outside a server", async () => {
+  it("replies when used outside a server", async () => {
     const { client } = world();
     const run = fakeChatInput({ commandName: "callout", guild: null, userId: "u-alice", options: { date: "x" } });
     await callout.execute(run, client);
-    expect(run.replies).toHaveLength(1);
+    expect(run.replies).toEqual([{ content: "This command only works in a server.", flags: MessageFlags.Ephemeral }]);
   });
 });
 
