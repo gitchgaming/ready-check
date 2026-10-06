@@ -148,6 +148,8 @@ testing is for look and feel only.
   there; remove them once built.
 - Staging environment: see `docs/staging-plan.md` (repo side done; Railway
   environment and `RAILWAY_STAGING_TOKEN` still to create).
+- Fixed team time, clearly labelled: see `docs/timezone-plan.md` (agreed, not
+  started; builds on the test suite).
 
 ## Production hosting (Railway)
 
