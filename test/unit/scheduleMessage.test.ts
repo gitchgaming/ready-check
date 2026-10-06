@@ -1,3 +1,4 @@
+import { CLASSES } from "../../src/lib/classes.js";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ButtonStyle, ComponentType, MessageFlags, type GuildMember } from "discord.js";
 import {
@@ -256,13 +257,11 @@ describe("buildPublicMessage — Next Up", () => {
     expect(buttons(p).map((b) => b.custom_id.split(":")[3])).toEqual([raids[1]!.id, raids[2]!.id]);
   });
 
-  // BUG: raidCard falls back to "-# No one on the roster yet." when the roster text
-  // is empty, but classLines always returns one line per class ("**Warrior** —" ...),
-  // so the fallback is unreachable. Expected: an empty roster shows the "No one on
-  // the roster yet." note; actual: nine "—" class lines (src/lib/embeds.ts:320,326).
-  it.fails("says no one is on the roster when the role has no members", () => {
+  // Decided: an empty roster still lists every class, each with "—".
+  it("lists every class with a dash when the role has no members", () => {
     const t = texts(nextUp(buildPublicMessage(team(), weeklyRaids(1), [])));
-    expect(t).toContain("-# No one on the roster yet.");
+    const roster = t.find((x) => x.includes("**Warrior**"))!;
+    expect(roster.split("\n")).toEqual(CLASSES.map((c) => `**${c.label}** —`));
   });
 
   it("truncates class lines with '…and N more' when the roster is too long", () => {

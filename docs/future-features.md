@@ -31,13 +31,6 @@ new zone's local time, so each night shows twice until the old ones close.
 Likely fix: when the timezone changes, move upcoming generated raids that have no
 call-outs, or ask the officer.
 
-## Personal schedule text limit
-
-The personal `/schedule` view lists every call-out on each shown day with no
-truncation. Around 60+ raiders all called out across the 3 shown days would pass
-Discord's 4,000-character limit. Truncate like the public message if rosters get
-that big.
-
 ## Staging environment
 
 See `docs/staging-plan.md`: repo side done, Railway environment and token not
