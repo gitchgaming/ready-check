@@ -10,3 +10,9 @@ prisma/*.db-journal
 # Prisma generated client (regenerated via postinstall)
 generated/
 src/generated/
+
+# Test coverage report
+coverage/
+
+# Claude Code agent worktrees
+.claude/worktrees/

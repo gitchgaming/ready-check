@@ -23,10 +23,6 @@ an optional peer. That puts about 27 MB of TypeScript compiler binaries in the
 production image, unused. Trim it, e.g. with an extra prune step, once Docker
 builds can be tested (first Railway deploy).
 
-## Automated tests
-
-See `docs/testing-plan.md`: agreed plan, not started.
-
 ## Staging environment
 
 See `docs/staging-plan.md`: repo side done, Railway environment and token not

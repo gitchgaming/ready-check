@@ -18,7 +18,10 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.10.0",
@@ -32,8 +35,10 @@
   "devDependencies": {
     "@types/luxon": "^3.4.2",
     "@types/node": "^26.6.4",
+    "@vitest/coverage-v8": "^5.0.3",
     "tsx": "^4.19.1",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
   },
   "allowScripts": {
     "better-sqlite3@12.11.1": true,

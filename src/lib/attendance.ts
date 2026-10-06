@@ -81,7 +81,10 @@ export async function setAttendance(
   change: AttendanceChange,
   subjectId: string,
 ): Promise<void> {
-  if (!interaction.guild) return;
+  if (!interaction.guild) {
+    await interaction.reply({ content: "This command only works in a server.", flags: MessageFlags.Ephemeral });
+    return;
+  }
   const onBehalf = subjectId !== interaction.user.id;
   const instanceId = interaction.options.getString("date", true);
 

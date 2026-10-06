@@ -1,4 +1,4 @@
-# Type-check every PR and every push to main. The Release workflow reuses this
+# Type-check and test every PR and every push to main. The Release workflow reuses this
 # job, so nothing reaches production without passing it.
 name: CI
 
@@ -30,3 +30,5 @@ jobs:
       - run: npm ci
       - run: npx prisma validate
       - run: npx tsc --noEmit
+      - run: npx tsc -p test
+      - run: npm test
