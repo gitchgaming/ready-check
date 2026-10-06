@@ -218,16 +218,9 @@ describe("public message at its worst case", () => {
     }
   });
 
-  // BUG (two causes, src/lib/embeds.ts):
-  // 1. buildPublicMessage gives raidCard MAX_MESSAGE_TEXT minus Coming Up's text
-  //    (line 392), but raidCard only subtracts header/bar/summary (line 310); the
-  //    73-character note in the Status button's section (line 335) is never counted.
-  // 2. classLines (line 215-216) checks the budget per entry, and when an entry
-  //    doesn't fit it still pushes that class's heading (up to ~38 chars with an
-  //    emoji) plus the "-# …and N more" line (~16 chars), both after the budget.
-  // Expected: total text ≤ 4,000 (Discord rejects the edit with "Invalid Form Body").
-  // Actual: 4,028 for a 40-player team (32-char names, 25% out, 9 raids); up to ~4,106.
-  it.fails.each([
+  // Regression: the Status note and the "…and N more" lines once went unbudgeted,
+  // pushing a 40-player team with long names to 4,028 characters.
+  it.each([
     ["a 40-player raid team", 40, 0.25],
     ["a large guild roster", 120, 0.4],
     ["a huge roster, half called out", 300, 0.5],
@@ -246,14 +239,23 @@ describe("public message at its worst case", () => {
     expect(componentCount(p)).toBeLessThanOrEqual(MAX_COMPONENTS);
   });
 
-  // BUG: cause 2 above (classLines overshoots its budget when it truncates) also
-  // pushes /roster's card past the limit. Expected ≤ 4,000; actual 4,006 for 120
-  // raiders with half called out, 4,035 with a quarter out.
-  it.fails("the read-only roster card stays within the text limit with a truncated roster", () => {
+  it("the read-only roster card stays within the text limit with a truncated roster", () => {
     for (const [size, share] of [[120, 0.5], [120, 0.25], [300, 0.5]] as const) {
       const members = worstRoster(size);
       const p = buildRaidRosterCard(team(), worstRaids(1, members, share)[0]!, members);
       expect(textLength(p), `${size} raiders`).toBeLessThanOrEqual(MAX_TEXT);
+    }
+  });
+
+  it("stays within the text limit at every roster size and call-out share", () => {
+    for (let size = 1; size <= 160; size += 3) {
+      const members = worstRoster(size);
+      for (const share of [0, 0.1, 0.25, 0.5, 0.9]) {
+        const raids = worstRaids(MAX_PUBLIC_DAYS, members, share);
+        const label = `${size} raiders, ${share * 100}% out`;
+        expect(textLength(buildPublicMessage(team(), raids, members)), label).toBeLessThanOrEqual(MAX_TEXT);
+        expect(textLength(buildRaidRosterCard(team(), raids[0]!, members)), label).toBeLessThanOrEqual(MAX_TEXT);
+      }
     }
   });
 

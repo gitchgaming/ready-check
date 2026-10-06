@@ -202,26 +202,34 @@ function classLines(attending: GuildMember[], budget: number): string[] {
     ...(others.length > 0 ? [{ heading: "**Other**", members: others }] : []),
   ];
 
+  const moreLine = (n: number) => `-# …and ${n} more`;
+  // Room kept for the "…and N more" line (and its newline) while raiders remain unshown.
+  const reserve = moreLine(attending.length).length + 1;
   const lines: string[] = [];
-  let length = 0;
+  let length = 0; // the kept lines' text, plus a newline each
   let shown = 0;
+  const fits = (extra: number) => length + extra + (shown < attending.length ? reserve : 0) <= budget;
   for (const group of groups) {
     const entries = [...group.members]
       .sort((a, b) => typeRank(a) - typeRank(b) || a.displayName.localeCompare(b.displayName))
       .map((m) => `${marker(m)}${escapeMarkdown(m.displayName)}`);
     let line = entries.length > 0 ? group.heading : `${group.heading} —`;
+    if (entries.length === 0 && !fits(line.length + 1)) break;
     for (const [i, entry] of entries.entries()) {
       const piece = `${i === 0 ? " " : ", "}${entry}`;
-      if (length + line.length + piece.length + 1 > budget) {
-        lines.push(line, `-# …and ${attending.length - shown} more`);
+      shown++;
+      if (!fits(line.length + piece.length + 1)) {
+        shown--;
+        if (i > 0) lines.push(line);
+        lines.push(moreLine(attending.length - shown));
         return lines;
       }
       line += piece;
-      shown++;
     }
     lines.push(line);
     length += line.length + 1;
   }
+  if (shown < attending.length) lines.push(moreLine(attending.length - shown));
   return lines;
 }
 
@@ -256,11 +264,15 @@ function fitEntries(entries: string[], separator: string, max: number): string {
   let result = "";
   for (const [i, entry] of entries.entries()) {
     const next = (i === 0 ? "" : separator) + entry;
-    if (result.length + next.length + 20 > max && i < entries.length - 1) return `${result} …and ${entries.length - i} more`;
+    const reserve = i < entries.length - 1 ? 20 : 0; // room for " …and N more"
+    if (result.length + next.length + reserve > max) return `${result} …and ${entries.length - i} more`;
     result += next;
   }
   return result;
 }
+
+/** The text beside the Next Up Status button. */
+const STATUS_NOTE = "-# Can't make it, or back in? **Status** switches you between in and out.";
 
 function statusButton(team: RaidTeam, instance: InstanceWithAttendance) {
   return new ButtonBuilder()
@@ -308,7 +320,7 @@ function raidCard(
       .join(GAP),
   );
   const fixedText = [header, bar, summary].reduce((n, t) => n + (t.data.content?.length ?? 0), 0);
-  const rosterBudget = textBudget - fixedText;
+  const rosterBudget = textBudget - fixedText - (withButton ? STATUS_NOTE.length : 0);
 
   // Its own text block, so Discord leaves a gap above it. Gets up to a third of
   // the roster budget; the class lines get the rest.
@@ -332,7 +344,7 @@ function raidCard(
     // instead of floating beside a long Called Out list.
     .addSectionComponents(
       new SectionBuilder()
-        .addTextDisplayComponents(text("-# Can't make it, or back in? **Status** switches you between in and out."))
+        .addTextDisplayComponents(text(STATUS_NOTE))
         .setButtonAccessory(statusButton(team, instance)),
     );
 }
