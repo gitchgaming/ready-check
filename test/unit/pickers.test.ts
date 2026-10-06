@@ -9,10 +9,12 @@ import {
   respondFiltered,
   teamDisplayName,
   timezoneChoices,
+  teamFromRoleOption,
+  teamsForMember,
   upcomingDateChoices,
 } from "../../src/lib/pickers.js";
 import { DateTime } from "luxon";
-import { fakeAutocomplete, fakeGuild, fakeRole, teamRole } from "../discord.js";
+import { fakeAutocomplete, fakeGuild, fakeRole, raider, teamRole } from "../discord.js";
 import { freezeTime, team } from "./fixtures.js";
 
 const CHICAGO = "America/Chicago";
@@ -255,5 +257,23 @@ describe("respondFiltered", () => {
     const fallback = autocomplete("zzz");
     await respondFiltered(fallback, many, "none");
     expect(fallback.responses[0]).toHaveLength(MAX_CHOICES);
+  });
+});
+
+describe("pure early returns of the DB-backed pickers", () => {
+  it("teamFromRoleOption is null without a role option or outside a guild (no query)", async () => {
+    const guild = fakeGuild();
+    expect(await teamFromRoleOption(fakeAutocomplete({ focused: "date", guild }))).toBeNull();
+    expect(await teamFromRoleOption(fakeAutocomplete({ focused: "date", options: { role: teamRole.id } }))).toBeNull();
+  });
+
+  it("teamsForMember is empty for someone who isn't in the guild", async () => {
+    expect(await teamsForMember(fakeGuild(), "not-a-member", [team()])).toEqual([]);
+  });
+
+  it("teamsForMember keeps only the teams whose role the member holds", async () => {
+    const guild = fakeGuild({ members: [raider("Alice", [], "u-alice")] });
+    const teams = [team(), team({ id: "other", roleId: "role-other" })];
+    expect(await teamsForMember(guild, "u-alice", teams)).toEqual([teams[0]]);
   });
 });

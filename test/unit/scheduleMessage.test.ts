@@ -409,6 +409,11 @@ describe("buildCalendarMessage", () => {
     expect(t[2]).toBe("🚫 **Cancelled**");
   });
 
+  it("calls an unnamed team 'Raid'", () => {
+    const p = buildCalendarMessage(team({ name: null }), [], 0, nav, rosterIds, [], "v");
+    expect(texts(containers(p)[0])[0]).toMatch(/^## Raid — schedule\n/);
+  });
+
   it("explains how to use it when any shown raid is open", () => {
     const container = containers(build(weeklyRaids(2)))[0];
     expect(container.components[0].content).toBe("## Main Raid — schedule\nPick any date below to call out or switch back.");
