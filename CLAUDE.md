@@ -120,6 +120,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - Automated tests: see `docs/testing-plan.md` (agreed plan, not started).
 - Staging environment: see `docs/staging-plan.md` (repo side done; Railway
   environment and `RAILWAY_STAGING_TOKEN` still to create).
+- Fixed team time, clearly labelled: see `docs/timezone-plan.md` (agreed, not
+  started; builds on the test suite).
 
 ## Production hosting (Railway)
 
