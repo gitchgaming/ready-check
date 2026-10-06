@@ -13,3 +13,6 @@ src/generated/
 
 # Test coverage report
 coverage/
+
+# Claude Code agent worktrees
+.claude/worktrees/
