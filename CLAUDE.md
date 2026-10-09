@@ -155,9 +155,10 @@ testing is for look and feel only.
   there; remove them once built.
 - **Production has no volume** (found 2026-10-09): `prod.db` lives on the
   container disk, so a release, restart or crash wipes it. Don't release
-  until a volume is attached at `/data`; plan agreed in chat: copy `prod.db`
-  out over `railway ssh`, attach the volume, restore it, restart (each step
-  needs the user's OK). Then fix the hosting line below.
+  until a volume is attached at `/data`: see `docs/production-volume-plan.md`.
+  `railway ssh` can't run from a Claude cloud session (no SSH client, and
+  project tokens can't register keys), so the copy-out runs on the user's
+  machine.
 - Staging is live and verified (2026-10-09), except one guard path: with
   staging stopped, `check-staging` should report it stopped and let
   `npm run dev` start. Confirm it the first time the user asks to run dev.
