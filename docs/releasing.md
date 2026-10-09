@@ -81,7 +81,14 @@ test data. Production doesn't set `DEPLOY_LANES` and always uses its
 `DATABASE_URL`.
 
 Local `npm run dev` keeps its own `prisma/dev.db`, so a team set up there
-doesn't exist on staging.
+doesn't exist on staging. If both post a schedule to the same channel, the
+stopped bot's post goes stale, so use a separate channel for local testing.
+Slash commands follow whichever copy started last (each registers to the
+test server on boot); `npm run deploy:staging` restores `main`'s.
+
+If the stop/start routine between staging and local dev becomes a nuisance,
+the alternative is a separate staging Discord app, at the cost of a third app
+to manage.
 
 ## Releasing
 

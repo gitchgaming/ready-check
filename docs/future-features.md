@@ -22,8 +22,3 @@ npm 11 counts TypeScript as a production dependency, because Prisma lists it as
 an optional peer. That puts about 27 MB of TypeScript compiler binaries in the
 production image, unused. Trim it, e.g. with an extra prune step, once Docker
 builds can be tested (first Railway deploy).
-
-## Staging environment
-
-See `docs/staging-plan.md`: repo side done, Railway environment and token not
-created yet.
