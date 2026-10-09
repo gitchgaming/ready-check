@@ -112,6 +112,8 @@ needed, with no local setup.
 5. Run the tests: `npm test` (Vitest; `npm run test:coverage` for coverage).
 6. Run the bot: `npm run dev`. It first checks that Railway staging, which
    runs the same dev bot, is stopped (see `docs/releasing.md` → Environments).
+   To test a branch on staging instead, `npm run deploy:branch` (see
+   `docs/releasing.md` → Testing a branch on staging).
 
 If old or duplicate commands linger in Discord after a reload, they may have
 been registered globally at some point. `npm run clear-global-commands` lists

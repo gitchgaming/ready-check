@@ -65,10 +65,10 @@ async function main() {
     return;
   }
   const d = up[0];
-  const commit = d.meta?.commitHash?.slice(0, 7) ?? "unknown commit";
+  const commit = d.meta?.commitHash?.slice(0, 7) ?? "a branch deploy";
   console.error(
     `Railway "${env}" is up (${d.status}, ${commit}, ${d.createdAt}). It uses the same bot token, ` +
-      "so both would answer every interaction. Stop it first (`railway down` or the dashboard), " +
+      "so both would answer every interaction. Stop it first (`npm run stop-staging`), " +
       "or set SKIP_STAGING_CHECK=1 to run anyway.",
   );
   process.exit(1);
