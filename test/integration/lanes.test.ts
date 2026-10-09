@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { prepareBranchDb } from "../../src/lib/lanes.js";
 
 // The "staging" database is a copy of prisma/test.db, which globalSetup builds
-// from the real migrations.
+// from the real migrations. Earlier test files may leave rows in it, so these
+// tests only look at their own team.
 
 let dir: string;
 let staging: string;
@@ -29,7 +30,7 @@ afterEach(() => rmSync(dir, { recursive: true, force: true }));
 const teams = (path: string) => {
   const db = new Database(path, { readonly: true });
   try {
-    return db.prepare("SELECT name FROM RaidTeam").pluck().all();
+    return db.prepare("SELECT name FROM RaidTeam WHERE id = 'team-1'").pluck().all();
   } finally {
     db.close();
   }
@@ -42,7 +43,7 @@ describe("prepareBranchDb", () => {
     expect(teams(dev)).toEqual(["Staging Team"]);
 
     const db = new Database(dev);
-    db.prepare("UPDATE RaidTeam SET name = 'Branch Team'").run();
+    db.prepare("UPDATE RaidTeam SET name = 'Branch Team' WHERE id = 'team-1'").run();
     db.close();
     expect(teams(staging)).toEqual(["Staging Team"]);
   });
@@ -50,7 +51,7 @@ describe("prepareBranchDb", () => {
   it("keeps the branch database when the same deployment restarts", async () => {
     await prepareBranchDb(staging, dev, "prisma/migrations", "dep-1");
     const db = new Database(dev);
-    db.prepare("UPDATE RaidTeam SET name = 'Branch Team'").run();
+    db.prepare("UPDATE RaidTeam SET name = 'Branch Team' WHERE id = 'team-1'").run();
     db.close();
 
     expect(await prepareBranchDb(staging, dev, "prisma/migrations", "dep-1")).toMatch(/^kept/);
@@ -60,7 +61,7 @@ describe("prepareBranchDb", () => {
   it("recopies for a new deployment", async () => {
     await prepareBranchDb(staging, dev, "prisma/migrations", "dep-1");
     const db = new Database(dev);
-    db.prepare("UPDATE RaidTeam SET name = 'Branch Team'").run();
+    db.prepare("UPDATE RaidTeam SET name = 'Branch Team' WHERE id = 'team-1'").run();
     db.close();
 
     expect(await prepareBranchDb(staging, dev, "prisma/migrations", "dep-2")).toMatch(/^copied/);
