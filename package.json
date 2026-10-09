@@ -10,6 +10,9 @@
   "scripts": {
     "dev": "tsx src/check-staging.ts && tsx watch src/index.ts",
     "check-staging": "tsx src/check-staging.ts",
+    "stop-staging": "tsx src/stop-staging.ts",
+    "deploy:branch": "tsx src/deploy-branch.ts",
+    "deploy:staging": "tsx src/deploy-staging.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "deploy-commands": "tsx src/deploy-commands.ts",
@@ -33,6 +36,7 @@
     "prisma": "^7.10.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
     "@types/luxon": "^3.4.2",
     "@types/node": "^26.6.4",
     "@vitest/coverage-v8": "^5.0.3",

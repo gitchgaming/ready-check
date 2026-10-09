@@ -11,6 +11,10 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 
 - `npm run dev` — run the bot with `tsx watch`, after `npm run check-staging`
   (refuses while Railway staging, which shares the dev bot's token, is up)
+- `npm run deploy:branch` — type-check, test, then `railway up` this working
+  tree to staging's branch lane (`-- --skip-checks` skips the checks);
+  `npm run deploy:staging` puts `main` back; `npm run stop-staging` stops
+  staging (either lane). All need `RAILWAY_STAGING_TOKEN`.
 - `npx tsc --noEmit` — type-check; run before every commit, with `npx tsc -p test`
   (the tests) and `npm test`
 - `npm test` — the Vitest suite (see Testing); `npm run test:watch`,
@@ -41,7 +45,10 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - `src/lib/` — `scheduler.ts` (instance generation, hourly sync, schedule
   message render), `embeds.ts`, `roster.ts`, `attendance.ts`, `pickers.ts`
   (all autocomplete), `access.ts`, `classes.ts` (class/type role names),
-  `emojis.ts` (loads application emojis by name).
+  `emojis.ts` (loads application emojis by name), `lanes.ts` (staging's
+  main/branch lane and database choice), `railway.ts` (staging CLI helper).
+- `src/prepare-db.ts` + `docker-start.sh` — the container boot; the other
+  top-level `src/*.ts` files are the npm scripts' entry points.
 - `assets/emojis/` — images uploaded as application emojis by `deploy-emojis`.
 - `test/` — the Vitest suite (see Testing).
 - `branding/` — the app icon (PNG + SVG); upload it as each Discord app's icon.
@@ -159,20 +166,30 @@ testing is for look and feel only.
   (`.github/workflows/release.yml`: CI, tag `vX.Y.Z`, fast-forward
   `production`, GitHub Release) and **Rollback** workflow move. Never push to
   `production` by hand. Only release when the user asks.
-- The container runs `prisma migrate deploy`, then `deploy-commands`, then
-  `deploy-emojis`, then the bot. A failed command registration stops boot
+- The container (`docker-start.sh`) runs `prepare-db` (picks the database;
+  a pass-through outside staging), `prisma migrate deploy`, then
+  `deploy-commands`, then `deploy-emojis`, then the bot. A failed command registration stops boot
   (Railway retries); a failed emoji upload only logs, since icons are cosmetic.
 - Production is a separate Discord application from the dev bot, so the same
   token never runs in two places and neither clobbers the other's commands.
   The dev bot lives only in a private test server; keep it out of the raid guild.
 - Staging is a Railway environment that deploys `main` (Wait for CI on) with
-  the dev bot's token, `DISCORD_GUILD_ID` = the test server, and its own volume
-  (`file:/data/staging.db`). Local `npm run dev` shares that token, so the two
-  must never run at once. When the user asks to run dev, that is permission
-  to stop staging: check it (`npm run check-staging`), stop it if it's up,
-  then start the local bot. Offer to bring staging back (redeploy) when
-  they're done. Before merging a PR into `main`, stop the local bot if it ran
-  this session, since the merge redeploys staging.
+  the dev bot's token, `DISCORD_GUILD_ID` = the test server, `DEPLOY_LANES=1`
+  and its own volume (`file:/data/staging.db`). It also takes ad hoc branch
+  deploys (`npm run deploy:branch`): one service, two lanes, so they replace
+  each other. The branch lane runs on `/data/dev.db`, a fresh copy of
+  `staging.db` per deploy, so branch migrations never touch `staging.db`
+  (`src/lib/lanes.ts`, `docs/releasing.md` → Testing a branch on staging).
+  A merge to `main` replaces a branch deploy.
+- Local `npm run dev` shares the dev token, so it and staging must never run
+  at once. When the user asks to run dev, that is permission to stop staging:
+  check it (`npm run check-staging`), stop it if it's up
+  (`npm run stop-staging`), then start the local bot. Offer to bring staging
+  back (`npm run deploy:staging`) when they're done. When the user asks to
+  deploy a branch to staging, that is permission to run `deploy:branch` (stop
+  the local bot first if it ran this session), and later `deploy:staging` to
+  put main back. Before merging a PR into `main`, stop the local bot if it
+  ran this session, since the merge redeploys staging.
 - Live since 2026-10-04 as `ready-check#2607` (production app; the dev bot is
   `ready-check#7940`). Railway: Hobby plan, Dockerfile build, volume at
   `/data`, `DATABASE_URL=file:/data/prod.db`, one replica, no public domain.
@@ -181,8 +198,8 @@ testing is for look and feel only.
   `RAILWAY_STAGING_TOKEN` covers staging (`RAILWAY_TOKEN=$RAILWAY_STAGING_TOKEN
   railway status`). Claude may read status, deployments and logs freely, but
   must ask the user before any redeploy, restart, rollback, variable change or
-  other mutation, in either environment. The one exception: stopping staging
-  when the user asks to run dev (above).
+  other mutation, in either environment. The exceptions: stopping staging
+  when the user asks to run dev, and branch deploys they ask for (above).
 - Production leaves `DISCORD_GUILD_ID` unset, so commands register globally
   (the bot may serve a second server). Dev sets it for instant updates.
 - CI (`.github/workflows/ci.yml`) runs `prisma validate` and `tsc --noEmit` on

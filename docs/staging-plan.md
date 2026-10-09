@@ -1,17 +1,11 @@
 # Plan: staging environment
 
-> **Status (2026-10-06): repo side done, Railway side not started.** The guard
-> (`npm run check-staging`), docs and CLAUDE.md rules merged in #5. The user
-> still has to create the Railway environment and its token (steps 1–2 below);
-> Claude verifies after (step 3). Remove this file once staging is live and
-> verified, and drop its entry from `docs/future-features.md`.
-
-## Context
-
-Production deploys only on a release (`production` branch). Nothing runs `main`
-between releases, so merged changes are first seen live in the raid guild.
-Goal: a staging bot in the private test server that deploys every commit to
-`main`, so changes can be tested as they land, before a release.
+> **Status (2026-10-09): repo side done, Railway side not started.** The guard
+> (`npm run check-staging`), docs and CLAUDE.md rules merged in #5; branch
+> deploys (lanes) added after. The user still has to create the Railway
+> environment and its token (steps 1–2 below); Claude verifies after (step 3).
+> Remove this file once staging is live and verified, and drop its entry from
+> `docs/future-features.md`.
 
 ## Decisions
 
@@ -34,6 +28,13 @@ Goal: a staging bot in the private test server that deploys every commit to
   ran that session, because the merge redeploys staging. Every other Railway
   change, in either environment, still needs the user's OK.
 - **Wait for CI** on staging too, so a red `main` commit never deploys.
+- **Branch deploys share the staging service** (`npm run deploy:branch`,
+  `railway up`) rather than using a second environment: a service has one
+  active deployment, so a branch deploy and `main` replace each other and
+  can't both run, even when a merge lands mid-test. The container picks the
+  database per lane: `main` uses `staging.db`; a branch uses `dev.db`, a fresh
+  copy of it per deploy, so branch migrations never touch `staging.db`. See
+  `docs/releasing.md` → Testing a branch on staging.
 
 ## Steps
 
@@ -46,6 +47,7 @@ Goal: a staging bot in the private test server that deploys every commit to
   - `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`: the dev bot's, as in your local `.env`
   - `DISCORD_GUILD_ID`: the test server's ID (instant command updates)
   - `DATABASE_URL`: `file:/data/staging.db`
+  - `DEPLOY_LANES`: `1` (turns on the main/branch lanes; production never sets it)
 - No code changes: the container already migrates, registers commands, uploads
   emojis and starts the bot on boot.
 
@@ -56,12 +58,21 @@ Goal: a staging bot in the private test server that deploys every commit to
 
 ### 3. Verify (Claude)
 - `RAILWAY_TOKEN=$RAILWAY_STAGING_TOKEN railway status`: the service is online
-  on `main`'s latest commit; logs show the dev bot logged in and commands
-  registered to the test server.
+  on `main`'s latest commit; logs show `Main lane (main @ …)`, the dev bot
+  logged in and commands registered to the test server. If the log says
+  `Branch lane` instead, Railway isn't setting `RAILWAY_GIT_BRANCH` for GitHub
+  deploys, and `lanes.ts` needs another main-lane signal.
 - `npm run check-staging` reports staging up and exits 1.
-- With the user's OK: stop staging, confirm `check-staging` reports it stopped
-  (the one guard path not yet tested), then redeploy and confirm it's back.
+- With the user's OK: `npm run stop-staging`, confirm `check-staging` reports
+  it stopped (the one guard path not yet tested), then `npm run deploy:staging`
+  and confirm it's back.
 - Smoke test in the test server: set up a team, check the schedule post renders.
+- Branch lane: `npm run deploy:branch` from a branch; logs show
+  `Branch lane (<branch> @ …): copied /data/staging.db to /data/dev.db`, the
+  bot's status shows `🧪 <branch> @ <commit>`, and the team from the smoke test
+  is there. Call out, then `npm run deploy:staging`: the call-out is gone on
+  main, and the service is still linked to GitHub (a `railway up` must not
+  unlink it; Settings → Source still shows `main`).
 
 ### 4. Clean up (Claude)
 - Update the CLAUDE.md "Production hosting" section if anything differed from
@@ -69,12 +80,12 @@ Goal: a staging bot in the private test server that deploys every commit to
 
 ## Things to know
 
-- **Two databases.** Staging (`/data/staging.db`) and local (`prisma/dev.db`)
-  each have their own teams. If both post a schedule to the same channel,
+- **Two databases.** Staging (`/data/staging.db`, copied for branch deploys)
+  and local (`prisma/dev.db`) each have their own teams. If both post a schedule to the same channel,
   there are two messages and the stopped bot's one goes stale. Use a separate
   channel for local testing to avoid confusion.
-- **Slash commands follow whichever copy started last.** Both register to the
-  test server on boot; restarting staging restores `main`'s commands.
+- **Slash commands follow whichever copy started last.** Each registers to
+  the test server on boot; `npm run deploy:staging` restores `main`'s commands.
 - **Cost.** A second always-on service adds a little to the Hobby plan's usage.
 
 ## Alternatives considered

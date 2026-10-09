@@ -1,8 +1,9 @@
 import "dotenv/config";
-import { Client, Events, GatewayIntentBits } from "discord.js";
+import { ActivityType, Client, Events, GatewayIntentBits } from "discord.js";
 import { routeInteraction } from "./interactions/router.js";
 import { prisma } from "./lib/db.js";
 import { loadAppEmojis } from "./lib/emojis.js";
+import { deployLabel, lanesEnabled, readDeployInfo } from "./lib/lanes.js";
 import { ensureMembersCached } from "./lib/roster.js";
 import { renderTeamMessage, syncAllRaidTeams } from "./lib/scheduler.js";
 
@@ -45,6 +46,12 @@ client.on(Events.GuildMemberRemove, (member) => scheduleMemberRefresh(member.gui
 
 client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Logged in as ${readyClient.user.tag}`);
+  // On staging, show which lane is live, e.g. "🧪 my-branch @ 1a2b3c4".
+  if (lanesEnabled()) {
+    const info = readDeployInfo();
+    const state = `${info ? "🧪" : "🌿"} ${deployLabel(process.env, info)}`;
+    readyClient.user.setActivity({ type: ActivityType.Custom, name: state, state });
+  }
   await loadAppEmojis(readyClient).catch((err) => console.error("Loading application emojis failed:", err));
   for (const guild of readyClient.guilds.cache.values()) {
     await ensureMembersCached(guild).catch((err) => console.error("Member cache warmup failed:", err));
