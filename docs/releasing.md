@@ -134,7 +134,11 @@ Actions → **Release** → Run workflow (from `main`), pick `patch`, `minor`, o
    nothing new, the tag exists, or `production` has commits that aren't on `main`.
 3. Tags the commit `vX.Y.Z` and fast-forwards `production` to it. Railway
    deploys `production`.
-4. Publishes a GitHub Release with notes generated from the merged PRs.
+4. Publishes a GitHub Release with notes generated from the merged PRs: one
+   line per PR title, grouped by `.github/release.yml` into "For raiders and
+   officers" (PRs labelled `user-facing`) and "Behind the scenes". Fix a bad
+   title or label on the PR before releasing, or edit the notes on the
+   release page afterwards.
 
 ### After it finishes
 

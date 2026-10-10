@@ -163,7 +163,14 @@ testing is for look and feel only.
 ## Production hosting (Railway)
 
 - Trunk-based: every change is a short-lived branch → PR → squash-merge into
-  `main`. No `develop` branch. See `docs/releasing.md`.
+  `main`. No `develop` branch, and no direct commits to `main`: release notes
+  only list PRs. See `docs/releasing.md`.
+- A PR title is its release-notes line, so write it for the people reading
+  the release: what changed for them, in their words ("Show who called out
+  under each raid", not "Refactor roster embed"), sentence case, no trailing
+  period, no ticket numbers. Label PRs that raiders or officers will notice
+  `user-facing` (listed under "For raiders and officers"); everything else
+  lands under "Behind the scenes" (`.github/release.yml`).
 - Railway deploys the `production` branch, which only the **Release** workflow
   (`.github/workflows/release.yml`: CI, tag `vX.Y.Z`, fast-forward
   `production`, GitHub Release) and **Rollback** workflow move. Never push to
