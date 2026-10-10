@@ -26,9 +26,9 @@ describe("buildRosterEmbed", () => {
     expect(buildRosterEmbed("Main Raid", roster).toJSON().title).toBe("Main Raid — roster (8)");
   });
 
-  it("has Tanks | Healers | DPS inline columns, then a full-width No type role line", () => {
+  it("has Tanks | Healers | Damage inline columns, then a full-width No type role line", () => {
     const f = fields(roster);
-    expect(f.map((x) => x.name)).toEqual(["🛡️ Tanks (2)", "➕ Healers (1)", "⚔️ DPS (3)", "No type role (2)"]);
+    expect(f.map((x) => x.name)).toEqual(["🛡️ Tanks (2)", "➕ Healers (1)", "⚔️ Damage (3)", "No type role (2)"]);
     expect(f.map((x) => x.inline ?? false)).toEqual([true, true, true, false]);
   });
 
@@ -70,8 +70,14 @@ describe("buildRosterEmbed", () => {
     expect(f.map((x) => [x.name, x.value])).toEqual([
       ["🛡️ Tanks (1)", "Tankalot"],
       ["➕ Healers (0)", "—"],
-      ["⚔️ DPS (0)", "—"],
+      ["⚔️ Damage (0)", "—"],
     ]);
+  });
+
+  it("marks a damage main's off-specs before their name", async () => {
+    await loadAppEmojis(fakeClient({ emojis: ["mark_offtank", "mark_offheal"] }));
+    const f = fields([raider("Skarr", ["DPS", "Offtank"]), raider("Fern", ["Offheals", "Offtank"])]);
+    expect(f[2]!.value).toBe("<:mark_offtank:9000><:mark_offheal:9001>Fern\n<:mark_offtank:9000>Skarr");
   });
 
   it("joins the No type role line with commas", () => {

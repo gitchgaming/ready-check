@@ -32,11 +32,13 @@ All dates are picked from a list of your team's actual raids.
   you're on more than one raid team (or are an officer viewing another team).
 - `/roster [date:]` — read-only, only you see it. With a date: that raid's
   card, like the schedule's Next Up (attendance bar, role counts, everyone
-  attending by class, who's called out), without a Status button. Without a
-  date: the whole roster split into Tanks / Healers / DPS columns with class
-  icons. Types and classes come from roles named `Tanks`, `Healers`,
-  `Wizards`/`Phys` (DPS), and `Warriors`, `Mages`, etc.; a raider with several
-  type roles counts once, as Tank, then Healer, then DPS.
+  attending in Tanks / Healers / Damage sections, who's called out), without a
+  Status button. Without a date: the whole roster split into Tanks / Healers /
+  Damage columns with class icons. Types and classes come from roles named
+  `Tanks`, `Healers`, `Damage` (or `DPS`, `Wizards`/`Wizard`, `Phys`/`Physical`),
+  and `Warriors`, `Mages`, etc.; a raider with several type roles counts once,
+  as Tank, then Healer, then Damage. `Offtank` and `Offheals` mark a damage
+  main's off-spec (a raider with only one of those counts as Damage).
 
 ## Officer commands (`/raidlead`)
 
@@ -80,14 +82,16 @@ Every subcommand takes the team's `role:` first.
 - The schedule message shows the next raid, then `coming-up` more raids
   (default 3, at most 8). It never scrolls, since paging it would change it for everyone.
   - **Next Up**: the next raid, with a 10-segment attendance bar, role counts
-    by icon (🛡️ tanks, ➕ healers, ⚔️ DPS), everyone attending grouped by class (🛡️ tanks and
-    healers first), and who's out. Its accent color is the raid's status.
+    by icon (🛡️ tanks, ➕ healers, ⚔️ damage) with an off-spec key under them,
+    everyone attending in Tanks / Healers / Damage sections (one line per
+    class, each name a chip; off-tanks and off-healers marked in Damage), and
+    who's out, each with their role. Its accent color is the raid's status.
   - **Coming Up**: one line per later raid with its count, then its role counts.
   - Role counts are kept short enough to fit on one line on a phone.
   - Raid status (accent bar and the dot before each Coming Up date): 🟢 everyone
     in, 🟡 at least half in, 🔴 fewer. A role gets no dot
     when it's fine — all of that role in, or at least the minimum (Tanks 2,
-    Healers 3, DPS 10) — then 🟡 one short, 🔴 more.
+    Healers 3, Damage 10) — then 🟡 one short, 🔴 more.
 - Call-outs only count while the raider still holds the team's role. Records
   are kept for people who lose the role, but they no longer show.
 - The schedule message (and the roster in it) refreshes when members gain or lose roles,

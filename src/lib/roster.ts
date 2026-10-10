@@ -1,5 +1,14 @@
 import { EmbedBuilder, type Guild, type GuildMember } from "discord.js";
-import { CLASSES, RAID_TYPES, memberClass, memberRaidType, raidTypeIcon, type RaidType } from "./classes.js";
+import {
+  CLASSES,
+  RAID_TYPES,
+  memberClass,
+  memberOffSpecs,
+  memberRaidType,
+  offSpecMarker,
+  raidTypeIcon,
+  type RaidType,
+} from "./classes.js";
 import { appEmoji } from "./emojis.js";
 
 const MAX_FIELD_VALUE = 1024; // Discord's cap on one embed field's text
@@ -41,7 +50,7 @@ function fitEntries(entries: string[], separator: string, max: number): string {
   return kept.join(separator);
 }
 
-/** Class icon + name, grouped by class (in CLASSES order) and then alphabetically. */
+/** Class icon + off-spec markers + name, grouped by class (in CLASSES order) and then alphabetically. */
 function memberEntries(members: GuildMember[]): string[] {
   const classOrder = (m: GuildMember) => {
     const c = memberClass(m);
@@ -52,12 +61,13 @@ function memberEntries(members: GuildMember[]): string[] {
     .map((m) => {
       const c = memberClass(m);
       const icon = c ? appEmoji(c.emoji) : "";
-      return icon ? `${icon} ${m.displayName}` : m.displayName;
+      const name = memberOffSpecs(m).map(offSpecMarker).join("") + m.displayName;
+      return icon ? `${icon} ${name}` : name;
     });
 }
 
 /**
- * Tanks | Healers | DPS columns, each raider counted once under their highest-priority
+ * Tanks | Healers | Damage columns, each raider counted once under their highest-priority
  * type role, plus a full-width line for raiders with no type role yet.
  */
 export function buildRosterEmbed(teamName: string, members: GuildMember[]): EmbedBuilder {
