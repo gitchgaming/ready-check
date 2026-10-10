@@ -2,15 +2,14 @@ import "dotenv/config";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { REST, Routes, type RESTGetAPIApplicationEmojisResult } from "discord.js";
-import { EMOJI_DIR } from "./lib/emojis.js";
+import { EMOJI_DIR, planEmojiSync, versionedEmojiName } from "./lib/emojis.js";
 
 /**
- * Uploads the images in assets/emojis/ as application emojis, named after each
- * file (`warrior.png` → `:warrior:`).
+ * Makes the bot's application emojis match the images in assets/emojis/:
+ * uploads new and changed images (named `warrior.png` → `:warrior_<hash>:`), then
+ * removes old versions and emojis whose image is gone.
  *
- *   npm run deploy-emojis                      upload any that are missing
- *   npm run deploy-emojis -- --replace         re-upload every image
- *   npm run deploy-emojis -- --replace mage    re-upload just these names
+ *   npm run deploy-emojis
  */
 
 const token = process.env.DISCORD_TOKEN;
@@ -28,33 +27,38 @@ const MIME_TYPES: Record<string, string> = {
   ".webp": "image/webp",
 };
 
-const args = process.argv.slice(2);
-const replace = args.includes("--replace");
-const replaceOnly = new Set(args.filter((a) => a !== "--replace"));
-
 const rest = new REST().setToken(token);
 
 async function main() {
   const files = (await readdir(EMOJI_DIR)).filter((f) => path.extname(f).toLowerCase() in MIME_TYPES);
+  // With no images every emoji would count as unused; refuse rather than delete them all.
+  if (files.length === 0) throw new Error(`No emoji images found in ${EMOJI_DIR}.`);
+
+  const data = new Map<string, Buffer>();
+  const images = await Promise.all(
+    files.map(async (file) => {
+      const bytes = await readFile(path.join(EMOJI_DIR, file));
+      data.set(file, bytes);
+      return { file, name: versionedEmojiName(path.parse(file).name, bytes) };
+    }),
+  );
+
   const { items } = (await rest.get(Routes.applicationEmojis(clientId!))) as RESTGetAPIApplicationEmojisResult;
-  const existing = new Map(items.map((e) => [e.name, e]));
+  const { upload, remove } = planEmojiSync(images, items);
 
-  let uploaded = 0;
-  for (const file of files) {
-    const { name, ext } = path.parse(file);
-    const current = existing.get(name);
-    const shouldReplace = replace && (replaceOnly.size === 0 || replaceOnly.has(name));
-    if (current && !shouldReplace) continue;
-
-    if (current?.id) await rest.delete(Routes.applicationEmoji(clientId!, current.id));
-    const data = await readFile(path.join(EMOJI_DIR, file));
-    const image = `data:${MIME_TYPES[ext.toLowerCase()]};base64,${data.toString("base64")}`;
+  // Upload before removing, so a failed upload leaves the old version in place.
+  for (const { file, name } of upload) {
+    const image = `data:${MIME_TYPES[path.extname(file).toLowerCase()]};base64,${data.get(file)!.toString("base64")}`;
     await rest.post(Routes.applicationEmojis(clientId!), { body: { name, image } });
-    console.log(`${current ? "Replaced" : "Uploaded"} :${name}:`);
-    uploaded++;
+    console.log(`Uploaded :${name}:`);
+  }
+  for (const emoji of remove) {
+    if (!emoji.id) continue;
+    await rest.delete(Routes.applicationEmoji(clientId!, emoji.id));
+    console.log(`Removed :${emoji.name}:`);
   }
 
-  console.log(`${uploaded} emoji(s) uploaded; ${files.length - uploaded} already up to date.`);
+  console.log(`${upload.length} uploaded, ${remove.length} removed, ${images.length - upload.length} already up to date.`);
 }
 
 main().catch((err) => {

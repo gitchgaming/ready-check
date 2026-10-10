@@ -3,7 +3,7 @@
  * in production. These tests build the real payloads at their worst case and check
  * them against Discord's documented limits.
  */
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { Collection, ComponentType, type Client, type GuildMember } from "discord.js";
@@ -17,7 +17,7 @@ import {
   buildRaidRosterCard,
 } from "../../src/lib/embeds.js";
 import { CLASSES, RAID_TYPES, raidTypeIcon } from "../../src/lib/classes.js";
-import { EMOJI_DIR, loadAppEmojis } from "../../src/lib/emojis.js";
+import { EMOJI_DIR, loadAppEmojis, versionedEmojiName } from "../../src/lib/emojis.js";
 import { PAGE_SIZE } from "../../src/lib/scheduler.js";
 import { flattenComponents, raider } from "../discord.js";
 import { cuid, freezeTime, team, weeklyRaids, type RaidRow } from "./fixtures.js";
@@ -37,7 +37,7 @@ const MAX_COMMAND_CHARS = 4000; // a command's names, descriptions and choice na
 async function loadAllEmojisWithLongIds() {
   const names = readdirSync(EMOJI_DIR)
     .filter((f) => /\.(png|jpe?g|gif|webp)$/i.test(f))
-    .map((f) => path.parse(f).name);
+    .map((f) => versionedEmojiName(path.parse(f).name, readFileSync(path.join(EMOJI_DIR, f))));
   const emojis = new Collection(
     names.map((name, i) => {
       const id = String(1234567890123456000n + BigInt(i));
@@ -309,5 +309,13 @@ describe("personal schedule at its worst case", () => {
     const p = build(0, allOut);
     expect(componentCount(p)).toBeLessThanOrEqual(MAX_COMPONENTS);
     expect(textLength(p)).toBeLessThanOrEqual(MAX_TEXT);
+  });
+});
+
+// ---------------------------------------------------------------- application emojis
+
+describe("application emoji names", () => {
+  it("fit Discord's 2–32 characters of letters, digits and _ once versioned", async () => {
+    for (const name of await loadAllEmojisWithLongIds()) expect(name).toMatch(/^\w{2,32}$/);
   });
 });
