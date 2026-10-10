@@ -5,6 +5,7 @@ import { backupConfig, dailyKeys, runBackup } from "./lib/backup.js";
 import { prisma } from "./lib/db.js";
 import { loadAppEmojis } from "./lib/emojis.js";
 import { deployLabel, lanesEnabled, readDeployInfo } from "./lib/lanes.js";
+import { readReleaseInfo, releaseLabel } from "./lib/release.js";
 import { ensureMembersCached } from "./lib/roster.js";
 import { renderTeamMessage, syncAllRaidTeams } from "./lib/scheduler.js";
 
@@ -48,11 +49,18 @@ client.on(Events.GuildMemberRemove, (member) => scheduleMemberRefresh(member.gui
 
 client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Logged in as ${readyClient.user.tag}`);
-  // On staging, show which lane is live, e.g. "🧪 my-branch @ 1a2b3c4".
+  // On staging, show which lane is live, e.g. "🧪 my-branch @ 1a2b3c4";
+  // in production, the release, e.g. "v0.1.0".
   if (lanesEnabled()) {
     const info = readDeployInfo();
     const state = `${info ? "🧪" : "🌿"} ${deployLabel(process.env, info)}`;
     readyClient.user.setActivity({ type: ActivityType.Custom, name: state, state });
+  } else {
+    const release = readReleaseInfo();
+    if (release) {
+      const state = releaseLabel(release);
+      readyClient.user.setActivity({ type: ActivityType.Custom, name: state, state });
+    }
   }
   await loadAppEmojis(readyClient).catch((err) => console.error("Loading application emojis failed:", err));
   for (const guild of readyClient.guilds.cache.values()) {

@@ -47,7 +47,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   (all autocomplete), `access.ts`, `classes.ts` (class/type role names),
   `emojis.ts` (loads application emojis by name), `lanes.ts` (staging's
   main/branch lane and database choice), `railway.ts` (staging CLI helper),
-  `backup.ts` (database backups to a Railway bucket).
+  `backup.ts` (database backups to a Railway bucket), `release.ts`
+  (production's version, baked in at build from the release tag).
 - `src/prepare-db.ts` + `docker-start.sh` — the container boot; the other
   top-level `src/*.ts` files are the npm scripts' entry points.
 - `assets/emojis/` — images uploaded as application emojis by `deploy-emojis`.

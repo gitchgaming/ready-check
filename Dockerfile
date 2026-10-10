@@ -11,6 +11,12 @@ RUN npm run build && npm prune --omit=dev
 # A branch deploy (npm run deploy:branch) uploads deploy-info.json; keep it, if
 # present, where the runtime stage copies it (src/lib/lanes.ts).
 RUN mkdir -p deploy && if [ -f deploy-info.json ]; then mv deploy-info.json deploy/; fi
+# Bake in the release tag (vX.Y.Z) on the commit being built, for the bot's
+# status (src/lib/release.ts). Railway passes these on GitHub deploys.
+ARG RAILWAY_GIT_COMMIT_SHA
+ARG RAILWAY_GIT_REPO_OWNER
+ARG RAILWAY_GIT_REPO_NAME
+RUN node dist/write-release-info.js
 
 # Runtime image: only production dependencies (already compiled for this
 # platform in the build stage), the compiled bot, and what migrations need.

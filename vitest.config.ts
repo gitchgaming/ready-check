@@ -23,6 +23,7 @@ export default defineConfig({
         "src/stop-staging.ts",
         "src/prepare-db.ts",
         "src/backup-before-deploy.ts",
+        "src/write-release-info.ts",
         "src/lib/railway.ts",
       ],
       reporter: ["text", "html"],
