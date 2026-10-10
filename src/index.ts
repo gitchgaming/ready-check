@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { ActivityType, Client, Events, GatewayIntentBits } from "discord.js";
 import { routeInteraction } from "./interactions/router.js";
+import { backupConfig, dailyKeys, runBackup } from "./lib/backup.js";
 import { prisma } from "./lib/db.js";
 import { loadAppEmojis } from "./lib/emojis.js";
 import { deployLabel, lanesEnabled, readDeployInfo } from "./lib/lanes.js";
@@ -13,6 +14,7 @@ if (!token) {
 }
 
 const SYNC_INTERVAL_MS = 60 * 60 * 1000; // re-check schedules hourly
+const BACKUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // back up the database daily, and on each boot
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
@@ -60,7 +62,22 @@ client.once(Events.ClientReady, async (readyClient) => {
   setInterval(() => {
     syncAllRaidTeams(readyClient).catch((err) => console.error("Scheduled raid sync failed:", err));
   }, SYNC_INTERVAL_MS);
+  startBackups();
 });
+
+// Production only: set the BACKUP_* variables to a Railway bucket (docs/releasing.md).
+function startBackups() {
+  const config = backupConfig(process.env);
+  if (!config) return;
+  const backUp = () => {
+    const keys = dailyKeys(config.prefix, new Date());
+    return runBackup(config, process.env.DATABASE_URL!, keys)
+      .then(() => console.log(`Database backed up to ${keys.join(", ")}`))
+      .catch((err) => console.error("Database backup failed:", err));
+  };
+  void backUp();
+  setInterval(backUp, BACKUP_INTERVAL_MS);
+}
 
 client.on(Events.InteractionCreate, (interaction) => routeInteraction(interaction, client));
 

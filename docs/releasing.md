@@ -114,9 +114,10 @@ to manage.
 2. Check for migrations: `git diff --stat <last tag>..origin/main --
    prisma/migrations`. Migrations run on boot against `/data/prod.db` and
    don't roll back.
-3. If there are migrations, or you're unsure, take a backup first
-   ([Copy the database out](#database-backup-and-restore)). It's the only way
-   back from a migration that goes wrong. A release with no migrations
+3. If there are migrations, check after the deploy that its boot log shows
+   `Database backed up to prod/deploys/…` before migrating
+   ([automatic backups](#automatic-backups)). It's the only way back from a
+   migration that goes wrong. A release with no migrations
    doesn't touch the schema, and the volume keeps the data across the
    redeploy either way.
 4. Pick a quiet time: with a volume attached, Railway stops the old
@@ -179,8 +180,39 @@ migration, check that the older code works with the newer schema.
 
 Each environment's SQLite database is one file on its Railway volume
 (`/data/prod.db`, `/data/staging.db`; the default rollback journal, so no
-`-wal` file). These commands worked when production moved onto its volume
-(2026-10-10). They run on your machine with `railway login`, an SSH key
+`-wal` file).
+
+### Automatic backups
+
+Railway's own volume backups are Pro-only, so the bot backs itself up to a
+Railway bucket (`src/lib/backup.ts`), taking a consistent copy each time:
+
+- **Before every deploy's migrations** (`src/backup-before-deploy.ts`, run by
+  `docker-start.sh`): `prod/deploys/<UTC time>.db`, one per deploy, never
+  overwritten. This is the copy to restore after a bad migration.
+- **On every boot, then daily** (`src/index.ts`): `prod/daily/<weekday>.db`
+  and `prod/monthly/<MM>.db`. Names repeat, so the bucket holds the last 7
+  days and the latest copy of each of the last 12 months.
+
+Times and weekdays are UTC. Uploads log `Database backed up to …`; a failure
+logs and the bot carries on (boot included).
+
+It runs only where the `BACKUP_*` variables are set (production). Setup,
+once: in the production environment, create a bucket (**+ New → Bucket**),
+then add these to the `ready-check` service as references to the bucket's
+variables (`${{<bucket>.BUCKET}}` and so on): `BACKUP_BUCKET`,
+`BACKUP_ENDPOINT`, `BACKUP_ACCESS_KEY_ID`, `BACKUP_SECRET_ACCESS_KEY`,
+`BACKUP_REGION`. Optional `BACKUP_PREFIX` changes the `prod/` folder.
+
+To restore one, download it with any S3 client and the bucket's credentials
+(Railway → the bucket → Credentials), for example
+`aws s3 cp s3://<bucket>/prod/daily/tue.db prod-snapshot.db --endpoint-url <endpoint>`,
+then [put it back](#put-one-back).
+
+### By hand
+
+These commands worked when production moved onto its volume (2026-10-10).
+They run on your machine with `railway login`, an SSH key
 registered with `railway ssh keys add`, and the folder linked with
 `railway link` to the right environment; Claude cloud sessions can't use
 `railway ssh`.
@@ -199,7 +231,9 @@ tr -d '\r' < snap.b64 | base64 -d > prod-snapshot.db
 shasum -a 256 prod-snapshot.db   # must match
 ```
 
-**Put one back.** Upload it next to the live file, swap it in, restart:
+#### Put one back
+
+Upload it next to the live file, swap it in, restart:
 ```bash
 railway volume files -v <volume name> upload prod-snapshot.db /prod.db.restore
 railway ssh -s ready-check     # then: sha256sum /data/prod.db.restore
