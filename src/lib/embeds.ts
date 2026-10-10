@@ -124,7 +124,6 @@ const DOT_FALLBACKS = { green: "🟢", yellow: "🟡", red: "🔴", grey: "⚪" 
 type Status = keyof typeof DOT_FALLBACKS;
 
 const BAR_SEGMENTS = 10;
-const GAP = "\u2003\u2003"; // two em spaces between role summary items
 // Discord has no indent and strips leading whitespace, so the line starts with
 // an invisible braille blank (U+2800) that keeps the spaces after it. Together
 // they're about the width of the large status dot plus its space above.
@@ -146,15 +145,6 @@ function roleStatus(inCount: number, rosterCount: number, min: number): Status {
   return inCount === min - 1 ? "yellow" : "red";
 }
 
-/**
- * Small status dots stay grey when things are fine, so only problems draw the
- * eye. The large dot before each Coming Up date keeps green: it stands in for
- * the accent bar the Next Up container has.
- */
-function statusDot(status: Status): string {
-  return dot(status === "green" ? "grey" : status);
-}
-
 /** 10 segments; any call-out shows at least one red one. */
 function attendanceBar(attending: number, total: number): string {
   const green = attending === total ? BAR_SEGMENTS : Math.min(BAR_SEGMENTS - 1, Math.floor((BAR_SEGMENTS * attending) / total));
@@ -172,6 +162,21 @@ function raidAttendance(instance: InstanceWithAttendance, members: GuildMember[]
     return { type, inCount, rosterCount, status: roleStatus(inCount, rosterCount, type.min) };
   });
   return { attending, out, total: members.length, roles, status: raidStatus(attending.length, members.length) };
+}
+
+/**
+ * Role counts by icon, with a dot only on a role that's short, so the line fits on
+ * a phone without wrapping, even with double-digit counts and all three dots. Roles
+ * are an em space apart; a dot is padded, so only an en space follows one.
+ */
+function roleCounts(roles: ReturnType<typeof raidAttendance>["roles"], bold = false): string {
+  const b = bold ? "**" : "";
+  return roles
+    .map((r, i) => {
+      const sep = i === 0 ? "" : roles[i - 1]!.status === "grey" ? "\u2003" : "\u2002";
+      return `${sep}${raidTypeIcon(r.type)} ${b}${r.inCount}/${r.rosterCount}${b}${r.status === "grey" ? "" : ` ${dot(r.status)}`}`;
+    })
+    .join("");
 }
 
 function raidDate(instance: InstanceWithAttendance, timezone: string) {
@@ -314,11 +319,7 @@ function raidCard(
 
   const raid = raidAttendance(instance, members);
   const bar = text(`${attendanceBar(raid.attending.length, raid.total)}  **${raid.attending.length}/${raid.total} ready**`);
-  const summary = text(
-    raid.roles
-      .map((r) => `${raidTypeIcon(r.type)} ${r.type.label} **${r.inCount}/${r.rosterCount}** ${statusDot(r.status)}`)
-      .join(GAP),
-  );
+  const summary = text(roleCounts(raid.roles, true));
   const fixedText = [header, bar, summary].reduce((n, t) => n + (t.data.content?.length ?? 0), 0);
   const rosterBudget = textBudget - fixedText - (withButton ? STATUS_NOTE.length : 0);
 
@@ -361,7 +362,7 @@ function comingUpContainer(team: RaidTeam, later: InstanceWithAttendance[], memb
       continue;
     }
     const raid = raidAttendance(instance, members);
-    const roles = raid.roles.map((r) => `${statusDot(r.status)} ${r.type.short} ${r.inCount}/${r.rosterCount}`).join("\u2003");
+    const roles = roleCounts(raid.roles);
     container.addSectionComponents(
       new SectionBuilder()
         .addTextDisplayComponents(
