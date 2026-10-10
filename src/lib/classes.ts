@@ -27,8 +27,6 @@ export const CLASSES: WowClass[] = [
 
 export interface RaidType {
   label: string;
-  /** Short label for the compact per-raid summary on the schedule. */
-  short: string;
   icon: string;
   /** Application emoji used instead of `icon` when it's been uploaded. */
   emoji?: string;
@@ -44,9 +42,9 @@ export interface RaidType {
 
 /** In priority order: a raider with several type roles counts as their first match. */
 export const RAID_TYPES: RaidType[] = [
-  { label: "Tanks", short: "Tanks", icon: "🛡️", marker: "mark_tank", min: 2, roles: ["Tanks", "Tank"] },
-  { label: "Healers", short: "Heals", icon: "➕", emoji: "healer", marker: "mark_healer", min: 3, roles: ["Healers", "Healer"] },
-  { label: "DPS", short: "DPS", icon: "⚔️", min: 10, roles: ["DPS", "Wizards", "Phys"] },
+  { label: "Tanks", icon: "🛡️", marker: "mark_tank", min: 2, roles: ["Tanks", "Tank"] },
+  { label: "Healers", icon: "➕", emoji: "healer", marker: "mark_healer", min: 3, roles: ["Healers", "Healer"] },
+  { label: "DPS", icon: "⚔️", min: 10, roles: ["DPS", "Wizards", "Phys"] },
 ];
 
 function hasRoleNamed(member: GuildMember, names: string[]): boolean {

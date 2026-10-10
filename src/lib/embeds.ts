@@ -125,10 +125,6 @@ type Status = keyof typeof DOT_FALLBACKS;
 
 const BAR_SEGMENTS = 10;
 const GAP = "\u2003\u2003"; // two em spaces between role summary items
-// Discord has no indent and strips leading whitespace, so the line starts with
-// an invisible braille blank (U+2800) that keeps the spaces after it. Together
-// they're about the width of the large status dot plus its space above.
-const INDENT = "\u2800\u2003";
 
 /** Small status dot (padded image) for use beside text; `large` for the raid's own status. */
 function dot(status: Status, large = false): string {
@@ -361,12 +357,16 @@ function comingUpContainer(team: RaidTeam, later: InstanceWithAttendance[], memb
       continue;
     }
     const raid = raidAttendance(instance, members);
-    const roles = raid.roles.map((r) => `${statusDot(r.status)} ${r.type.short} ${r.inCount}/${r.rosterCount}`).join("\u2003");
+    // Icons rather than names, and a dot only on a role that's short, so the line
+    // fits beside the button on a phone instead of wrapping.
+    const roles = raid.roles
+      .map((r) => `${raidTypeIcon(r.type)} ${r.inCount}/${r.rosterCount}${r.status === "grey" ? "" : ` ${dot(r.status)}`}`)
+      .join("\u2003");
     container.addSectionComponents(
       new SectionBuilder()
         .addTextDisplayComponents(
           text(
-            `${dot(raid.status, true)} **${when.toFormat("ccc, LLL d")}** ${when.toFormat("h:mm a")} · ${raid.attending.length}/${raid.total}\n-# ${INDENT}${roles}`,
+            `${dot(raid.status, true)} **${when.toFormat("ccc, LLL d")}** ${when.toFormat("h:mm a")} · ${raid.attending.length}/${raid.total}\n-# ${roles}`,
           ),
         )
         .setButtonAccessory(statusButton(team, instance)),
