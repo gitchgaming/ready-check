@@ -1,0 +1,9 @@
+# Groups the notes the Release workflow generates (gh release create
+# --generate-notes). Each PR title is one line, so word titles for raiders and
+# officers reading the release (see CLAUDE.md → Production hosting).
+changelog:
+  categories:
+    - title: For raiders and officers
+      labels: [user-facing]
+    - title: Behind the scenes
+      labels: ["*"]

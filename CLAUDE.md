@@ -46,7 +46,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   message render), `embeds.ts`, `roster.ts`, `attendance.ts`, `pickers.ts`
   (all autocomplete), `access.ts`, `classes.ts` (class/type role names),
   `emojis.ts` (loads application emojis by name), `lanes.ts` (staging's
-  main/branch lane and database choice), `railway.ts` (staging CLI helper).
+  main/branch lane and database choice), `railway.ts` (staging CLI helper),
+  `backup.ts` (database backups to a Railway bucket).
 - `src/prepare-db.ts` + `docker-start.sh` — the container boot; the other
   top-level `src/*.ts` files are the npm scripts' entry points.
 - `assets/emojis/` — images uploaded as application emojis by `deploy-emojis`.
@@ -162,13 +163,21 @@ testing is for look and feel only.
 ## Production hosting (Railway)
 
 - Trunk-based: every change is a short-lived branch → PR → squash-merge into
-  `main`. No `develop` branch. See `docs/releasing.md`.
+  `main`. No `develop` branch, and no direct commits to `main`: release notes
+  only list PRs. See `docs/releasing.md`.
+- A PR title is its release-notes line, so write it for the people reading
+  the release: what changed for them, in their words ("Show who called out
+  under each raid", not "Refactor roster embed"), sentence case, no trailing
+  period, no ticket numbers. Label PRs that raiders or officers will notice
+  `user-facing` (listed under "For raiders and officers"); everything else
+  lands under "Behind the scenes" (`.github/release.yml`).
 - Railway deploys the `production` branch, which only the **Release** workflow
   (`.github/workflows/release.yml`: CI, tag `vX.Y.Z`, fast-forward
   `production`, GitHub Release) and **Rollback** workflow move. Never push to
   `production` by hand. Only release when the user asks.
 - The container (`docker-start.sh`) runs `prepare-db` (picks the database;
-  a pass-through outside staging), `prisma migrate deploy`, then
+  a pass-through outside staging), `backup-before-deploy` (production only;
+  a failure only logs), `prisma migrate deploy`, then
   `deploy-commands`, then `deploy-emojis`, then the bot. A failed command registration stops boot
   (Railway retries); a failed emoji upload only logs, since icons are cosmetic.
 - Production is a separate Discord application from the dev bot, so the same
@@ -195,7 +204,9 @@ testing is for look and feel only.
   `ready-check#7940`). Railway: Hobby plan, Dockerfile build, volume at
   `/data` (attached 2026-10-10; before that the database lived on the
   container disk), `DATABASE_URL=file:/data/prod.db`, one replica, no public
-  domain.
+  domain. Railway's volume backups are Pro-only, so the bot uploads its own
+  to a bucket in the production environment via the `BACKUP_*` variables
+  (`docs/releasing.md` → Automatic backups); staging has none.
 - `railway ssh` can't run from a Claude cloud session (no SSH client, and
   project tokens can't register SSH keys), so anything that needs a shell in
   a container runs on the user's Mac; see `docs/releasing.md` → Database
