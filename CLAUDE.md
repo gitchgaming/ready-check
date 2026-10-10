@@ -25,9 +25,10 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   command's name, options, or descriptions. Uses `DISCORD_GUILD_ID` if set
   (instant, one guild), otherwise global.
 - `npm run clear-global-commands` — remove stale global registrations
-- `npm run deploy-emojis` — upload new images in `assets/emojis/` as
-  application emojis (`-- --replace [names]` to re-upload changed ones), then
-  restart the bot; it only loads emojis at startup.
+- `npm run deploy-emojis` — sync `assets/emojis/` to the application's emojis:
+  uploads new and changed images (named `<file>_<hash>`, looked up by file
+  name) and removes old versions and unused ones. Container starts run it;
+  locally, restart the bot after, since it only loads emojis at startup.
 
 ## Layout
 
