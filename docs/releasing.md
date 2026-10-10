@@ -200,9 +200,16 @@ logs and the bot carries on (boot included).
 It runs only where the `BACKUP_*` variables are set (production). Setup,
 once: in the production environment, create a bucket (**+ New → Bucket**),
 then add these to the `ready-check` service as references to the bucket's
-variables (`${{<bucket>.BUCKET}}` and so on): `BACKUP_BUCKET`,
-`BACKUP_ENDPOINT`, `BACKUP_ACCESS_KEY_ID`, `BACKUP_SECRET_ACCESS_KEY`,
-`BACKUP_REGION`. Optional `BACKUP_PREFIX` changes the `prod/` folder.
+variables: `BACKUP_BUCKET=${{<bucket>.BUCKET}}`, and likewise `ENDPOINT`,
+`ACCESS_KEY_ID` and `SECRET_ACCESS_KEY` (`railway variable set ...
+--skip-deploys` avoids a redeploy). Leave `BACKUP_REGION` unset or `auto`:
+the bucket's `REGION` is its location (`sjc`), not the signing region its
+credentials use. Optional `BACKUP_PREFIX` changes the `prod/` folder.
+Production's bucket is `ready-check-backups` (set up 2026-10-10).
+
+Cloud sessions can't reach the bucket (the network policy blocks it), but
+`railway bucket info -b ready-check-backups` shows its object count, and the
+boot log shows each upload.
 
 To restore one, download it with any S3 client and the bucket's credentials
 (Railway → the bucket → Credentials), for example
