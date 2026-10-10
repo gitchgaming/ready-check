@@ -16,7 +16,7 @@ import {
   buildPublicMessage,
   buildRaidRosterCard,
 } from "../../src/lib/embeds.js";
-import { CLASSES, RAID_TYPES } from "../../src/lib/classes.js";
+import { CLASSES, RAID_TYPES, raidTypeIcon } from "../../src/lib/classes.js";
 import { EMOJI_DIR, loadAppEmojis } from "../../src/lib/emojis.js";
 import { PAGE_SIZE } from "../../src/lib/scheduler.js";
 import { flattenComponents, raider } from "../discord.js";
@@ -187,7 +187,7 @@ describe("public message at its worst case", () => {
       .map((c) => c.content ?? "")
       .join("\n");
     for (const c of CLASSES) expect(text).toMatch(new RegExp(`\\*\\*${c.label}\\*\\* [^—]`));
-    for (const t of RAID_TYPES) expect(text).toMatch(new RegExp(`${t.label} \\*\\*[1-9]`));
+    for (const t of RAID_TYPES) expect(text).toMatch(new RegExp(`${raidTypeIcon(t)} \\*\\*[1-9]`));
   });
 
   it(`at MAX_PUBLIC_DAYS (${MAX_PUBLIC_DAYS}) raids stays within ${MAX_COMPONENTS} components`, () => {

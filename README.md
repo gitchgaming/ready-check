@@ -79,16 +79,15 @@ Every subcommand takes the team's `role:` first.
 
 - The schedule message shows the next raid, then `coming-up` more raids
   (default 3, at most 8). It never scrolls, since paging it would change it for everyone.
-  - **Next Up**: the next raid, with a 10-segment attendance bar, Tanks /
-    Healers / DPS counts, everyone attending grouped by class (🛡️ tanks and
+  - **Next Up**: the next raid, with a 10-segment attendance bar, role counts
+    by icon (🛡️ tanks, ➕ healers, ⚔️ DPS), everyone attending grouped by class (🛡️ tanks and
     healers first), and who's out. Its accent color is the raid's status.
-  - **Coming Up**: one line per later raid with its count, then a short line of
-    role counts by icon (🛡️ tanks, ➕ healers, ⚔️ DPS) that fits beside the button on a phone.
+  - **Coming Up**: one line per later raid with its count, then its role counts.
+  - Role counts are kept short enough to fit on one line on a phone.
   - Raid status (accent bar and the dot before each Coming Up date): 🟢 everyone
-    in, 🟡 at least half in, 🔴 fewer. The small role dots stay ⚪ when
-    fine — all of that role in, or at least the minimum (Tanks 2, Healers 3,
-    DPS 10) — then 🟡 one short, 🔴 more. Coming Up leaves the ⚪ dots out and
-    only shows a role's dot when it's short.
+    in, 🟡 at least half in, 🔴 fewer. A role gets no dot
+    when it's fine — all of that role in, or at least the minimum (Tanks 2,
+    Healers 3, DPS 10) — then 🟡 one short, 🔴 more.
 - Call-outs only count while the raider still holds the team's role. Records
   are kept for people who lose the role, but they no longer show.
 - The schedule message (and the roster in it) refreshes when members gain or lose roles,

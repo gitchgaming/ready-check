@@ -159,7 +159,7 @@ exports[`snapshots > public message 1`] = `
           "type": 10,
         },
         {
-          "content": "🛡️ Tanks **2/2** ⚪  ➕ Healers **2/3** 🟡  ⚔️ DPS **3/4** 🔴",
+          "content": "🛡️ **2/2** ➕ **2/3** 🟡 ⚔️ **3/4** 🔴",
           "type": 10,
         },
         {
@@ -300,7 +300,7 @@ exports[`snapshots > raid roster card 1`] = `
           "type": 10,
         },
         {
-          "content": "🛡️ Tanks **2/2** ⚪  ➕ Healers **2/3** 🟡  ⚔️ DPS **3/4** 🔴",
+          "content": "🛡️ **2/2** ➕ **2/3** 🟡 ⚔️ **3/4** 🔴",
           "type": 10,
         },
         {

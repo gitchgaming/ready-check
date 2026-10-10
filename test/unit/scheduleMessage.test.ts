@@ -126,10 +126,10 @@ describe("buildPublicMessage — Next Up", () => {
     expect(texts(nextUp(p))[1]).toBe(`${"<:seg_green:9000>".repeat(5)}${"<:seg_red:9001>".repeat(5)}  **1/2 ready**`);
   });
 
-  it("summarises each role as in/roster with a status dot against RAID_TYPES minimums", () => {
+  it("summarises each role as in/roster by icon, with a dot only when short of RAID_TYPES minimums", () => {
     // Full ROSTER: 2 tanks (min 2), 3 healers (min 3), 4 DPS (min 10, but all are in).
     const all = buildPublicMessage(team(), weeklyRaids(1), ROSTER);
-    expect(texts(nextUp(all))[2]).toBe("🛡️ Tanks **2/2** ⚪  ➕ Healers **3/3** ⚪  ⚔️ DPS **4/4** ⚪");
+    expect(texts(nextUp(all))[2]).toBe("🛡️ **2/2**\u2003➕ **3/3**\u2003⚔️ **4/4**");
 
     // One tank out → one short (yellow); two healers out → red; one DPS out, 3 < 10 → red.
     const short = buildPublicMessage(
@@ -137,20 +137,20 @@ describe("buildPublicMessage — Next Up", () => {
       weeklyRaids(1, () => ({ out: ["u-tank1", "u-heal1", "u-heal2", "u-mage"] })),
       ROSTER,
     );
-    expect(texts(nextUp(short))[2]).toBe("🛡️ Tanks **1/2** 🟡  ➕ Healers **1/3** 🔴  ⚔️ DPS **3/4** 🔴");
+    expect(texts(nextUp(short))[2]).toBe("🛡️ **1/2** 🟡\u2002➕ **1/3** 🔴\u2002⚔️ **3/4** 🔴");
   });
 
-  it("keeps a role grey once its minimum is met, even with call-outs", () => {
+  it("shows no dot on a role once its minimum is met, even with call-outs", () => {
     const tanks = squad(4, ["Tanks"]);
     const p = buildPublicMessage(team(), [raid("2026-10-08T01:00:00Z", { out: ["u0", "u1"] })], tanks);
-    expect(texts(nextUp(p))[2]).toContain("🛡️ Tanks **2/4** ⚪");
+    expect(texts(nextUp(p))[2]).toBe("🛡️ **2/4**\u2003➕ **0/0**\u2003⚔️ **0/0**");
   });
 
   it("uses the dot app emojis when uploaded", async () => {
     await loadAppEmojis(fakeClient({ emojis: ["dot_grey", "dot_yellow", "dot_red", "healer"] }));
     const p = buildPublicMessage(team(), weeklyRaids(1, () => ({ out: ["u-tank1", "u-heal1", "u-heal2"] })), ROSTER);
     expect(texts(nextUp(p))[2]).toBe(
-      "🛡️ Tanks **1/2** <:dot_yellow:9001>  <:healer:9003> Healers **1/3** <:dot_red:9002>  ⚔️ DPS **4/4** <:dot_grey:9000>",
+      "🛡️ **1/2** <:dot_yellow:9001>\u2002<:healer:9003> **1/3** <:dot_red:9002>\u2002⚔️ **4/4**",
     );
   });
 
