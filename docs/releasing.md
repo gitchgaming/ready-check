@@ -8,8 +8,22 @@ feature branch ──(npm run deploy:branch, ad hoc)──▶ staging bot, branc
       │
       └──PR──▶ main ──(auto)──▶ staging bot, main lane (test server)
                  │
-                         └─ Release workflow: tag vX.Y.Z ──▶ production ──▶ Railway (raid guild)
+                 └─ Release workflow: tag vX.Y.Z ──▶ production ──▶ Railway (raid guild)
 ```
+
+## The manual flow, start to finish
+
+1. **Try the branch on staging.** Stop the local bot if it's running, then
+   `npm run deploy:branch`. Wait for the bot's status to read
+   `🧪 <branch> @ <commit>` and test in the test server
+   ([details](#testing-a-branch-on-staging)).
+2. **Put staging back on main.** Merging the PR does it; if you abandon the
+   branch, run `npm run deploy:staging`. Either way, wait for the status to
+   read `🌿 main @ <commit>`.
+3. **Check main on staging.** Once the merge is live there, give it a quick
+   look in the test server. This is the code a release ships.
+4. **Release to production** following [Releasing](#releasing): the checks
+   before, the workflow, then the checks after.
 
 ## Branches
 
@@ -92,6 +106,25 @@ to manage.
 
 ## Releasing
 
+### Before you run it
+
+1. See what will ship: `git fetch --tags && git log --oneline $(git describe
+   --tags --abbrev=0 origin/main)..origin/main` (on the first release, all of
+   `main`).
+2. Check for migrations: `git diff --stat <last tag>..origin/main --
+   prisma/migrations`. Migrations run on boot against `/data/prod.db` and
+   don't roll back.
+3. If there are migrations, or you're unsure, take a backup first
+   ([Copy the database out](#database-backup-and-restore)). It's the only way
+   back from a migration that goes wrong. A release with no migrations
+   doesn't touch the schema, and the volume keeps the data across the
+   redeploy either way.
+4. Pick a quiet time: with a volume attached, Railway stops the old
+   container before starting the new one, so the bot is briefly offline and
+   buttons pressed then fail.
+
+### Run it
+
 Actions → **Release** → Run workflow (from `main`), pick `patch`, `minor`, or
 `major`, or type an exact version. The workflow:
 
@@ -101,6 +134,19 @@ Actions → **Release** → Run workflow (from `main`), pick `patch`, `minor`, o
 3. Tags the commit `vX.Y.Z` and fast-forwards `production` to it. Railway
    deploys `production`.
 4. Publishes a GitHub Release with notes generated from the merged PRs.
+
+### After it finishes
+
+1. Watch the deploy: Railway → production → Deployments, or
+   `railway logs -s ready-check` (the cloud session's `RAILWAY_TOKEN` is the
+   production project token). Boot logs show `prisma migrate deploy`
+   applying any migrations, `Registered N commands globally`, then
+   `Logged in as ready-check#2607`. A failed command registration makes
+   Railway retry the boot.
+2. In the raid guild, check the schedule post looks right and a call-out
+   button still toggles (press it twice to undo).
+3. If something's wrong, [roll back](#rolling-back); if a migration damaged
+   data, [put the backup back](#database-backup-and-restore).
 
 Version numbers ([SemVer](https://semver.org)) for a bot:
 
