@@ -295,7 +295,7 @@ describe("buildPublicMessage — Coming Up", () => {
     const sections = comingUp.components.filter((c: any) => c.type === ComponentType.Section);
     expect(sections).toHaveLength(2);
     expect(sections[0].components[0].content).toBe(
-      "🟡 **Wed, Oct 14** 8:00 PM · 9/10\n-# 🛡️ 1/2 🟡\u2003➕ 3/3\u2003⚔️ 4/4",
+      "🟡 **Wed, Oct 14** 8:00 PM · 9/10\n-# \u2800\u2003🛡️ 1/2 🟡\u2002➕ 3/3\u2003⚔️ 4/4",
     );
     expect(sections[1].components[0].content).toMatch(/^🟢 \*\*Wed, Oct 21\*\* 8:00 PM · 10\/10\n/);
     expect(sections.map((s: any) => s.accessory.custom_id)).toEqual([

@@ -221,7 +221,7 @@ exports[`snapshots > public message 1`] = `
           "components": [
             {
               "content": "🟡 **Wed, Oct 14** 8:00 PM · 9/10
--# 🛡️ 1/2 🟡 ➕ 3/3 ⚔️ 4/4",
+-# ⠀ 🛡️ 1/2 🟡 ➕ 3/3 ⚔️ 4/4",
               "type": 10,
             },
           ],
@@ -242,7 +242,7 @@ exports[`snapshots > public message 1`] = `
           "components": [
             {
               "content": "<:dot_lg_green:9004> **Wed, Oct 28** 8:00 PM · 10/10
--# 🛡️ 2/2 ➕ 3/3 ⚔️ 4/4",
+-# ⠀ 🛡️ 2/2 ➕ 3/3 ⚔️ 4/4",
               "type": 10,
             },
           ],
