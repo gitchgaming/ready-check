@@ -146,7 +146,10 @@ Actions → **Release** → Run workflow (from `main`), pick `patch`, `minor`, o
    `railway logs -s ready-check` (the cloud session's `RAILWAY_TOKEN` is the
    production project token). Boot logs show `prisma migrate deploy`
    applying any migrations, `Registered N commands globally`, then
-   `Logged in as ready-check#2607`. A failed command registration makes
+   `Logged in as ready-check#2607`. The bot's status then shows the release
+   (e.g. `v0.1.0`): the build looks up the tag on the deployed commit
+   (`src/lib/release.ts`), and shows the short commit instead if that
+   failed. A failed command registration makes
    Railway retry the boot.
 2. In the raid guild, check the schedule post looks right and a call-out
    button still toggles (press it twice to undo).
