@@ -10,13 +10,22 @@ import {
   StringSelectMenuBuilder,
   TextDisplayBuilder,
   ComponentType,
-  escapeMarkdown,
   type GuildMember,
   type MessageActionRowComponentBuilder,
 } from "discord.js";
 import type { Attendance, RaidInstance, RaidTeam } from "../generated/prisma/client.js";
 import { DateTime } from "luxon";
-import { CLASSES, RAID_TYPES, memberClass, memberRaidType, raidTypeIcon } from "./classes.js";
+import {
+  CLASSES,
+  OFF_SPECS,
+  RAID_TYPES,
+  memberClass,
+  memberOffSpecs,
+  memberRaidType,
+  offSpecMarker,
+  raidTypeIcon,
+  type RaidType,
+} from "./classes.js";
 import { appEmoji } from "./emojis.js";
 import { formatRaidLabel } from "./pickers.js";
 
@@ -183,74 +192,137 @@ function raidDate(instance: InstanceWithAttendance, timezone: string) {
   return DateTime.fromJSDate(instance.startsAt).setZone(timezone);
 }
 
+/** A display name as an inline-code chip. A backtick would end the chip early, so it becomes a look-alike. */
+function chip(name: string): string {
+  return `\`${name.replaceAll("`", "ˋ")}\``;
+}
+
+/** One line: a class icon (or the class name if its emoji isn't uploaded), then chips. */
+interface RosterLine {
+  prefix: string;
+  entries: string[];
+}
+
+interface RosterSection {
+  heading: string;
+  lines: RosterLine[];
+}
+
 /**
- * One line per class, in CLASSES order, always shown ("—" when no one of that
- * class is attending), then "Other" for raiders with no class role, if any. Within a line: tanks (shield marker), healers (plus marker),
- * then everyone else, each alphabetical. Stops with "…and N more" past `budget`.
+ * Members grouped one line per class, in CLASSES order, skipping empty classes,
+ * then a line for raiders with no class role. `rank` orders within a line, then name.
  */
-function classLines(attending: GuildMember[], budget: number): string[] {
+function classLines(members: GuildMember[], entry: (m: GuildMember) => string, rank: (m: GuildMember) => number) {
+  const line = (prefix: string, group: GuildMember[]): RosterLine => ({
+    prefix,
+    entries: [...group]
+      .sort((a, b) => rank(a) - rank(b) || a.displayName.localeCompare(b.displayName))
+      .map(entry),
+  });
+  const lines = CLASSES.map((c) =>
+    line(appEmoji(c.emoji, `**${c.label}**`), members.filter((m) => memberClass(m) === c)),
+  );
+  lines.push(line("**Other**", members.filter((m) => !memberClass(m))));
+  return lines.filter((l) => l.entries.length > 0);
+}
+
+/** A small-text section heading with its count, e.g. "TANKS · 4". */
+function sectionHeading(label: string, count: number): string {
+  return `-# **${label.toUpperCase()} · ${count}**`;
+}
+
+/**
+ * The attending roster: Tanks, Healers and Damage sections (always shown, so a
+ * missing role stands out), then anyone with no type role. Damage mains show
+ * their off-spec markers, which sort them first in their class.
+ */
+function rosterSections(attending: GuildMember[]): RosterSection[] {
+  const offSpecRank = (m: GuildMember) => {
+    const first = memberOffSpecs(m)[0];
+    return first ? OFF_SPECS.indexOf(first) : OFF_SPECS.length;
+  };
+  const damageEntry = (m: GuildMember) => memberOffSpecs(m).map(offSpecMarker).join("") + chip(m.displayName);
+  const nameEntry = (m: GuildMember) => chip(m.displayName);
+
+  const sections: RosterSection[] = RAID_TYPES.map((type, i) => {
+    const group = attending.filter((m) => memberRaidType(m) === type);
+    const damage = i === RAID_TYPES.length - 1;
+    return {
+      heading: sectionHeading(type.label, group.length),
+      lines: classLines(group, damage ? damageEntry : nameEntry, damage ? offSpecRank : () => 0),
+    };
+  });
+  const untyped = attending.filter((m) => !memberRaidType(m));
+  if (untyped.length > 0) {
+    sections.push({
+      heading: sectionHeading("No role", untyped.length),
+      lines: classLines(untyped, nameEntry, () => 0),
+    });
+  }
+  return sections;
+}
+
+/** Called-out raiders by class, each with their main role's marker (no off-specs). */
+function calledOutSection(out: GuildMember[]): RosterSection {
   const typeRank = (m: GuildMember) => {
     const type = memberRaidType(m);
     return type ? RAID_TYPES.indexOf(type) : RAID_TYPES.length;
   };
-  const marker = (m: GuildMember) => {
-    const type = memberRaidType(m);
-    return type?.marker ? appEmoji(type.marker, raidTypeIcon(type)) : "";
+  const marker = (type: RaidType | undefined) =>
+    type ? (type.marker ? appEmoji(type.marker, raidTypeIcon(type)) : raidTypeIcon(type)) : "";
+  return {
+    heading: sectionHeading("Called out", out.length),
+    lines: classLines(out, (m) => marker(memberRaidType(m)) + chip(m.displayName), typeRank),
   };
+}
 
-  const others = attending.filter((m) => !memberClass(m));
-  const groups: { heading: string; members: GuildMember[] }[] = [
-    ...CLASSES.map((c) => ({
-      heading: `${appEmoji(c.emoji)} **${c.label}**`.trim(),
-      members: attending.filter((m) => memberClass(m) === c),
-    })),
-    ...(others.length > 0 ? [{ heading: "**Other**", members: others }] : []),
-  ];
-
+/**
+ * Sections as lines: a small-text heading, then one normal-size line per class
+ * (a heading alone gets " —"); small chips were too hard to read on desktop. Stops with "…and N more" before passing `budget` characters.
+ */
+function fitSections(sections: RosterSection[], budget: number): string[] {
+  const total = sections.reduce((n, s) => n + s.lines.reduce((k, l) => k + l.entries.length, 0), 0);
   const moreLine = (n: number) => `-# …and ${n} more`;
   // Room kept for the "…and N more" line (and its newline) while raiders remain unshown.
-  const reserve = moreLine(attending.length).length + 1;
+  const reserve = moreLine(total).length + 1;
   const lines: string[] = [];
   let length = 0; // the kept lines' text, plus a newline each
   let shown = 0;
-  const fits = (extra: number) => length + extra + (shown < attending.length ? reserve : 0) <= budget;
-  for (const group of groups) {
-    const entries = [...group.members]
-      .sort((a, b) => typeRank(a) - typeRank(b) || a.displayName.localeCompare(b.displayName))
-      .map((m) => `${marker(m)}${escapeMarkdown(m.displayName)}`);
-    let line = entries.length > 0 ? group.heading : `${group.heading} —`;
-    if (entries.length === 0 && !fits(line.length + 1)) break;
-    for (const [i, entry] of entries.entries()) {
-      const piece = `${i === 0 ? " " : ", "}${entry}`;
-      shown++;
-      if (!fits(line.length + piece.length + 1)) {
-        shown--;
-        if (i > 0) lines.push(line);
-        lines.push(moreLine(attending.length - shown));
-        return lines;
-      }
-      line += piece;
-    }
+  const fits = (extra: number) => length + extra + (shown < total ? reserve : 0) <= budget;
+  const push = (line: string) => {
     lines.push(line);
     length += line.length + 1;
+  };
+  for (const section of sections) {
+    const heading = section.lines.length > 0 ? section.heading : `${section.heading} —`;
+    if (!fits(heading.length + 1)) break;
+    push(heading);
+    for (const { prefix, entries } of section.lines) {
+      let line = prefix;
+      for (const [i, entry] of entries.entries()) {
+        const piece = `${i === 0 && !prefix ? "" : " "}${entry}`;
+        shown++;
+        if (!fits(line.length + piece.length + 1)) {
+          shown--;
+          if (i > 0) push(line);
+          lines.push(moreLine(total - shown));
+          return lines;
+        }
+        line += piece;
+      }
+      push(line);
+    }
   }
-  if (shown < attending.length) lines.push(moreLine(attending.length - shown));
+  if (shown < total) lines.push(moreLine(total - shown));
   return lines;
 }
 
-/** Called-out raiders as class icon + mention, grouped in CLASSES order then by name. */
-function outEntries(out: GuildMember[]): string[] {
-  const classOrder = (m: GuildMember) => {
-    const c = memberClass(m);
-    return c ? CLASSES.indexOf(c) : CLASSES.length;
-  };
-  return [...out]
-    .sort((a, b) => classOrder(a) - classOrder(b) || a.displayName.localeCompare(b.displayName))
-    .map((m) => {
-      const c = memberClass(m);
-      const icon = c ? appEmoji(c.emoji) : "";
-      return icon ? `${icon} <@${m.id}>` : `<@${m.id}>`;
-    });
+/** The off-spec key under the role counts, e.g. "Offtank 1 · Offheals 2", when the roster has any. */
+function offSpecKey(members: GuildMember[], attending: GuildMember[]): string {
+  const present = OFF_SPECS.filter((o) => members.some((m) => memberOffSpecs(m).includes(o)));
+  if (present.length === 0) return "";
+  const count = (o: (typeof OFF_SPECS)[number]) => attending.filter((m) => memberOffSpecs(m).includes(o)).length;
+  return `\n-# ${present.map((o) => `${offSpecMarker(o)} ${o.label} ${count(o)}`).join(" · ")}`;
 }
 
 /** Total characters in a component tree's text blocks (what Discord's 4,000 limit counts). */
@@ -262,18 +334,6 @@ function textLength(component: { toJSON(): unknown }): number {
   };
   walk(component.toJSON() as Parameters<typeof walk>[0]);
   return total;
-}
-
-/** Joins as many entries as fit in `max` characters, ending with "…and N more" if some don't. */
-function fitEntries(entries: string[], separator: string, max: number): string {
-  let result = "";
-  for (const [i, entry] of entries.entries()) {
-    const next = (i === 0 ? "" : separator) + entry;
-    const reserve = i < entries.length - 1 ? 20 : 0; // room for " …and N more"
-    if (result.length + next.length + reserve > max) return `${result} …and ${entries.length - i} more`;
-    result += next;
-  }
-  return result;
 }
 
 /** The text beside the Next Up Status button. */
@@ -319,18 +379,15 @@ function raidCard(
 
   const raid = raidAttendance(instance, members);
   const bar = text(`${attendanceBar(raid.attending.length, raid.total)}  **${raid.attending.length}/${raid.total} ready**`);
-  const summary = text(roleCounts(raid.roles, true));
+  const summary = text(roleCounts(raid.roles, true) + offSpecKey(members, raid.attending));
   const fixedText = [header, bar, summary].reduce((n, t) => n + (t.data.content?.length ?? 0), 0);
   const rosterBudget = textBudget - fixedText - (withButton ? STATUS_NOTE.length : 0);
 
   // Its own text block, so Discord leaves a gap above it. Gets up to a third of
-  // the roster budget; the class lines get the rest.
-  const outHeading = `-# **CALLED OUT (${raid.out.length})**\n`;
+  // the roster budget; the roster sections get the rest.
   const calledOut =
-    raid.out.length > 0
-      ? outHeading + fitEntries(outEntries(raid.out), "  ", Math.floor(rosterBudget / 3) - outHeading.length)
-      : "";
-  const roster = classLines(raid.attending, rosterBudget - calledOut.length).join("\n");
+    raid.out.length > 0 ? fitSections([calledOutSection(raid.out)], Math.floor(rosterBudget / 3)).join("\n") : "";
+  const roster = fitSections(rosterSections(raid.attending), rosterBudget - calledOut.length).join("\n");
 
   const card = new ContainerBuilder()
     .setAccentColor(STATUS_COLORS[raid.status])

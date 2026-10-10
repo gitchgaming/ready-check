@@ -34,6 +34,9 @@ Discord draws every custom emoji at the same size, so the dots are drawn at
 about half the canvas with transparent padding to sit smaller than the text.
 `dot_lg_*` are the same dots at 75%, for each raid's own status.
 
-Roster markers: `mark_tank` (an original flat shield) and `mark_healer` (the
-violet healer plus), both at 65% with padding so they sit smaller than the names they
-mark. Fallbacks: 🛡️ and the healer icon.
+Role markers, beside called-out names: `mark_tank` (an original flat shield),
+`mark_healer` (the violet healer plus) and `mark_dps` (the steel sword), at
+about 65% with padding so they sit smaller than the names they mark. Off-spec
+markers, beside damage mains in the roster: `mark_offtank` (the shield in teal,
+fill `#3FD0C0`, edge `#158F84`) and `mark_offheal` (the plus in pink, fill
+`#FF8CC6`, edge `#D2408A`). Fallbacks: the type's icon, and 🛡️ ➕.
