@@ -185,7 +185,7 @@ function raidDate(instance: InstanceWithAttendance, timezone: string) {
 
 /**
  * One line per class, in CLASSES order, always shown ("—" when no one of that
- * class is attending), then "Other" for raiders with no class role, if any. Within a line: tanks (🛡️), healers (healer icon),
+ * class is attending), then "Other" for raiders with no class role, if any. Within a line: tanks (shield marker), healers (plus marker),
  * then everyone else, each alphabetical. Stops with "…and N more" past `budget`.
  */
 function classLines(attending: GuildMember[], budget: number): string[] {

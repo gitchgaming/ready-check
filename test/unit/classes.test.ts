@@ -71,10 +71,10 @@ describe("raidTypeIcon", () => {
     expect(raidTypeIcon(type("DPS"))).toBe("⚔️");
   });
 
-  it("uses the healer application emoji once it's loaded", async () => {
-    await loadAppEmojis(fakeClient({ emojis: ["healer", "tank"] }));
-    expect(raidTypeIcon(type("Healers"))).toBe("<:healer:9000>");
-    // Tanks name no emoji, so an uploaded "tank" emoji doesn't replace the icon.
-    expect(raidTypeIcon(type("Tanks"))).toBe("🛡️");
+  it("uses each type's application emoji once it's loaded", async () => {
+    await loadAppEmojis(fakeClient({ emojis: ["tank", "healer", "dps"] }));
+    expect(raidTypeIcon(type("Tanks"))).toBe("<:tank:9000>");
+    expect(raidTypeIcon(type("Healers"))).toBe("<:healer:9001>");
+    expect(raidTypeIcon(type("DPS"))).toBe("<:dps:9002>");
   });
 });
