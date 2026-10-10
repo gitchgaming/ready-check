@@ -129,6 +129,41 @@ on an earlier deployment also works for a quick revert, but leaves
 Migrations don't roll back. Before rolling back past a release that added a
 migration, check that the older code works with the newer schema.
 
+## Database backup and restore
+
+Each environment's SQLite database is one file on its Railway volume
+(`/data/prod.db`, `/data/staging.db`; the default rollback journal, so no
+`-wal` file). These commands worked when production moved onto its volume
+(2026-10-10). They run on your machine with `railway login`, an SSH key
+registered with `railway ssh keys add`, and the folder linked with
+`railway link` to the right environment; Claude cloud sessions can't use
+`railway ssh`.
+
+**Copy the database out.** In a shell in the container
+(`railway ssh -s ready-check`):
+```sh
+cd /app
+node -e 'const D=require("better-sqlite3");const db=new D("/data/prod.db",{readonly:true});db.backup("/tmp/snap.db").then(()=>db.close())'
+sha256sum /tmp/snap.db
+```
+`backup` takes a consistent copy while the bot runs. Then, on your machine:
+```bash
+railway ssh -s ready-check -- base64 /tmp/snap.db > snap.b64
+tr -d '\r' < snap.b64 | base64 -d > prod-snapshot.db
+shasum -a 256 prod-snapshot.db   # must match
+```
+
+**Put one back.** Upload it next to the live file, swap it in, restart:
+```bash
+railway volume files -v <volume name> upload prod-snapshot.db /prod.db.restore
+railway ssh -s ready-check     # then: sha256sum /data/prod.db.restore
+                               #       mv /data/prod.db.restore /data/prod.db
+railway restart -s ready-check
+```
+Volume paths are relative to the volume (`/prod.db.restore` lands at
+`/data/prod.db.restore`). The bot keeps the old file open until the restart,
+so anything written between the `mv` and the restart is lost.
+
 ## GitHub and Railway settings
 
 Set these once in the web UIs (they aren't stored in the repo):

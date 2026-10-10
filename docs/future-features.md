@@ -22,3 +22,11 @@ npm 11 counts TypeScript as a production dependency, because Prisma lists it as
 an optional peer. That puts about 27 MB of TypeScript compiler binaries in the
 production image, unused. Trim it, e.g. with an extra prune step, once Docker
 builds can be tested (first Railway deploy).
+
+## Database export and import
+
+An officer-only `/raidlead export` that sends the team's data (or the whole
+database) as a private file, and a matching import. It would give on-demand
+backups without SSH and a way to move a team to another server. It can't
+help a bot whose data is about to be lost to a redeploy: the command only
+exists after a deploy.
