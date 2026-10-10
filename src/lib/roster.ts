@@ -10,6 +10,7 @@ import {
   type RaidType,
 } from "./classes.js";
 import { appEmoji } from "./emojis.js";
+import { DEMO_MEMBERS } from "./demo.js";
 
 const MAX_FIELD_VALUE = 1024; // Discord's cap on one embed field's text
 
@@ -24,13 +25,14 @@ export async function ensureMembersCached(guild: Guild): Promise<void> {
 /** IDs of non-bot members currently holding the role. */
 export async function rosterMemberIds(guild: Guild, roleId: string): Promise<Set<string>> {
   await ensureMembersCached(guild);
-  return new Set(guild.members.cache.filter((m) => !m.user.bot && m.roles.cache.has(roleId)).map((m) => m.id));
+  const real = guild.members.cache.filter((m) => !m.user.bot && m.roles.cache.has(roleId)).map((m) => m.id);
+  return new Set([...real, ...DEMO_MEMBERS.map((m) => m.id)]);
 }
 
 /** Non-bot members currently holding the role. */
 export async function fetchRosterMembers(guild: Guild, roleId: string): Promise<GuildMember[]> {
   await ensureMembersCached(guild);
-  return [...guild.members.cache.filter((m) => !m.user.bot && m.roles.cache.has(roleId)).values()];
+  return [...guild.members.cache.filter((m) => !m.user.bot && m.roles.cache.has(roleId)).values(), ...DEMO_MEMBERS];
 }
 
 /** Joins as many entries as fit in `max` characters, ending with "…and N more" if some don't. */

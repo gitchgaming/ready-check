@@ -8,6 +8,7 @@ import { deployLabel, lanesEnabled, readDeployInfo } from "./lib/lanes.js";
 import { readReleaseInfo, releaseLabel } from "./lib/release.js";
 import { ensureMembersCached } from "./lib/roster.js";
 import { renderTeamMessage, syncAllRaidTeams } from "./lib/scheduler.js";
+import { seedDemoAttendance } from "./lib/demo.js";
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) {
@@ -67,6 +68,8 @@ client.once(Events.ClientReady, async (readyClient) => {
     await ensureMembersCached(guild).catch((err) => console.error("Member cache warmup failed:", err));
   }
   await syncAllRaidTeams(readyClient).catch((err) => console.error("Initial raid sync failed:", err));
+  await seedDemoAttendance().catch((err) => console.error("Demo seeding failed:", err));
+  await syncAllRaidTeams(readyClient).catch((err) => console.error("Demo re-render failed:", err));
   setInterval(() => {
     syncAllRaidTeams(readyClient).catch((err) => console.error("Scheduled raid sync failed:", err));
   }, SYNC_INTERVAL_MS);
