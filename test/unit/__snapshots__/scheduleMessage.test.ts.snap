@@ -169,23 +169,23 @@ exports[`snapshots > public message 1`] = `
         },
         {
           "content": "-# **TANKS · 2**
--# <:warrior:9000> \`Tankalot\`
--# **Paladin** \`Shieldy\`
+<:warrior:9000> \`Tankalot\`
+**Paladin** \`Shieldy\`
 -# **HEALERS · 2**
--# <:priest:9001> \`Mendy\`
--# **Shaman** \`Totem\`
+<:priest:9001> \`Mendy\`
+**Shaman** \`Totem\`
 -# **DAMAGE · 3**
--# <:warrior:9000> \`Axe\`
--# **Hunter** \`Arrow\`
--# **Rogue** \`Stabby\`
+<:warrior:9000> \`Axe\`
+**Hunter** \`Arrow\`
+**Rogue** \`Stabby\`
 -# **NO ROLE · 1**
--# **Other** \`Newbie\`",
+**Other** \`Newbie\`",
           "type": 10,
         },
         {
           "content": "-# **CALLED OUT · 2**
--# **Paladin** <:mark_healer:9003>\`Lightbringer\`
--# **Mage** ⚔️\`Zap\`",
+**Paladin** <:mark_healer:9003>\`Lightbringer\`
+**Mage** ⚔️\`Zap\`",
           "type": 10,
         },
         {
@@ -313,23 +313,23 @@ exports[`snapshots > raid roster card 1`] = `
         },
         {
           "content": "-# **TANKS · 2**
--# <:warrior:9000> \`Tankalot\`
--# **Paladin** \`Shieldy\`
+<:warrior:9000> \`Tankalot\`
+**Paladin** \`Shieldy\`
 -# **HEALERS · 2**
--# <:priest:9001> \`Mendy\`
--# **Shaman** \`Totem\`
+<:priest:9001> \`Mendy\`
+**Shaman** \`Totem\`
 -# **DAMAGE · 3**
--# <:warrior:9000> \`Axe\`
--# **Hunter** \`Arrow\`
--# **Rogue** \`Stabby\`
+<:warrior:9000> \`Axe\`
+**Hunter** \`Arrow\`
+**Rogue** \`Stabby\`
 -# **NO ROLE · 1**
--# **Other** \`Newbie\`",
+**Other** \`Newbie\`",
           "type": 10,
         },
         {
           "content": "-# **CALLED OUT · 2**
--# **Paladin** <:mark_healer:9003>\`Lightbringer\`
--# **Mage** ⚔️\`Zap\`",
+**Paladin** <:mark_healer:9003>\`Lightbringer\`
+**Mage** ⚔️\`Zap\`",
           "type": 10,
         },
       ],

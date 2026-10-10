@@ -187,7 +187,7 @@ describe("public message at its worst case", () => {
     const text = flattenComponents(buildRaidRosterCard(team(), weeklyRaids(1)[0]!, members))
       .map((c) => c.content ?? "")
       .join("\n");
-    for (const c of CLASSES) expect(text).toContain(`-# ${appEmoji(c.emoji)} \``);
+    for (const c of CLASSES) expect(text).toContain(`\n${appEmoji(c.emoji)} \``);
     for (const t of RAID_TYPES) expect(text).toMatch(new RegExp(`${raidTypeIcon(t)} \\*\\*[1-9]`));
     for (const o of OFF_SPECS) expect(text).toContain(`${offSpecMarker(o)} ${o.label}`);
   });

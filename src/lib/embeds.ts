@@ -197,7 +197,7 @@ function chip(name: string): string {
   return `\`${name.replaceAll("`", "ˋ")}\``;
 }
 
-/** One small-text line: a class icon (or the class name if its emoji isn't uploaded), then chips. */
+/** One line: a class icon (or the class name if its emoji isn't uploaded), then chips. */
 interface RosterLine {
   prefix: string;
   entries: string[];
@@ -277,8 +277,8 @@ function calledOutSection(out: GuildMember[]): RosterSection {
 }
 
 /**
- * Sections as small-text lines: a heading, then one line per class (a heading
- * alone gets " —"). Stops with "…and N more" before passing `budget` characters.
+ * Sections as lines: a small-text heading, then one normal-size line per class
+ * (a heading alone gets " —"); small chips were too hard to read on desktop. Stops with "…and N more" before passing `budget` characters.
  */
 function fitSections(sections: RosterSection[], budget: number): string[] {
   const total = sections.reduce((n, s) => n + s.lines.reduce((k, l) => k + l.entries.length, 0), 0);
@@ -298,7 +298,7 @@ function fitSections(sections: RosterSection[], budget: number): string[] {
     if (!fits(heading.length + 1)) break;
     push(heading);
     for (const { prefix, entries } of section.lines) {
-      let line = `-# ${prefix}`;
+      let line = prefix;
       for (const [i, entry] of entries.entries()) {
         const piece = `${i === 0 && !prefix ? "" : " "}${entry}`;
         shown++;

@@ -78,8 +78,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   dev and production apps, so never hard-code them.
 - Schedule messages use Components V2. The public one (design 9a) is two
   containers: **Next Up** (next raid: attendance bar, role summary, attending
-  roster in Tanks/Healers/Damage sections of small-text class lines with names as
-  inline-code chips, Called Out block, one Status ⇄ button on its own line;
+  roster in Tanks/Healers/Damage sections (small-text headings, then one
+  normal-size line per class with names as inline-code chips), Called Out block, one Status ⇄ button on its own line;
   accent = raid status) and
   **Coming Up** (one section per later raid with its own button, then the
   "See more dates" select). The personal view is one container, days between
