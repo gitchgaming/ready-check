@@ -153,12 +153,6 @@ testing is for look and feel only.
 - `docs/future-features.md`: ideas and open questions to pick up later (role
   minimums per raid size, image size). Add new ones
   there; remove them once built.
-- **Production has no volume** (found 2026-10-09): `prod.db` lives on the
-  container disk, so a release, restart or crash wipes it. Don't release
-  until a volume is attached at `/data`: see `docs/production-volume-plan.md`.
-  `railway ssh` can't run from a Claude cloud session (no SSH client, and
-  project tokens can't register keys), so the copy-out runs on the user's
-  machine.
 - Staging is live and verified (2026-10-09), except one guard path: with
   staging stopped, `check-staging` should report it stopped and let
   `npm run dev` start. Confirm it the first time the user asks to run dev.
@@ -198,9 +192,14 @@ testing is for look and feel only.
   put main back. Before merging a PR into `main`, stop the local bot if it
   ran this session, since the merge redeploys staging.
 - Live since 2026-10-04 as `ready-check#2607` (production app; the dev bot is
-  `ready-check#7940`). Railway: Hobby plan, Dockerfile build,
-  `DATABASE_URL=file:/data/prod.db` but **no volume yet** (see Pending work),
-  one replica, no public domain.
+  `ready-check#7940`). Railway: Hobby plan, Dockerfile build, volume at
+  `/data` (attached 2026-10-10; before that the database lived on the
+  container disk), `DATABASE_URL=file:/data/prod.db`, one replica, no public
+  domain.
+- `railway ssh` can't run from a Claude cloud session (no SSH client, and
+  project tokens can't register SSH keys), so anything that needs a shell in
+  a container runs on the user's Mac; see `docs/releasing.md` → Database
+  backup and restore.
 - Cloud sessions get the Railway CLI from the SessionStart hook, authenticated
   by `RAILWAY_TOKEN` (a project token for the production environment);
   `RAILWAY_STAGING_TOKEN` covers staging (`RAILWAY_TOKEN=$RAILWAY_STAGING_TOKEN
