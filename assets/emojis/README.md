@@ -19,10 +19,13 @@ Discord limits: 2–32 characters of letters, digits and `_` for the name
 
 Class icons (from Wowhead's CDN, `classicon_<class>.jpg`): `warrior` `paladin`
 `hunter` `rogue` `priest` `shaman` `mage` `warlock` `druid`. A missing one just
-shows no icon. Raid types use Unicode 🛡️ and ⚔️; `healer` is an original
-two-tone violet plus (fill `#B9A1FF`, edge `#7B57E0`), because Unicode ➕ is too
-dark on Discord's dark theme (➕ is its fallback). Keep it off green, yellow, red
-and grey: those are the status colors, and a green plus read as a status dot.
+shows no icon.
+
+Raid types are one flat two-tone set: `tank` (the blue shield, fill `#5DADEC`,
+edge `#3B88C3`), `healer` (a violet plus, fill `#B9A1FF`, edge `#7B57E0`) and
+`dps` (a steel sword, fill `#DBE1EA`, edge `#66758C`). Fallbacks: 🛡️ ➕ ⚔️.
+Keep them off green, yellow, red and grey: those are the status colors, and a
+green healer plus once read as a status dot.
 
 Schedule status (from the schedule-post design handoff): `dot_green`
 `dot_yellow` `dot_red` `dot_grey` (raid and role status) and `seg_green`

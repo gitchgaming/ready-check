@@ -42,9 +42,9 @@ export interface RaidType {
 
 /** In priority order: a raider with several type roles counts as their first match. */
 export const RAID_TYPES: RaidType[] = [
-  { label: "Tanks", icon: "🛡️", marker: "mark_tank", min: 2, roles: ["Tanks", "Tank"] },
+  { label: "Tanks", icon: "🛡️", emoji: "tank", marker: "mark_tank", min: 2, roles: ["Tanks", "Tank"] },
   { label: "Healers", icon: "➕", emoji: "healer", marker: "mark_healer", min: 3, roles: ["Healers", "Healer"] },
-  { label: "DPS", icon: "⚔️", min: 10, roles: ["DPS", "Wizards", "Phys"] },
+  { label: "DPS", icon: "⚔️", emoji: "dps", min: 10, roles: ["DPS", "Wizards", "Phys"] },
 ];
 
 function hasRoleNamed(member: GuildMember, names: string[]): boolean {
