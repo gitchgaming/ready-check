@@ -225,7 +225,7 @@ exports[`snapshots > public message 1`] = `
           "components": [
             {
               "content": "🟡 **Wed, Oct 14** 8:00 PM · 9/10
--# ⠀ 🛡️ 1/2 🟡 ➕ 3/3 ⚔️ 5/5",
+-# ⠀ 🛡️ 1/2 ➕ 3/3 ⚔️ 5/5",
               "type": 10,
             },
           ],

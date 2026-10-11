@@ -183,16 +183,18 @@ function raidAttendance(instance: InstanceWithAttendance, members: GuildMember[]
 }
 
 /**
- * Role counts by icon, with a dot only on a role that's short, so the line fits on
- * a phone without wrapping, even with double-digit counts and all three dots. Roles
+ * Role counts by icon. Next Up's are bold, with a dot only on a role that's short,
+ * so the line fits on a phone without wrapping, even with double-digit counts and
+ * all three dots; Coming Up's are plain, since each raid's own dot covers it. Roles
  * are an em space apart; a dot is padded, so only an en space follows one.
  */
-function roleCounts(roles: ReturnType<typeof raidAttendance>["roles"], bold = false): string {
-  const b = bold ? "**" : "";
+function roleCounts(roles: ReturnType<typeof raidAttendance>["roles"], nextUp = false): string {
+  const b = nextUp ? "**" : "";
+  const dotted = (r: (typeof roles)[number]) => nextUp && r.status !== "grey";
   return roles
     .map((r, i) => {
-      const sep = i === 0 ? "" : roles[i - 1]!.status === "grey" ? "\u2003" : "\u2002";
-      return `${sep}${raidTypeIcon(r.type)} ${b}${r.inCount}/${r.rosterCount}${b}${r.status === "grey" ? "" : ` ${dot(r.status)}`}`;
+      const sep = i === 0 ? "" : dotted(roles[i - 1]!) ? "\u2002" : "\u2003";
+      return `${sep}${raidTypeIcon(r.type)} ${b}${r.inCount}/${r.rosterCount}${b}${dotted(r) ? ` ${dot(r.status)}` : ""}`;
     })
     .join("");
 }

@@ -337,13 +337,13 @@ describe("buildPublicMessage — Next Up", () => {
 });
 
 describe("buildPublicMessage — Coming Up", () => {
-  it("gives each later raid a section with its date, count, role line and own button", () => {
+  it("gives each later raid a section with its date, count, a dotless role line and own button", () => {
     const raids = weeklyRaids(3, (i) => ({ out: i === 1 ? ["u-tank1"] : [] }));
     const comingUp = containers(buildPublicMessage(team(), raids, ROSTER))[1];
     const sections = comingUp.components.filter((c: any) => c.type === ComponentType.Section);
     expect(sections).toHaveLength(2);
     expect(sections[0].components[0].content).toBe(
-      "🟡 **Wed, Oct 14** 8:00 PM · 9/10\n-# \u2800\u2003🛡️ 1/2 🟡\u2002➕ 3/3\u2003⚔️ 5/5",
+      "🟡 **Wed, Oct 14** 8:00 PM · 9/10\n-# \u2800\u2003🛡️ 1/2\u2003➕ 3/3\u2003⚔️ 5/5",
     );
     expect(sections[1].components[0].content).toMatch(/^🟢 \*\*Wed, Oct 21\*\* 8:00 PM · 10\/10\n/);
     expect(sections.map((s: any) => s.accessory.custom_id)).toEqual([

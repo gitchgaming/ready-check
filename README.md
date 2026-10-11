@@ -87,11 +87,12 @@ Every subcommand takes the team's `role:` first.
     by icon (🛡️ tanks, ➕ healers, ⚔️ damage) with an off-spec key under them,
     everyone attending in Tanks / Healers / Damage sections (one line per
     class, each name a chip; off-tanks and off-healers marked in Damage), and
-    who's out, each with their role. Its accent color is the raid's status.
-  - **Coming Up**: one line per later raid with its count, then its role counts.
+    who's out, by class. Its accent color is the raid's status.
+  - **Coming Up**: one line per later raid with its count, then its role counts
+    (no role dots; the raid's own dot covers it).
   - Role counts are kept short enough to fit on one line on a phone.
   - Raid status (accent bar and the dot before each Coming Up date): 🟢 everyone
-    in, 🟡 at least half in, 🔴 fewer. A role gets no dot
+    in, 🟡 at least half in, 🔴 fewer. A Next Up role gets no dot
     when it's fine — all of that role in, or at least the minimum (Tanks 2,
     Healers 3, Damage 10) — then 🟡 one short, 🔴 more.
 - Call-outs only count while the raider still holds the team's role. Records
