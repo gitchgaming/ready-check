@@ -159,7 +159,7 @@ exports[`snapshots > public message 1`] = `
           "type": 10,
         },
         {
-          "content": "🛡️ **2/2** ➕ **2/3** 🟡 ⚔️ **3/4** 🔴",
+          "content": "🛡️ **2/2** ➕ **2/3** 🟡 ⚔️ **4/5** 🔴",
           "type": 10,
         },
         {
@@ -168,21 +168,25 @@ exports[`snapshots > public message 1`] = `
           "type": 14,
         },
         {
-          "content": "<:warrior:9000> **Warrior** <:mark_tank:9002>Tankalot, Axe
-**Paladin** <:mark_tank:9002>Shieldy
-**Hunter** Arrow
-**Rogue** Stabby
-<:priest:9001> **Priest** <:mark_healer:9003>Mendy
-**Shaman** <:mark_healer:9003>Totem
-**Mage** —
-**Warlock** —
-**Druid** —
-**Other** Newbie",
+          "content": "-# **TANKS · 2**
+<:warrior:9000> \`Tankalot\`
+**Paladin** \`Shieldy\`
+
+-# **HEALERS · 2**
+<:priest:9001> \`Mendy\`
+**Shaman** \`Totem\`
+
+-# **DAMAGE · 4**
+<:warrior:9000> \`Axe\`
+**Hunter** \`Arrow\`
+**Rogue** \`Stabby\`
+\`Newbie\`",
           "type": 10,
         },
         {
-          "content": "-# **CALLED OUT (2)**
-<@u-heal2>  <@u-mage>",
+          "content": "-# **CALLED OUT · 2**
+**Paladin** \`Lightbringer\`
+**Mage** \`Zap\`",
           "type": 10,
         },
         {
@@ -221,7 +225,7 @@ exports[`snapshots > public message 1`] = `
           "components": [
             {
               "content": "🟡 **Wed, Oct 14** 8:00 PM · 9/10
--# ⠀ 🛡️ 1/2 🟡 ➕ 3/3 ⚔️ 4/4",
+-# ⠀ 🛡️ 1/2 ➕ 3/3 ⚔️ 5/5",
               "type": 10,
             },
           ],
@@ -242,7 +246,7 @@ exports[`snapshots > public message 1`] = `
           "components": [
             {
               "content": "<:dot_lg_green:9004> **Wed, Oct 28** 8:00 PM · 10/10
--# ⠀ 🛡️ 2/2 ➕ 3/3 ⚔️ 4/4",
+-# ⠀ 🛡️ 2/2 ➕ 3/3 ⚔️ 5/5",
               "type": 10,
             },
           ],
@@ -300,7 +304,7 @@ exports[`snapshots > raid roster card 1`] = `
           "type": 10,
         },
         {
-          "content": "🛡️ **2/2** ➕ **2/3** 🟡 ⚔️ **3/4** 🔴",
+          "content": "🛡️ **2/2** ➕ **2/3** 🟡 ⚔️ **4/5** 🔴",
           "type": 10,
         },
         {
@@ -309,21 +313,25 @@ exports[`snapshots > raid roster card 1`] = `
           "type": 14,
         },
         {
-          "content": "<:warrior:9000> **Warrior** <:mark_tank:9002>Tankalot, Axe
-**Paladin** <:mark_tank:9002>Shieldy
-**Hunter** Arrow
-**Rogue** Stabby
-<:priest:9001> **Priest** <:mark_healer:9003>Mendy
-**Shaman** <:mark_healer:9003>Totem
-**Mage** —
-**Warlock** —
-**Druid** —
-**Other** Newbie",
+          "content": "-# **TANKS · 2**
+<:warrior:9000> \`Tankalot\`
+**Paladin** \`Shieldy\`
+
+-# **HEALERS · 2**
+<:priest:9001> \`Mendy\`
+**Shaman** \`Totem\`
+
+-# **DAMAGE · 4**
+<:warrior:9000> \`Axe\`
+**Hunter** \`Arrow\`
+**Rogue** \`Stabby\`
+\`Newbie\`",
           "type": 10,
         },
         {
-          "content": "-# **CALLED OUT (2)**
-<@u-heal2>  <@u-mage>",
+          "content": "-# **CALLED OUT · 2**
+**Paladin** \`Lightbringer\`
+**Mage** \`Zap\`",
           "type": 10,
         },
       ],

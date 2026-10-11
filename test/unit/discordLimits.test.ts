@@ -16,8 +16,8 @@ import {
   buildPublicMessage,
   buildRaidRosterCard,
 } from "../../src/lib/embeds.js";
-import { CLASSES, RAID_TYPES, raidTypeIcon } from "../../src/lib/classes.js";
-import { EMOJI_DIR, loadAppEmojis, versionedEmojiName } from "../../src/lib/emojis.js";
+import { CLASSES, OFF_SPECS, RAID_TYPES, offSpecMarker, raidTypeIcon } from "../../src/lib/classes.js";
+import { EMOJI_DIR, appEmoji, loadAppEmojis, versionedEmojiName } from "../../src/lib/emojis.js";
 import { PAGE_SIZE } from "../../src/lib/scheduler.js";
 import { flattenComponents, raider } from "../discord.js";
 import { cuid, freezeTime, team, weeklyRaids, type RaidRow } from "./fixtures.js";
@@ -54,14 +54,15 @@ const userId = (i: number) => String(1100000000000000000n + BigInt(i));
 
 /**
  * A big guild roster: `size` raiders spread over every class and type, each with a
- * 32-character display name (Discord's max) full of markdown that escaping lengthens.
+ * 32-character display name (Discord's max). Most damage mains have both off-specs,
+ * the longest roster entry.
  */
 function worstRoster(size: number): GuildMember[] {
-  const types = ["Tanks", "Healers", "DPS", "Wizards", "Phys"];
+  const types = [["Tanks"], ["Healers"], ["DPS", "Offtank", "Offheals"], ["Wizards", "Offtank", "Offheals"], ["Phys"]];
   return Array.from({ length: size }, (_, i) => {
     const cls = CLASSES[i % CLASSES.length]!;
     const name = `*_${String(i).padStart(3, "0")}_*`.padEnd(32, "_");
-    return raider(name, [cls.roles[0]!, types[i % types.length]!], userId(i));
+    return raider(name, [cls.roles[0]!, ...types[i % types.length]!], userId(i));
   });
 }
 
@@ -181,13 +182,14 @@ describe("public message at its worst case", () => {
   const roster = worstRoster(120);
 
   it("the worst-case roster covers every class and raid type", () => {
-    // A 40-raider card isn't truncated, so every class line and role shows up.
+    // A 40-raider card shows every class in every section, every role and the off-spec key.
     const members = worstRoster(40);
     const text = flattenComponents(buildRaidRosterCard(team(), weeklyRaids(1)[0]!, members))
       .map((c) => c.content ?? "")
       .join("\n");
-    for (const c of CLASSES) expect(text).toMatch(new RegExp(`\\*\\*${c.label}\\*\\* [^—]`));
+    for (const c of CLASSES) expect(text).toContain(`\n${appEmoji(c.emoji)} \``);
     for (const t of RAID_TYPES) expect(text).toMatch(new RegExp(`${raidTypeIcon(t)} \\*\\*[1-9]`));
+    for (const o of OFF_SPECS) expect(text).toContain(`${offSpecMarker(o)} ${o.label}`);
   });
 
   it(`at MAX_PUBLIC_DAYS (${MAX_PUBLIC_DAYS}) raids stays within ${MAX_COMPONENTS} components`, () => {

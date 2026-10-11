@@ -150,7 +150,7 @@ describe("/roster", () => {
     const text = payloadText(reply);
     expect(text).toContain("MAIN RAID · ROSTER");
     expect(text).toContain("**1/2 ready**");
-    expect(text).toContain("CALLED OUT (1)");
+    expect(text).toContain("CALLED OUT · 1");
     expect(flattenComponents(reply).some((c) => c.custom_id?.startsWith("attendance:btn:"))).toBe(false);
   });
 

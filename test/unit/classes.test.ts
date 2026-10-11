@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { CLASSES, RAID_TYPES, memberClass, memberRaidType, raidTypeIcon } from "../../src/lib/classes.js";
+import {
+  CLASSES,
+  OFF_SPECS,
+  RAID_TYPES,
+  memberClass,
+  memberOffSpecs,
+  memberRaidType,
+  offSpecMarker,
+  raidTypeIcon,
+} from "../../src/lib/classes.js";
 import { loadAppEmojis } from "../../src/lib/emojis.js";
 import { fakeClient, fakeMember } from "../discord.js";
 
@@ -45,18 +54,30 @@ describe("memberRaidType", () => {
     ["tank", "Tanks"],
     ["Healers", "Healers"],
     ["HEALER", "Healers"],
-    ["DPS", "DPS"],
-    ["dps", "DPS"],
-    ["Wizards", "DPS"],
-    ["Phys", "DPS"],
+    ["Damage", "Damage"],
+    ["DPS", "Damage"],
+    ["dps", "Damage"],
+    ["Wizards", "Damage"],
+    ["Wizard", "Damage"],
+    ["Phys", "Damage"],
+    ["Physical", "Damage"],
   ])("maps role %j to %s", (role, label) => {
     expect(memberRaidType(member(role))).toBe(type(label));
   });
 
-  it("counts a raider once by priority Tank > Healer > DPS", () => {
+  it("counts a raider once by priority Tank > Healer > Damage", () => {
     expect(memberRaidType(member("DPS", "Healers", "Tanks"))).toBe(type("Tanks"));
     expect(memberRaidType(member("Wizards", "Healer"))).toBe(type("Healers"));
-    expect(memberRaidType(member("Phys", "Wizards"))).toBe(type("DPS"));
+    expect(memberRaidType(member("Phys", "Wizards"))).toBe(type("Damage"));
+  });
+
+  it.each(["Offtank", "Offheals", "offheal"])("counts a raider with only the %j off-spec role as Damage", (role) => {
+    expect(memberRaidType(member(role))).toBe(type("Damage"));
+  });
+
+  it("keeps a tank or healer in their main role whatever off-spec roles they hold", () => {
+    expect(memberRaidType(member("Tanks", "Offheals"))).toBe(type("Tanks"));
+    expect(memberRaidType(member("Healer", "Offtank"))).toBe(type("Healers"));
   });
 
   it("returns undefined with no type role", () => {
@@ -68,13 +89,41 @@ describe("raidTypeIcon", () => {
   it("uses Unicode icons when no application emoji is loaded", () => {
     expect(raidTypeIcon(type("Tanks"))).toBe("🛡️");
     expect(raidTypeIcon(type("Healers"))).toBe("➕");
-    expect(raidTypeIcon(type("DPS"))).toBe("⚔️");
+    expect(raidTypeIcon(type("Damage"))).toBe("⚔️");
   });
 
   it("uses each type's application emoji once it's loaded", async () => {
     await loadAppEmojis(fakeClient({ emojis: ["tank", "healer", "dps"] }));
     expect(raidTypeIcon(type("Tanks"))).toBe("<:tank:9000>");
     expect(raidTypeIcon(type("Healers"))).toBe("<:healer:9001>");
-    expect(raidTypeIcon(type("DPS"))).toBe("<:dps:9002>");
+    expect(raidTypeIcon(type("Damage"))).toBe("<:dps:9002>");
+  });
+});
+
+describe("memberOffSpecs", () => {
+  const off = (label: string) => OFF_SPECS.find((o) => o.label === label)!;
+
+  it.each([
+    ["Offtank", "Offtank"],
+    ["Offtanks", "Offtank"],
+    ["Offheals", "Offheals"],
+    ["Offhealer", "Offheals"],
+  ])("maps role %j to %s", (role, label) => {
+    expect(memberOffSpecs(member("Wizards", role))).toEqual([off(label)]);
+  });
+
+  it("lists both off-specs in OFF_SPECS order", () => {
+    expect(memberOffSpecs(member("DPS", "Offheals", "Offtank"))).toEqual([off("Offtank"), off("Offheals")]);
+  });
+
+  it("is empty for tanks and healers, whose main role already says it", () => {
+    expect(memberOffSpecs(member("Tanks", "Offheals"))).toEqual([]);
+    expect(memberOffSpecs(member("Healers", "Offtank"))).toEqual([]);
+  });
+
+  it("uses the marker app emoji when uploaded, else the Unicode icon", async () => {
+    expect(offSpecMarker(off("Offtank"))).toBe("🛡️");
+    await loadAppEmojis(fakeClient({ emojis: ["mark_offtank"] }));
+    expect(offSpecMarker(off("Offtank"))).toBe("<:mark_offtank:9000>");
   });
 });

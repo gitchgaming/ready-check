@@ -71,13 +71,17 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   public message after each interaction resets its select.
 - Class and raid-type roles are matched by role name (`classes.ts`), not
   configured per team. The roster counts each raider once, by type priority
-  Tank > Healer > DPS (Wizards and Phys count as DPS).
+  Tank > Healer > Damage (DPS, Wizards and Phys count as Damage). `Offtank` and
+  `Offheals` roles mark a damage main's off-spec (`OFF_SPECS`); alone they mean Damage.
+  The schedule counts raiders with no type role as Damage and lists class-less
+  ones on an unlabelled last line; only `/roster`'s embed has "No type role".
 - Icons are application emojis (owned by the bot, not a server), uploaded from
   `assets/emojis/` by `deploy-emojis` and looked up by name — IDs differ between the
   dev and production apps, so never hard-code them.
 - Schedule messages use Components V2. The public one (design 9a) is two
   containers: **Next Up** (next raid: attendance bar, role summary, attending
-  roster by class, Called Out block, one Status ⇄ button on its own line;
+  roster in Tanks/Healers/Damage sections (small-text headings, then one
+  normal-size line per class with names as inline-code chips), Called Out block, one Status ⇄ button on its own line;
   accent = raid status) and
   **Coming Up** (one section per later raid with its own button, then the
   "See more dates" select). The personal view is one container, days between

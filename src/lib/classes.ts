@@ -30,7 +30,7 @@ export interface RaidType {
   icon: string;
   /** Application emoji used instead of `icon` when it's been uploaded. */
   emoji?: string;
-  /** Small padded app emoji marking this role beside a name on the schedule roster. */
+  /** Small padded app emoji marking this role beside a called-out raider's name. */
   marker?: string;
   /**
    * How many of this role a raid needs. Drives the role status dots on the
@@ -40,11 +40,46 @@ export interface RaidType {
   roles: string[];
 }
 
-/** In priority order: a raider with several type roles counts as their first match. */
+/**
+ * In priority order: a raider with several type roles counts as their first match.
+ * A raider with only an off-spec role (see OFF_SPECS) counts as Damage.
+ */
 export const RAID_TYPES: RaidType[] = [
   { label: "Tanks", icon: "🛡️", emoji: "tank", marker: "mark_tank", min: 2, roles: ["Tanks", "Tank"] },
   { label: "Healers", icon: "➕", emoji: "healer", marker: "mark_healer", min: 3, roles: ["Healers", "Healer"] },
-  { label: "DPS", icon: "⚔️", emoji: "dps", min: 10, roles: ["DPS", "Wizards", "Phys"] },
+  {
+    label: "Damage",
+    icon: "⚔️",
+    emoji: "dps",
+    marker: "mark_dps",
+    min: 10,
+    roles: ["Damage", "DPS", "Wizards", "Wizard", "Phys", "Physical"],
+  },
+];
+
+const DAMAGE = RAID_TYPES[2]!;
+
+/**
+ * Secondary roles of damage mains, shown as a marker beside their name in the
+ * Damage section and counted in the schedule's off-spec key. Ignored for tanks
+ * and healers, whose main role already says it.
+ */
+export interface OffSpec {
+  label: string;
+  /** Small padded app emoji beside the name; `icon` if it isn't uploaded. */
+  marker: string;
+  icon: string;
+  roles: string[];
+}
+
+export const OFF_SPECS: OffSpec[] = [
+  { label: "Offtank", marker: "mark_offtank", icon: "🛡️", roles: ["Offtank", "Offtanks", "Off-tank", "Off tank"] },
+  {
+    label: "Offheals",
+    marker: "mark_offheal",
+    icon: "➕",
+    roles: ["Offheals", "Offheal", "Offhealer", "Offhealers", "Off-heals", "Off heals"],
+  },
 ];
 
 function hasRoleNamed(member: GuildMember, names: string[]): boolean {
@@ -62,5 +97,18 @@ export function raidTypeIcon(type: RaidType): string {
 }
 
 export function memberRaidType(member: GuildMember): RaidType | undefined {
-  return RAID_TYPES.find((t) => hasRoleNamed(member, t.roles));
+  const type = RAID_TYPES.find((t) => hasRoleNamed(member, t.roles));
+  if (type) return type;
+  return OFF_SPECS.some((o) => hasRoleNamed(member, o.roles)) ? DAMAGE : undefined;
+}
+
+/** A damage main's off-specs, in OFF_SPECS order; none for tanks and healers. */
+export function memberOffSpecs(member: GuildMember): OffSpec[] {
+  if (memberRaidType(member) !== DAMAGE) return [];
+  return OFF_SPECS.filter((o) => hasRoleNamed(member, o.roles));
+}
+
+/** An off-spec's marker: its application emoji if uploaded, else the Unicode icon. */
+export function offSpecMarker(offSpec: OffSpec): string {
+  return appEmoji(offSpec.marker, offSpec.icon);
 }
