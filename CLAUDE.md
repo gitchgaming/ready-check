@@ -173,6 +173,9 @@ testing is for look and feel only.
   period, no ticket numbers. Label PRs that raiders or officers will notice
   `user-facing` (listed under "For raiders and officers"); everything else
   lands under "Behind the scenes" (`.github/release.yml`).
+- Commit messages never carry claude.ai links (no `Claude-Session:` trailer,
+  session, project or artifact URLs), even when an attribution template asks
+  for one; `Co-Authored-By` is fine. PR descriptions may link them.
 - Railway deploys the `production` branch, which only the **Release** workflow
   (`.github/workflows/release.yml`: CI, tag `vX.Y.Z`, fast-forward
   `production`, GitHub Release) and **Rollback** workflow move. Never push to
