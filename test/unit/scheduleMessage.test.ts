@@ -128,7 +128,7 @@ describe("buildPublicMessage — Next Up", () => {
   it("summarises each role as in/roster by icon, with a dot only when short of RAID_TYPES minimums", () => {
     // Full ROSTER: 2 tanks (min 2), 3 healers (min 3), 4 DPS (min 10, but all are in).
     const all = buildPublicMessage(team(), weeklyRaids(1), ROSTER);
-    expect(texts(nextUp(all))[2]).toBe("🛡️ **2/2**\u2003➕ **3/3**\u2003⚔️ **4/4**");
+    expect(texts(nextUp(all))[2]).toBe("🛡️ **2/2**\u2003➕ **3/3**\u2003⚔️ **5/5**");
 
     // One tank out → one short (yellow); two healers out → red; one DPS out, 3 < 10 → red.
     const short = buildPublicMessage(
@@ -136,7 +136,7 @@ describe("buildPublicMessage — Next Up", () => {
       weeklyRaids(1, () => ({ out: ["u-tank1", "u-heal1", "u-heal2", "u-mage"] })),
       ROSTER,
     );
-    expect(texts(nextUp(short))[2]).toBe("🛡️ **1/2** 🟡\u2002➕ **1/3** 🔴\u2002⚔️ **3/4** 🔴");
+    expect(texts(nextUp(short))[2]).toBe("🛡️ **1/2** 🟡\u2002➕ **1/3** 🔴\u2002⚔️ **4/5** 🔴");
   });
 
   it("shows no dot on a role once its minimum is met, even with call-outs", () => {
@@ -149,7 +149,7 @@ describe("buildPublicMessage — Next Up", () => {
     await loadAppEmojis(fakeClient({ emojis: ["dot_grey", "dot_yellow", "dot_red", "healer"] }));
     const p = buildPublicMessage(team(), weeklyRaids(1, () => ({ out: ["u-tank1", "u-heal1", "u-heal2"] })), ROSTER);
     expect(texts(nextUp(p))[2]).toBe(
-      "🛡️ **1/2** <:dot_yellow:9001>\u2002<:healer:9003> **1/3** <:dot_red:9002>\u2002⚔️ **4/4**",
+      "🛡️ **1/2** <:dot_yellow:9001>\u2002<:healer:9003> **1/3** <:dot_red:9002>\u2002⚔️ **5/5**",
     );
   });
 
@@ -167,8 +167,10 @@ describe("buildPublicMessage — Next Up", () => {
       "-# **TANKS · 2**",
       "**Warrior** `Brick`",
       "**Paladin** `Wall`",
+      "",
       "-# **HEALERS · 1**",
       "**Paladin** `Holy`",
+      "",
       "-# **DAMAGE · 3**",
       "**Warrior** `Cleave`",
       "**Paladin** `Alpha` `Zed`",
@@ -208,11 +210,10 @@ describe("buildPublicMessage — Next Up", () => {
     expect(texts(nextUp(buildPublicMessage(team(), weeklyRaids(1), ROSTER)))[2]).not.toContain("\n");
   });
 
-  it("shows raiders with no type role in a No Role section, and those with no class on an Other line", () => {
+  it("counts raiders with no type role as Damage, and ends their section with an unlabelled line for those with no class", () => {
     const roster = texts(nextUp(buildPublicMessage(team(), weeklyRaids(1), ROSTER)))[3]!.split("\n");
-    expect(roster.slice(-2)).toEqual(["-# **NO ROLE · 1**", "**Other** `Newbie`"]);
-    const p = buildPublicMessage(team(), weeklyRaids(1, () => ({ out: ["u-new"] })), ROSTER);
-    expect(texts(nextUp(p))[3]).not.toContain("NO ROLE");
+    expect(roster.at(-1)).toBe("`Newbie`");
+    expect(roster.join("\n")).not.toMatch(/NO ROLE|Other/);
   });
 
   it("shows names as chips, as typed, with backticks swapped so a chip can't break", () => {
@@ -231,7 +232,7 @@ describe("buildPublicMessage — Next Up", () => {
       "<:warrior:9000> <:mark_tank:9001>`Tankalot` <:mark_dps:9002>`Axe`",
       "**Priest** ➕`Mendy`",
       "**Mage** <:mark_dps:9002>`Zap`",
-      "**Other** `Newbie`",
+      "<:mark_dps:9002>`Newbie`",
     ]);
   });
 
@@ -300,14 +301,16 @@ describe("buildPublicMessage — Next Up", () => {
     expect(t[3]!.split("\n")).toEqual([
       "-# **TANKS · 1**",
       "**Warrior** `Wall`",
+      "",
       "-# **HEALERS · 0** —",
+      "",
       "-# **DAMAGE · 0** —",
     ]);
   });
 
   it("says so when the role has no members", () => {
     const t = texts(nextUp(buildPublicMessage(team(), weeklyRaids(1), [])));
-    expect(t[3]).toBe("-# **TANKS · 0** —\n-# **HEALERS · 0** —\n-# **DAMAGE · 0** —");
+    expect(t[3]).toBe("-# **TANKS · 0** —\n\n-# **HEALERS · 0** —\n\n-# **DAMAGE · 0** —");
   });
 
   it("truncates the roster with '…and N more' when it's too long", () => {
@@ -341,7 +344,7 @@ describe("buildPublicMessage — Coming Up", () => {
     const sections = comingUp.components.filter((c: any) => c.type === ComponentType.Section);
     expect(sections).toHaveLength(2);
     expect(sections[0].components[0].content).toBe(
-      "🟡 **Wed, Oct 14** 8:00 PM · 9/10\n-# \u2800\u2003🛡️ 1/2 🟡\u2002➕ 3/3\u2003⚔️ 4/4",
+      "🟡 **Wed, Oct 14** 8:00 PM · 9/10\n-# \u2800\u2003🛡️ 1/2 🟡\u2002➕ 3/3\u2003⚔️ 5/5",
     );
     expect(sections[1].components[0].content).toMatch(/^🟢 \*\*Wed, Oct 21\*\* 8:00 PM · 10\/10\n/);
     expect(sections.map((s: any) => s.accessory.custom_id)).toEqual([

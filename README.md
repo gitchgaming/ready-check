@@ -38,7 +38,9 @@ All dates are picked from a list of your team's actual raids.
   `Tanks`, `Healers`, `Damage` (or `DPS`, `Wizards`/`Wizard`, `Phys`/`Physical`),
   and `Warriors`, `Mages`, etc.; a raider with several type roles counts once,
   as Tank, then Healer, then Damage. `Offtank` and `Offheals` mark a damage
-  main's off-spec (a raider with only one of those counts as Damage).
+  main's off-spec (a raider with only one of those counts as Damage). On the
+  schedule, a raider with no type role counts as Damage, and one with no class
+  role is listed at the end of their section without an icon.
 
 ## Officer commands (`/raidlead`)
 

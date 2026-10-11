@@ -73,6 +73,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   configured per team. The roster counts each raider once, by type priority
   Tank > Healer > Damage (DPS, Wizards and Phys count as Damage). `Offtank` and
   `Offheals` roles mark a damage main's off-spec (`OFF_SPECS`); alone they mean Damage.
+  The schedule counts raiders with no type role as Damage and lists class-less
+  ones on an unlabelled last line; only `/roster`'s embed has "No type role".
 - Icons are application emojis (owned by the bot, not a server), uploaded from
   `assets/emojis/` by `deploy-emojis` and looked up by name — IDs differ between the
   dev and production apps, so never hard-code them.

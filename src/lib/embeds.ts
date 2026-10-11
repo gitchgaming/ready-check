@@ -160,14 +160,23 @@ function attendanceBar(attending: number, total: number): string {
   return appEmoji("seg_green", "🟩").repeat(green) + appEmoji("seg_red", "🟥").repeat(BAR_SEGMENTS - green);
 }
 
+/**
+ * A raider's section on the schedule: their type role, or Damage without one
+ * (the usual case for an untagged raider). `/roster` without a date still lists
+ * them under "No type role" so officers can tag them.
+ */
+function rosterType(member: GuildMember): RaidType {
+  return memberRaidType(member) ?? RAID_TYPES.at(-1)!;
+}
+
 /** Who's in and out of one raid, and per-role counts, from the current roster. */
 function raidAttendance(instance: InstanceWithAttendance, members: GuildMember[]) {
   const outIds = new Set(instance.attendance.filter((a) => a.status === "OUT").map((a) => a.userId));
   const attending = members.filter((m) => !outIds.has(m.id));
   const out = members.filter((m) => outIds.has(m.id));
   const roles = RAID_TYPES.map((type) => {
-    const rosterCount = members.filter((m) => memberRaidType(m) === type).length;
-    const inCount = attending.filter((m) => memberRaidType(m) === type).length;
+    const rosterCount = members.filter((m) => rosterType(m) === type).length;
+    const inCount = attending.filter((m) => rosterType(m) === type).length;
     return { type, inCount, rosterCount, status: roleStatus(inCount, rosterCount, type.min) };
   });
   return { attending, out, total: members.length, roles, status: raidStatus(attending.length, members.length) };
@@ -210,7 +219,7 @@ interface RosterSection {
 
 /**
  * Members grouped one line per class, in CLASSES order, skipping empty classes,
- * then a line for raiders with no class role. `rank` orders within a line, then name.
+ * then an unlabelled line for raiders with no class role. `rank` orders within a line, then name.
  */
 function classLines(members: GuildMember[], entry: (m: GuildMember) => string, rank: (m: GuildMember) => number) {
   const line = (prefix: string, group: GuildMember[]): RosterLine => ({
@@ -222,7 +231,7 @@ function classLines(members: GuildMember[], entry: (m: GuildMember) => string, r
   const lines = CLASSES.map((c) =>
     line(appEmoji(c.emoji, `**${c.label}**`), members.filter((m) => memberClass(m) === c)),
   );
-  lines.push(line("**Other**", members.filter((m) => !memberClass(m))));
+  lines.push(line("", members.filter((m) => !memberClass(m))));
   return lines.filter((l) => l.entries.length > 0);
 }
 
@@ -232,9 +241,9 @@ function sectionHeading(label: string, count: number): string {
 }
 
 /**
- * The attending roster: Tanks, Healers and Damage sections (always shown, so a
- * missing role stands out), then anyone with no type role. Damage mains show
- * their off-spec markers, which sort them first in their class.
+ * The attending roster: Tanks, Healers and Damage sections, always shown so a
+ * missing role stands out. Damage mains show their off-spec markers, which sort
+ * them first in their class.
  */
 function rosterSections(attending: GuildMember[]): RosterSection[] {
   const offSpecRank = (m: GuildMember) => {
@@ -244,41 +253,31 @@ function rosterSections(attending: GuildMember[]): RosterSection[] {
   const damageEntry = (m: GuildMember) => memberOffSpecs(m).map(offSpecMarker).join("") + chip(m.displayName);
   const nameEntry = (m: GuildMember) => chip(m.displayName);
 
-  const sections: RosterSection[] = RAID_TYPES.map((type, i) => {
-    const group = attending.filter((m) => memberRaidType(m) === type);
+  return RAID_TYPES.map((type, i) => {
+    const group = attending.filter((m) => rosterType(m) === type);
     const damage = i === RAID_TYPES.length - 1;
     return {
       heading: sectionHeading(type.label, group.length),
       lines: classLines(group, damage ? damageEntry : nameEntry, damage ? offSpecRank : () => 0),
     };
   });
-  const untyped = attending.filter((m) => !memberRaidType(m));
-  if (untyped.length > 0) {
-    sections.push({
-      heading: sectionHeading("No role", untyped.length),
-      lines: classLines(untyped, nameEntry, () => 0),
-    });
-  }
-  return sections;
 }
 
 /** Called-out raiders by class, each with their main role's marker (no off-specs). */
 function calledOutSection(out: GuildMember[]): RosterSection {
-  const typeRank = (m: GuildMember) => {
-    const type = memberRaidType(m);
-    return type ? RAID_TYPES.indexOf(type) : RAID_TYPES.length;
-  };
-  const marker = (type: RaidType | undefined) =>
-    type ? (type.marker ? appEmoji(type.marker, raidTypeIcon(type)) : raidTypeIcon(type)) : "";
+  const typeRank = (m: GuildMember) => RAID_TYPES.indexOf(rosterType(m));
+  const marker = (type: RaidType) => (type.marker ? appEmoji(type.marker, raidTypeIcon(type)) : raidTypeIcon(type));
   return {
     heading: sectionHeading("Called out", out.length),
-    lines: classLines(out, (m) => marker(memberRaidType(m)) + chip(m.displayName), typeRank),
+    lines: classLines(out, (m) => marker(rosterType(m)) + chip(m.displayName), typeRank),
   };
 }
 
 /**
  * Sections as lines: a small-text heading, then one normal-size line per class
- * (a heading alone gets " —"); small chips were too hard to read on desktop. Stops with "…and N more" before passing `budget` characters.
+ * (small chips were too hard to read on desktop); a heading alone gets " —".
+ * A blank line separates sections. Stops with "…and N more" before passing
+ * `budget` characters.
  */
 function fitSections(sections: RosterSection[], budget: number): string[] {
   const total = sections.reduce((n, s) => n + s.lines.reduce((k, l) => k + l.entries.length, 0), 0);
@@ -293,9 +292,11 @@ function fitSections(sections: RosterSection[], budget: number): string[] {
     lines.push(line);
     length += line.length + 1;
   };
-  for (const section of sections) {
+  for (const [s, section] of sections.entries()) {
     const heading = section.lines.length > 0 ? section.heading : `${section.heading} —`;
-    if (!fits(heading.length + 1)) break;
+    const gap = s > 0 ? 1 : 0; // the blank line before it
+    if (!fits(gap + heading.length + 1)) break;
+    if (gap) push("");
     push(heading);
     for (const { prefix, entries } of section.lines) {
       let line = prefix;
