@@ -263,13 +263,12 @@ function rosterSections(attending: GuildMember[]): RosterSection[] {
   });
 }
 
-/** Called-out raiders by class, each with their main role's marker (no off-specs). */
+/** Called-out raiders by class, names only (no role or off-spec markers), tanks first, then healers. */
 function calledOutSection(out: GuildMember[]): RosterSection {
   const typeRank = (m: GuildMember) => RAID_TYPES.indexOf(rosterType(m));
-  const marker = (type: RaidType) => (type.marker ? appEmoji(type.marker, raidTypeIcon(type)) : raidTypeIcon(type));
   return {
     heading: sectionHeading("Called out", out.length),
-    lines: classLines(out, (m) => marker(rosterType(m)) + chip(m.displayName), typeRank),
+    lines: classLines(out, (m) => chip(m.displayName), typeRank),
   };
 }
 

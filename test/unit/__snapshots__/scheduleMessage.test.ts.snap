@@ -185,8 +185,8 @@ exports[`snapshots > public message 1`] = `
         },
         {
           "content": "-# **CALLED OUT · 2**
-**Paladin** <:mark_healer:9003>\`Lightbringer\`
-**Mage** ⚔️\`Zap\`",
+**Paladin** \`Lightbringer\`
+**Mage** \`Zap\`",
           "type": 10,
         },
         {
@@ -330,8 +330,8 @@ exports[`snapshots > raid roster card 1`] = `
         },
         {
           "content": "-# **CALLED OUT · 2**
-**Paladin** <:mark_healer:9003>\`Lightbringer\`
-**Mage** ⚔️\`Zap\`",
+**Paladin** \`Lightbringer\`
+**Mage** \`Zap\`",
           "type": 10,
         },
       ],

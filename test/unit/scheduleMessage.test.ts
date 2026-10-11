@@ -221,7 +221,7 @@ describe("buildPublicMessage — Next Up", () => {
     expect(texts(nextUp(p))[3]).toContain("`*Star*_ˋLordˋ_`");
   });
 
-  it("moves called-out raiders into a Called Out block by class, each with their main role's marker", async () => {
+  it("moves called-out raiders into a Called Out block by class, names only, tanks then healers then damage", async () => {
     await loadAppEmojis(fakeClient({ emojis: ["warrior", "mark_tank", "mark_dps"] }));
     const out = ["u-new", "u-warr", "u-tank1", "u-mage", "u-heal1"];
     const p = buildPublicMessage(team(), weeklyRaids(1, () => ({ out })), ROSTER);
@@ -229,19 +229,18 @@ describe("buildPublicMessage — Next Up", () => {
     expect(t[3]).not.toMatch(/Tankalot|Axe|Zap|Newbie|Mendy/);
     expect(t[4]!.split("\n")).toEqual([
       "-# **CALLED OUT · 5**",
-      "<:warrior:9000> <:mark_tank:9001>`Tankalot` <:mark_dps:9002>`Axe`",
-      "**Priest** ➕`Mendy`",
-      "**Mage** <:mark_dps:9002>`Zap`",
-      "<:mark_dps:9002>`Newbie`",
+      "<:warrior:9000> `Tankalot` `Axe`",
+      "**Priest** `Mendy`",
+      "**Mage** `Zap`",
+      "`Newbie`",
     ]);
   });
 
-  it("leaves off-spec markers out of Called Out", async () => {
-    await loadAppEmojis(fakeClient({ emojis: ["mark_offtank"] }));
+  it("leaves role and off-spec markers out of Called Out", async () => {
+    await loadAppEmojis(fakeClient({ emojis: ["mark_offtank", "mark_dps"] }));
     const roster = [raider("Skarr", ["Warriors", "DPS", "Offtank"], "u-ot")];
     const t = texts(nextUp(buildPublicMessage(team(), weeklyRaids(1, () => ({ out: ["u-ot"] })), roster)));
-    expect(t.at(-1)).not.toContain("mark_offtank");
-    expect(t.find((x) => x.startsWith("-# **CALLED OUT"))).toContain("⚔️`Skarr`");
+    expect(t.find((x) => x.startsWith("-# **CALLED OUT"))).toBe("-# **CALLED OUT · 1**\n**Warrior** `Skarr`");
   });
 
   it("has no Called Out block when everyone is in", () => {
@@ -257,7 +256,7 @@ describe("buildPublicMessage — Next Up", () => {
     );
     const t = texts(nextUp(p));
     expect(t[1]).toContain("**9/10 ready**");
-    expect(t[4]).toBe("-# **CALLED OUT · 1**\n**Mage** ⚔️`Zap`");
+    expect(t[4]).toBe("-# **CALLED OUT · 1**\n**Mage** `Zap`");
     expect(t[3]).toContain("Stabby");
   });
 
