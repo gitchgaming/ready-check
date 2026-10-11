@@ -4,6 +4,7 @@ import { routeInteraction } from "./interactions/router.js";
 import { backupConfig, dailyKeys, runBackup } from "./lib/backup.js";
 import { prisma } from "./lib/db.js";
 import { loadAppEmojis } from "./lib/emojis.js";
+import { describeGuild, describeGuilds } from "./lib/guilds.js";
 import { deployLabel, lanesEnabled, readDeployInfo } from "./lib/lanes.js";
 import { readReleaseInfo, releaseLabel } from "./lib/release.js";
 import { ensureMembersCached } from "./lib/roster.js";
@@ -16,6 +17,7 @@ if (!token) {
 
 const SYNC_INTERVAL_MS = 60 * 60 * 1000; // re-check schedules hourly
 const BACKUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // back up the database daily, and on each boot
+const GUILD_LOG_INTERVAL_MS = 24 * 60 * 60 * 1000; // list the servers daily, so any week of logs has the list
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
@@ -47,6 +49,10 @@ client.on(Events.GuildMemberUpdate, (_oldMember, newMember) => scheduleMemberRef
 client.on(Events.GuildMemberAdd, (member) => scheduleMemberRefresh(member.guild.id));
 client.on(Events.GuildMemberRemove, (member) => scheduleMemberRefresh(member.guild.id));
 
+// A weekly check of the production logs looks for these (docs/releasing.md → Servers the bot is in).
+client.on(Events.GuildCreate, (guild) => console.log(`Joined server ${describeGuild(guild)}`));
+client.on(Events.GuildDelete, (guild) => console.log(`Left server "${guild.name}" (${guild.id})`));
+
 client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Logged in as ${readyClient.user.tag}`);
   // On staging, show which lane is live, e.g. "🧪 my-branch @ 1a2b3c4";
@@ -70,6 +76,9 @@ client.once(Events.ClientReady, async (readyClient) => {
   setInterval(() => {
     syncAllRaidTeams(readyClient).catch((err) => console.error("Scheduled raid sync failed:", err));
   }, SYNC_INTERVAL_MS);
+  const logGuilds = () => console.log(describeGuilds(readyClient.guilds.cache.values()));
+  logGuilds();
+  setInterval(logGuilds, GUILD_LOG_INTERVAL_MS);
   startBackups();
 });
 

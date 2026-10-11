@@ -258,6 +258,15 @@ Volume paths are relative to the volume (`/prod.db.restore` lands at
 `/data/prod.db.restore`). The bot keeps the old file open until the restart,
 so anything written between the `mv` and the restart is lost.
 
+## Servers the bot is in
+
+Anyone with the production bot's invite link can add it to their server. The
+bot logs its server list at boot and daily (`Servers (N):`, one line per
+server with its member count and join date), and a line whenever it joins or
+leaves one (`Joined server …`, `Left server …`). A weekly Claude Code routine
+reads production's logs with `railway logs -s ready-check` and reports any
+server that joined in the last week.
+
 ## GitHub and Railway settings
 
 Set these once in the web UIs (they aren't stored in the repo):
