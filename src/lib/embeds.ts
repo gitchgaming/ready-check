@@ -444,7 +444,7 @@ function comingUpContainer(team: RaidTeam, later: InstanceWithAttendance[], memb
     .filter((instance) => !instance.cancelled)
     .map((instance) => ({
       label: `Roster · ${raidDate(instance, team.timezone).toFormat("ccc, LLL d · h:mm a")}`,
-      description: "Privately see who's in and out for this raid",
+      description: "See who's in and out for this raid",
       value: `${ROSTER_VALUE_PREFIX}${instance.id}`,
       emoji: "ℹ️",
     }));
@@ -457,7 +457,7 @@ function comingUpContainer(team: RaidTeam, later: InstanceWithAttendance[], memb
         .addOptions(
           {
             label: "See more dates",
-            description: "Privately see your full schedule and call out further ahead",
+            description: "See your full schedule and call out further ahead",
             value: MORE_DATES_VALUE,
             emoji: "📅",
           },

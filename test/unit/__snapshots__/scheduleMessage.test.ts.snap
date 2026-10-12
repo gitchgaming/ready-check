@@ -258,7 +258,7 @@ exports[`snapshots > public message 1`] = `
               "custom_id": "attendance:pub:c00000000000000000000team",
               "options": [
                 {
-                  "description": "Privately see your full schedule and call out further ahead",
+                  "description": "See your full schedule and call out further ahead",
                   "emoji": {
                     "animated": false,
                     "id": undefined,
@@ -268,7 +268,7 @@ exports[`snapshots > public message 1`] = `
                   "value": "more",
                 },
                 {
-                  "description": "Privately see who's in and out for this raid",
+                  "description": "See who's in and out for this raid",
                   "emoji": {
                     "animated": false,
                     "id": undefined,
@@ -278,7 +278,7 @@ exports[`snapshots > public message 1`] = `
                   "value": "roster:c0000000000000000000raid1",
                 },
                 {
-                  "description": "Privately see who's in and out for this raid",
+                  "description": "See who's in and out for this raid",
                   "emoji": {
                     "animated": false,
                     "id": undefined,
