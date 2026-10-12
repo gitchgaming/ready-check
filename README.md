@@ -33,15 +33,15 @@ All dates are picked from a list of your team's actual raids.
 - `/roster [date:] [team:]` — read-only, only you see it. With a date: that raid's
   card, like the schedule's Next Up (attendance bar, role counts, everyone
   attending in Tanks / Healers / Damage sections, who's called out), without a
-  Status button. Without a date: the team's whole roster in the same sections,
-  plus a **No type role** section for raiders who still need one. The optional
+  Status button. Without a date: the team's whole roster, laid out like Next Up's
+  (role counts, then Tanks / Healers / Damage sections). The optional
   `team:` picker is only needed if you're on more than one raid team (or are an
   officer viewing another team); it also narrows the date picker. Types and classes come from roles named
   `Tanks`, `Healers`, `Damage` (or `DPS`, `Wizards`/`Wizard`, `Phys`/`Physical`),
   and `Warriors`, `Mages`, etc.; a raider with several type roles counts once,
   as Tank, then Healer, then Damage. `Offtank` and `Offheals` mark a damage
   main's off-spec (a raider with only one of those counts as Damage). On the
-  schedule, a raider with no type role counts as Damage, and one with no class
+  schedule and in `/roster`, a raider with no type role counts as Damage, and one with no class
   role is listed at the end of their section without an icon.
 
 ## Officer commands (`/raidlead`)

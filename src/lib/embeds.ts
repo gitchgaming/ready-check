@@ -164,9 +164,8 @@ function attendanceBar(attending: number, total: number): string {
 }
 
 /**
- * A raider's section on the schedule: their type role, or Damage without one
- * (the usual case for an untagged raider). `/roster` without a date still lists
- * them under "No type role" so officers can tag them.
+ * A raider's section on the schedule and in /roster: their type role, or Damage
+ * without one (the usual case for an untagged raider).
  */
 function rosterType(member: GuildMember): RaidType {
   return memberRaidType(member) ?? RAID_TYPES.at(-1)!;
@@ -501,10 +500,8 @@ export function buildRaidRosterCard(team: RaidTeam, instance: InstanceWithAttend
 }
 
 /**
- * A team's whole roster (the /roster view without a date), in the raid card's
- * style: role counts, then everyone in Tanks, Healers and Damage sections. Unlike
- * the raid card, raiders with no type role get their own section at the end, so
- * officers can see who still needs one.
+ * A team's whole roster (the /roster view without a date): role counts, then
+ * everyone in the same Tanks, Healers and Damage sections as Next Up.
  */
 export function buildTeamRosterCard(teamName: string, members: GuildMember[]) {
   const header = text(
@@ -515,25 +512,15 @@ export function buildTeamRosterCard(teamName: string, members: GuildMember[]) {
   if (members.length === 0) {
     card.addTextDisplayComponents(text("-# No one has this role yet."));
   } else {
-    const typed = members.filter((m) => memberRaidType(m));
-    const untyped = members.filter((m) => !memberRaidType(m));
     const counts = RAID_TYPES.map(
-      (type) => `${raidTypeIcon(type)} **${typed.filter((m) => rosterType(m) === type).length}**`,
+      (type) => `${raidTypeIcon(type)} **${members.filter((m) => rosterType(m) === type).length}**`,
     ).join("\u2003");
     const summary = text(counts + offSpecKey(members, members));
-
-    const sections = rosterSections(typed);
-    if (untyped.length > 0) {
-      sections.push({
-        heading: sectionHeading("No type role", untyped.length),
-        lines: classLines(untyped, (m) => chip(m.displayName), () => 0),
-      });
-    }
     const fixedText = [header, summary].reduce((n, t) => n + (t.data.content?.length ?? 0), 0);
     card
       .addTextDisplayComponents(summary)
       .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-      .addTextDisplayComponents(text(fitSections(sections, MAX_MESSAGE_TEXT - fixedText).join("\n")));
+      .addTextDisplayComponents(text(fitSections(rosterSections(members), MAX_MESSAGE_TEXT - fixedText).join("\n")));
   }
 
   return { flags: V2_FLAGS, components: [card], allowedMentions: NO_PINGS };

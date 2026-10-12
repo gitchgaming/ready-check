@@ -443,26 +443,23 @@ describe("buildTeamRosterCard", () => {
   it("heads the card with the team and roster size, then counts each role", () => {
     const [header, summary] = texts(containers(card())[0]);
     expect(header).toBe("-# **MAIN RAID · ROSTER**\n## 10 raiders");
-    expect(summary).toBe("🛡️ **2**\u2003➕ **3**\u2003⚔️ **4**");
+    expect(summary).toBe("🛡️ **2**\u2003➕ **3**\u2003⚔️ **5**");
     expect(texts(containers(card([ROSTER[0]!]))[0])[0]).toContain("## 1 raider");
   });
 
-  it("lists everyone once, in raid card sections, with No type role last", () => {
+  it("lists everyone once in Next Up's sections, with untyped raiders under Damage", () => {
     const roster = texts(containers(card())[0]).at(-1)!;
     expect(roster.split("\n").filter((l) => l.startsWith("-# **"))).toEqual([
       "-# **TANKS · 2**",
       "-# **HEALERS · 3**",
-      "-# **DAMAGE · 4**",
-      "-# **NO TYPE ROLE · 1**",
+      "-# **DAMAGE · 5**",
     ]);
     for (const m of ROSTER) expect(roster.split(`\`${m.displayName}\``)).toHaveLength(2);
-    expect(roster.endsWith("`Newbie`")).toBe(true);
   });
 
-  it("matches the raid card's sections when everyone's attending and has a type role", () => {
-    const typed = ROSTER.filter((m) => m.displayName !== "Newbie");
-    const raidCard = texts(containers(buildRaidRosterCard(team(), weeklyRaids(1)[0]!, typed))[0]);
-    expect(texts(containers(card(typed))[0]).at(-1)).toBe(raidCard.at(-1));
+  it("is Next Up's roster when everyone's attending", () => {
+    const nextUpTexts = texts(nextUp(buildPublicMessage(team(), weeklyRaids(1), ROSTER)));
+    expect(texts(containers(card())[0]).at(-1)).toBe(nextUpTexts.at(-2));
   });
 
   it("shows off-spec markers and the off-spec key", () => {

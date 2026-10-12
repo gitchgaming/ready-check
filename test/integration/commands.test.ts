@@ -127,7 +127,7 @@ describe("/roster", () => {
     expect(text).toContain("MAIN RAID · ROSTER");
     expect(text).toContain("## 2 raiders");
     expect(text).toContain("TANKS · 1");
-    expect(text).toContain("NO TYPE ROLE · 1");
+    expect(text).toContain("DAMAGE · 1");
     expect(flattenComponents(reply).some((c) => c.custom_id)).toBe(false);
   });
 
