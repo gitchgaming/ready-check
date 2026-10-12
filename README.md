@@ -36,7 +36,8 @@ All dates are picked from a list of your team's actual raids.
   counts), plus whether you're in and who's called out, with a **Roster**
   button that privately shows that raid's roster card (as `/roster` with that
   date does). Its date menu lists every upcoming raid with your own status
-  (✅ in / ❌ called out), so you can toggle any date without paging. Only you
+  (✅ in / ❌ called out), so you can toggle any date without paging; the
+  view then shows the same ✅/❌ confirmation on top (pick it again to undo). Only you
   see it, so paging it doesn't affect anyone else. The schedule message's
   **See more dates** opens the same view. The optional `team:` picker is only
   needed if you're on more than one raid team, or are an officer viewing
@@ -98,7 +99,8 @@ Every subcommand takes the team's `role:` first.
 
 - Clicking a **Status ⇄** button toggles you for that raid and privately
   confirms it (✅ back in / ❌ out, with the raid's date and time), in the same
-  words as `/attendance`. Click it again to undo.
+  words as `/attendance`. Click it again to undo. Every attendance change, from
+  any button, menu or command, gets this private confirmation.
 - Every view is labelled with the team's name (or its role's name, for a team
   created without one).
 - The schedule message shows the next raid, then `coming-up` more raids

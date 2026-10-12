@@ -75,7 +75,9 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   role's name), as a small-caps "TEAM · LABEL" line (NEXT UP, SCHEDULE,
   ROSTER, YOUR SCHEDULE, YOUR ATTENDANCE); never a hard-coded "Raid".
   Confirmations use one wording everywhere: "❌ You're out for **<date>**." /
-  "✅ You're back in for **<date>**.", the date as `formatRaidLabel`.
+  "✅ You're back in for **<date>**.", the date as `formatRaidLabel`, and every
+  change a raider makes gets one privately (Status reply, `/attendance`'s and
+  `/schedule`'s notice on top of the view) so a misclick is easy to undo.
 - Discord can't personalize a shared message, so the public schedule message
   never pages or shows per-viewer state. Personal views (`/schedule`) are
   ephemeral and carry their state in customIds. The public message has one

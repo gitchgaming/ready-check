@@ -200,7 +200,7 @@ describe("personal schedule Roster button", () => {
 });
 
 describe("personal schedule select", () => {
-  it("toggles the picked raid and updates the personal view in place, keeping its offset", async () => {
+  it("toggles the picked raid and updates the personal view in place, keeping its offset, with a confirmation on top", async () => {
     const { team, raid, client, base, renders } = await setup();
     const pick = fakeSelect(`attendance:cal:${team.id}:-3`, [raid.id], base);
     await handleAttendanceControl(pick, client);
@@ -209,6 +209,7 @@ describe("personal schedule select", () => {
     expect(pick.updates).toHaveLength(1);
     const options = flattenComponents(pick.updates[0]).find((c) => c.custom_id === `attendance:cal:${team.id}:-3`).options;
     expect(options[0]).toMatchObject({ value: raid.id, emoji: { name: "❌" } });
+    expect(payloadText(pick.updates[0] as any).startsWith("❌ You're out for **Tue, Oct 6 · 8:00 PM**. Pick it again to undo.")).toBe(true);
     expect(await isOut(raid.id)).toBe(true);
     // The public counts change too.
     expect(renders()).toBe(1);
@@ -216,6 +217,7 @@ describe("personal schedule select", () => {
     const back = fakeSelect(`attendance:cal:${team.id}:-3`, [raid.id], base);
     await handleAttendanceControl(back, client);
     expect(await isOut(raid.id)).toBe(false);
+    expect(payloadText(back.updates[0] as any).startsWith("✅ You're back in for **Tue, Oct 6 · 8:00 PM**. Pick it again to undo.")).toBe(true);
     expect(flattenComponents(back.updates[0]).find((c) => c.custom_id?.startsWith("attendance:cal:")).options[0].emoji.name).toBe("✅");
   });
 

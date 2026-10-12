@@ -559,7 +559,8 @@ function calendarDay(
  * the select lists every open raid with the viewer's own status, so any date is
  * one pick away without paging. Each raid but a cancelled one has a Roster button
  * that privately opens its roster card. Someone not on the roster (an officer looking at
- * another team) gets the card without the select.
+ * another team) gets the card without the select. `notice` (what a pick just
+ * changed, in /attendance's words) goes on top.
  */
 export function buildCalendarMessage(
   team: RaidTeam,
@@ -570,6 +571,7 @@ export function buildCalendarMessage(
   members: GuildMember[],
   openInstances: InstanceWithAttendance[],
   viewerId: string,
+  notice?: string,
 ) {
   const viewer = members.find((m) => m.id === viewerId);
   const dates = viewer ? selectableInstances(openInstances) : [];
@@ -638,7 +640,7 @@ export function buildCalendarMessage(
     ),
   );
 
-  return { flags: V2_FLAGS, components: [container], allowedMentions: NO_PINGS };
+  return { flags: V2_FLAGS, components: [...(notice ? [text(notice)] : []), container], allowedMentions: NO_PINGS };
 }
 
 /** Switches the viewer back in for one raid from /attendance, then redraws it. */

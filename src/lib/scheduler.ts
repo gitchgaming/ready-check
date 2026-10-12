@@ -139,8 +139,11 @@ export async function instancesForWindow(teamId: string, offset: number): Promis
   };
 }
 
-/** Builds one viewer's personal schedule: the paged window plus every open raid for the select. */
-export async function personalCalendar(team: RaidTeam, guild: Guild, offset: number, viewerId: string) {
+/**
+ * Builds one viewer's personal schedule: the paged window plus every open raid for
+ * the select. `notice` goes on top.
+ */
+export async function personalCalendar(team: RaidTeam, guild: Guild, offset: number, viewerId: string, notice?: string) {
   const [{ instances, canEarlier, canLater }, openInstances, members] = await Promise.all([
     instancesForWindow(team.id, offset),
     nextOpenInstances(team.id, MAX_SELECT_OPTIONS),
@@ -155,6 +158,7 @@ export async function personalCalendar(team: RaidTeam, guild: Guild, offset: num
     members,
     openInstances,
     viewerId,
+    notice,
   );
 }
 

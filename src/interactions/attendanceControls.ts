@@ -111,18 +111,19 @@ async function applySelection(
     });
   }
 
+  // The same words as /attendance's confirmation, with how to undo it.
+  const dateLabel = formatRaidLabel(instance.startsAt, instance.raidTeam.timezone);
+  const confirmation = currentlyOut ? `✅ You're back in for **${dateLabel}**.` : `❌ You're out for **${dateLabel}**.`;
+
   if (source === "cal") {
-    await interaction.update(await personalCalendar(instance.raidTeam, guild, offset, interaction.user.id));
+    const notice = `${confirmation} Pick it again to undo.`;
+    await interaction.update(await personalCalendar(instance.raidTeam, guild, offset, interaction.user.id, notice));
     await renderTeamMessage(client, instance.raidTeamId);
     return;
   }
 
-  // The same words as /attendance's confirmation.
-  const dateLabel = formatRaidLabel(instance.startsAt, instance.raidTeam.timezone);
   await interaction.reply({
-    content: currentlyOut
-      ? `✅ You're back in for **${dateLabel}**.`
-      : `❌ You're out for **${dateLabel}**. Click **Status** again to undo.`,
+    content: currentlyOut ? confirmation : `${confirmation} Click **Status** again to undo.`,
     flags: MessageFlags.Ephemeral,
   });
 }
