@@ -342,7 +342,7 @@ function textLength(component: { toJSON(): unknown }): number {
 }
 
 /** The text beside the Next Up Status button. */
-const STATUS_NOTE = "-# Can't make it, or back in? **Status** switches you between in and out.";
+const STATUS_NOTE = "-# Can't make it, or back in? **Status** toggles your attendance.";
 
 function statusButton(team: RaidTeam, instance: InstanceWithAttendance) {
   return new ButtonBuilder()

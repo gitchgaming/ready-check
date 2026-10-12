@@ -199,7 +199,7 @@ exports[`snapshots > public message 1`] = `
           },
           "components": [
             {
-              "content": "-# Can't make it, or back in? **Status** switches you between in and out.",
+              "content": "-# Can't make it, or back in? **Status** toggles your attendance.",
               "type": 10,
             },
           ],

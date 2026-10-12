@@ -266,7 +266,7 @@ describe("buildPublicMessage — Next Up", () => {
     const card = nextUp(buildPublicMessage(team(), [first!], ROSTER));
     const last = card.components.at(-1);
     expect(last.type).toBe(ComponentType.Section);
-    expect(last.components[0].content).toContain("**Status** switches you between in and out");
+    expect(last.components[0].content).toContain("**Status** toggles your attendance");
     expect(last.accessory).toEqual({
       type: ComponentType.Button,
       custom_id: `attendance:btn:${TEAM_ID}:${first!.id}`,
