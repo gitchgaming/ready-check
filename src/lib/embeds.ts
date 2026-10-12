@@ -501,6 +501,45 @@ export function buildRaidRosterCard(team: RaidTeam, instance: InstanceWithAttend
 }
 
 /**
+ * A team's whole roster (the /roster view without a date), in the raid card's
+ * style: role counts, then everyone in Tanks, Healers and Damage sections. Unlike
+ * the raid card, raiders with no type role get their own section at the end, so
+ * officers can see who still needs one.
+ */
+export function buildTeamRosterCard(teamName: string, members: GuildMember[]) {
+  const header = text(
+    `-# **${teamName.toUpperCase()} · ROSTER**\n## ${members.length} ${members.length === 1 ? "raider" : "raiders"}`,
+  );
+  const card = new ContainerBuilder().setAccentColor(0x5865f2).addTextDisplayComponents(header);
+
+  if (members.length === 0) {
+    card.addTextDisplayComponents(text("-# No one has this role yet."));
+  } else {
+    const typed = members.filter((m) => memberRaidType(m));
+    const untyped = members.filter((m) => !memberRaidType(m));
+    const counts = RAID_TYPES.map(
+      (type) => `${raidTypeIcon(type)} **${typed.filter((m) => rosterType(m) === type).length}**`,
+    ).join("\u2003");
+    const summary = text(counts + offSpecKey(members, members));
+
+    const sections = rosterSections(typed);
+    if (untyped.length > 0) {
+      sections.push({
+        heading: sectionHeading("No type role", untyped.length),
+        lines: classLines(untyped, (m) => chip(m.displayName), () => 0),
+      });
+    }
+    const fixedText = [header, summary].reduce((n, t) => n + (t.data.content?.length ?? 0), 0);
+    card
+      .addTextDisplayComponents(summary)
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+      .addTextDisplayComponents(text(fitSections(sections, MAX_MESSAGE_TEXT - fixedText).join("\n")));
+  }
+
+  return { flags: V2_FLAGS, components: [card], allowedMentions: NO_PINGS };
+}
+
+/**
  * The personal, ephemeral schedule. The card pages PAGE_SIZE raids at a time
  * (state in the customIds); the select lists every open raid with the viewer's
  * own status, so any date is one pick away without paging.

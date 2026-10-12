@@ -15,6 +15,7 @@ import {
   buildCalendarMessage,
   buildPublicMessage,
   buildRaidRosterCard,
+  buildTeamRosterCard,
 } from "../../src/lib/embeds.js";
 import { CLASSES, OFF_SPECS, RAID_TYPES, offSpecMarker, raidTypeIcon } from "../../src/lib/classes.js";
 import { EMOJI_DIR, appEmoji, loadAppEmojis, versionedEmojiName } from "../../src/lib/emojis.js";
@@ -246,6 +247,26 @@ describe("public message at its worst case", () => {
       const members = worstRoster(size);
       const p = buildRaidRosterCard(team(), worstRaids(1, members, share)[0]!, members);
       expect(textLength(p), `${size} raiders`).toBeLessThanOrEqual(MAX_TEXT);
+    }
+  });
+
+  it("the whole-roster card shows a 40-raider team in full", () => {
+    // Worst-case markup, but 16-character names: 32-character names everywhere cut off a few.
+    const members = worstRoster(40).map((m, i) =>
+      raider(`Raider${String(i).padStart(2, "0")}`.padEnd(16, "x"), [...m.roles.cache.values()].map((r) => r.name), m.id),
+    );
+    const text = flattenComponents(buildTeamRosterCard("Main Raid", members))
+      .map((c) => c.content ?? "")
+      .join("\n");
+    expect(text).not.toContain("more");
+    for (const m of members) expect(text).toContain(`\`${m.displayName}\``);
+  });
+
+  it("the whole-roster card stays within the limits at any roster size", () => {
+    for (let size = 0; size <= 300; size += 7) {
+      const p = buildTeamRosterCard("x".repeat(100), worstRoster(size));
+      expect(textLength(p), `${size} raiders`).toBeLessThanOrEqual(MAX_TEXT);
+      expect(componentCount(p)).toBeLessThanOrEqual(MAX_COMPONENTS);
     }
   });
 
