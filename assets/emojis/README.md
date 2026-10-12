@@ -47,3 +47,10 @@ role icons at 65% with transparent padding so they sit smaller than the names
 they mark. Off-spec markers, beside damage mains in the roster: `mark_offtank`
 and `mark_offheal`, outlines of the shield (`#7FA9D4`) and plus (`#A895E0`)
 with no fill. Fallbacks: the type's icon, and 🛡️ ➕.
+
+A raider's own status, on "You're in" / "You're out" lines and confirmations:
+`mark_in` (a white check on a green rounded square, the status green
+`#3BA55C`, edge `#2D7D46`) and `mark_out` (a red X, the status red `#ED4245`,
+edge `#A12D2F`), at about 65% with padding like the role markers, so they sit
+no bigger than the role icons beside them. Fallbacks: ✅ ❌ (select options and
+autocomplete keep these, since they can't show custom emojis at this size).

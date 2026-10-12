@@ -7,6 +7,7 @@ import {
   asEphemeral,
   buildAttendanceMessage,
   confirmation,
+  statusMark,
   type Notice,
 } from "./embeds.js";
 import { MAX_CHOICES, NO_CHOICE, formatRaidLabel, respondFiltered, teamDisplayName, teamsForMember } from "./pickers.js";
@@ -224,8 +225,8 @@ export async function setAttendance(
   await interaction.reply({
     content:
       status === "OUT"
-        ? `❌ Marked ${who} as called out for ${dateLabel}.`
-        : `✅ Marked ${who} as attending ${dateLabel}.`,
+        ? `${statusMark(true)} Marked ${who} as called out for ${dateLabel}.`
+        : `${statusMark(false)} Marked ${who} as attending ${dateLabel}.`,
     flags: MessageFlags.Ephemeral,
   });
 }

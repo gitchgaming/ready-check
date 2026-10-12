@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { appEmoji, emojiBaseName, loadAppEmojis, planEmojiSync, versionedEmojiName } from "../../src/lib/emojis.js";
+import { confirmation, statusMark } from "../../src/lib/embeds.js";
 import { fakeClient } from "../discord.js";
 
 beforeEach(async () => {
@@ -22,6 +23,18 @@ describe("appEmoji", () => {
   it("matches names exactly", async () => {
     await loadAppEmojis(fakeClient({ emojis: ["warrior"] }));
     expect(appEmoji("Warrior", "x")).toBe("x");
+  });
+});
+
+describe("statusMark", () => {
+  it("uses the small check and X once loaded, else ✅ and ❌", async () => {
+    expect(statusMark(false)).toBe("✅");
+    expect(statusMark(true)).toBe("❌");
+    await loadAppEmojis(fakeClient({ emojis: ["mark_in", "mark_out"] }));
+    expect(statusMark(false)).toBe("<:mark_in:9000>");
+    expect(statusMark(true)).toBe("<:mark_out:9001>");
+    const notice = confirmation(true, "Wed, Oct 14", "t1", "r1", "s");
+    expect(typeof notice === "string" ? notice : notice.text).toBe("<:mark_out:9001> You're out for **Wed, Oct 14**.");
   });
 });
 
