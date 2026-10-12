@@ -6,8 +6,8 @@ Each raid team is a Discord role. Everyone with the role is assumed to be
 attending every raid unless they call out. The bot keeps one auto-updating
 schedule message per team: the next raid up top with its full roster, then
 the following raids, each with a **Status ⇄** button to toggle your own
-call-out. Its **See more dates** menu opens your full schedule privately, for
-calling out further ahead.
+call-out. Its menu opens your full schedule privately, for calling out further
+ahead (**See more dates**), or privately shows any Coming Up raid's roster.
 
 ## Who can do what
 

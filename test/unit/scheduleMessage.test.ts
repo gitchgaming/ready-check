@@ -4,6 +4,7 @@ import {
   MAX_PUBLIC_DAYS,
   MAX_SELECT_OPTIONS,
   MORE_DATES_VALUE,
+  ROSTER_VALUE_PREFIX,
   asEphemeral,
   buildCalendarMessage,
   buildPublicMessage,
@@ -265,7 +266,7 @@ describe("buildPublicMessage — Next Up", () => {
     const card = nextUp(buildPublicMessage(team(), [first!], ROSTER));
     const last = card.components.at(-1);
     expect(last.type).toBe(ComponentType.Section);
-    expect(last.components[0].content).toContain("**Status** switches you between in and out");
+    expect(last.components[0].content).toContain("**Status** toggles your attendance");
     expect(last.accessory).toEqual({
       type: ComponentType.Button,
       custom_id: `attendance:btn:${TEAM_ID}:${first!.id}`,
@@ -374,14 +375,28 @@ describe("buildPublicMessage — Coming Up", () => {
     expect(buttons(p).map((b) => b.custom_id.split(":")[3])).toEqual([raids[0]!.id, raids[2]!.id]);
   });
 
-  it("ends with the See more dates select, whose only option opens the personal view", () => {
-    const comingUp = containers(buildPublicMessage(team(), weeklyRaids(3), ROSTER))[1];
+  it("ends with the select: See more dates, then a roster shortcut per Coming Up raid", () => {
+    const raids = weeklyRaids(4, (i) => ({ cancelled: i === 2 }));
+    const comingUp = containers(buildPublicMessage(team(), raids, ROSTER))[1];
     const row = comingUp.components.at(-1);
     expect(row.type).toBe(ComponentType.ActionRow);
     const [select] = row.components;
     expect(select.custom_id).toBe(`attendance:pub:${TEAM_ID}`);
-    expect(select.options).toHaveLength(1);
+    expect(select.placeholder).toBe("📅 See more dates or a roster…");
     expect(select.options[0]).toMatchObject({ label: "See more dates", value: MORE_DATES_VALUE });
+    // Not Next Up (its roster is already on show) nor the cancelled raid.
+    expect(select.options.slice(1).map((o: any) => o.value)).toEqual([
+      `${ROSTER_VALUE_PREFIX}${raids[1]!.id}`,
+      `${ROSTER_VALUE_PREFIX}${raids[3]!.id}`,
+    ]);
+    expect(select.options[1]).toMatchObject({ label: "Roster · Wed, Oct 14 · 8:00 PM", emoji: { name: "ℹ️" } });
+  });
+
+  it("with no Coming Up raids, the select only opens the personal view", () => {
+    const comingUp = containers(buildPublicMessage(team(), weeklyRaids(1), ROSTER))[1];
+    const [select] = comingUp.components.at(-1).components;
+    expect(select.placeholder).toBe("📅 See more dates…");
+    expect(select.options).toHaveLength(1);
   });
 
   it("with only one raid, Coming Up holds just the select", () => {

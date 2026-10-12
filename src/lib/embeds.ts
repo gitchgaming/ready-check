@@ -42,6 +42,9 @@ export const MAX_SELECT_OPTIONS = 25;
 /** Select value on the public message that opens the personal full schedule. */
 export const MORE_DATES_VALUE = "more";
 
+/** Select values on the public message that privately show one raid's roster: "roster:<raidId>". */
+export const ROSTER_VALUE_PREFIX = "roster:";
+
 /**
  * Discord caps a Components V2 message at 40 components, nested ones included.
  * The public message's Next Up container costs up to 10 (container, 5 text
@@ -339,7 +342,7 @@ function textLength(component: { toJSON(): unknown }): number {
 }
 
 /** The text beside the Next Up Status button. */
-const STATUS_NOTE = "-# Can't make it, or back in? **Status** switches you between in and out.";
+const STATUS_NOTE = "-# Can't make it, or back in? **Status** toggles your attendance.";
 
 function statusButton(team: RaidTeam, instance: InstanceWithAttendance) {
   return new ButtonBuilder()
@@ -409,7 +412,11 @@ function raidCard(
     );
 }
 
-/** Coming Up: each later raid on one line with its role counts, plus the "See more dates" select. */
+/**
+ * Coming Up: each later raid on one line with its role counts, plus the select that
+ * opens the personal schedule or privately shows one Coming Up raid's roster. A
+ * section takes only one button, so the roster shortcuts live in the select.
+ */
 function comingUpContainer(team: RaidTeam, later: InstanceWithAttendance[], members: GuildMember[]) {
   const container = new ContainerBuilder();
   if (later.length > 0) container.addTextDisplayComponents(text("-# **COMING UP**"));
@@ -433,17 +440,29 @@ function comingUpContainer(team: RaidTeam, later: InstanceWithAttendance[], memb
     );
   }
 
+  const rosterOptions = later
+    .filter((instance) => !instance.cancelled)
+    .map((instance) => ({
+      label: `Roster · ${raidDate(instance, team.timezone).toFormat("ccc, LLL d · h:mm a")}`,
+      description: "See who's in and out for this raid",
+      value: `${ROSTER_VALUE_PREFIX}${instance.id}`,
+      emoji: "ℹ️",
+    }));
+
   return container.addActionRowComponents(
     selectRow(
       new StringSelectMenuBuilder()
         .setCustomId(`attendance:pub:${team.id}`)
-        .setPlaceholder("📅 See more dates…")
-        .addOptions({
-          label: "See more dates",
-          description: "Privately see your full schedule and call out further ahead",
-          value: MORE_DATES_VALUE,
-          emoji: "📅",
-        }),
+        .setPlaceholder(rosterOptions.length > 0 ? "📅 See more dates or a roster…" : "📅 See more dates…")
+        .addOptions(
+          {
+            label: "See more dates",
+            description: "See your full schedule and call out further ahead",
+            value: MORE_DATES_VALUE,
+            emoji: "📅",
+          },
+          ...rosterOptions,
+        ),
     ),
   );
 }
