@@ -42,6 +42,7 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   `attendance:pub:<teamId>` (public "See more dates" select, value `more`, or
   `roster:<raidId>` for a Coming Up raid's private roster card),
   `attendance:cal:<teamId>:<offset>` (personal date select, value is a raid id),
+  `attendance:ros:<teamId>:<raidId>` (personal view's per-day Roster button),
   `mynav:<dir>:<teamId>:<offset>`,
   `teamdelete:<confirm|abort>:<teamId>`.
 - `src/lib/` — `scheduler.ts` (instance generation, hourly sync, schedule
@@ -62,6 +63,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - Officers = guild owner or anyone with Manage Events. `/raidlead` uses that as
   its default member permission so Discord hides it from raiders; handlers and
   buttons re-check with `isOfficer` because admins can override visibility.
+  Officers can view every team (`viewableTeams`, oldest first, their own
+  teams first, so `/schedule` and `/roster` default to a team they're on).
 - Raider commands take only a date. The team comes from the user's roles.
 - Discord can't personalize a shared message, so the public schedule message
   never pages or shows per-viewer state. Personal views (`/schedule`) are
@@ -87,8 +90,12 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   normal-size line per class with names as inline-code chips), Called Out block, one Status ⇄ button on its own line;
   accent = raid status) and
   **Coming Up** (one section per later raid with its own button, then the
-  "See more dates" select). The personal view is one container, days between
-  dividers. V2 caps a message at 40 components and 4,000 text characters, so
+  "See more dates" select). The personal view (`buildCalendarMessage`) is one
+  container under a small-caps "TEAM · YOUR SCHEDULE" label, days between
+  dividers: each day is Coming Up's line (`raidLine`) plus the viewer's own
+  status and called-out chips, with a Roster button beside it (cancelled days
+  are text only). Someone not on the roster gets it view-only, without the
+  select. V2 caps a message at 40 components and 4,000 text characters, so
   at most `MAX_PUBLIC_DAYS` = 9 raids show: Next Up plus `displayCount` (the
   `coming-up` option, default 3, max `MAX_COMING_UP` = 8) — and class lines
   truncate with "…and N more". V2 text pings mentions, so these messages always

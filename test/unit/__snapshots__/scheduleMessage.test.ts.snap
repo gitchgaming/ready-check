@@ -10,59 +10,91 @@ exports[`snapshots > personal schedule 1`] = `
       "accent_color": 5793266,
       "components": [
         {
-          "content": "## Main Raid — schedule
-Pick any date below to call out or switch back.",
+          "content": "-# **MAIN RAID · YOUR SCHEDULE**
+-# Pick a date below to call out or switch back in.",
           "type": 10,
         },
         {
           "divider": true,
-          "spacing": 2,
+          "spacing": 1,
           "type": 14,
         },
         {
-          "content": "**<t:1790816400:D>**
-<t:1790816400:t> · <t:1790816400:R>",
-          "type": 10,
-        },
-        {
-          "content": "🟡 **9 of 10 attending**
-❌ <@u-tank1>",
-          "type": 10,
+          "accessory": {
+            "custom_id": "attendance:ros:c00000000000000000000team:c0000000000000000000past0",
+            "emoji": undefined,
+            "label": "Roster",
+            "style": 2,
+            "type": 2,
+          },
+          "components": [
+            {
+              "content": "🟡 **Wed, Sep 30** 8:00 PM · 9/10
+-# ⠀ 🛡️ 1/2 ➕ 3/3 ⚔️ 5/5
+-# ⠀ ❌ You were out",
+              "type": 10,
+            },
+          ],
+          "type": 9,
         },
         {
           "divider": true,
-          "spacing": 2,
+          "spacing": 1,
           "type": 14,
         },
         {
-          "content": "**<t:1791421200:D>**
-<t:1791421200:t> · <t:1791421200:R>",
-          "type": 10,
-        },
-        {
-          "content": "🟡 **8 of 10 attending**
-❌ <@u-mage>
-❌ <@u-heal2>",
-          "type": 10,
+          "accessory": {
+            "custom_id": "attendance:ros:c00000000000000000000team:c0000000000000000000raid0",
+            "emoji": undefined,
+            "label": "Roster",
+            "style": 2,
+            "type": 2,
+          },
+          "components": [
+            {
+              "content": "🟡 **Wed, Oct 7** 8:00 PM · 8/10
+-# ⠀ 🛡️ 2/2 ➕ 2/3 ⚔️ 4/5
+-# ⠀ ✅ You're in · Called out: \`Lightbringer\` \`Zap\`",
+              "type": 10,
+            },
+          ],
+          "type": 9,
         },
         {
           "divider": true,
-          "spacing": 2,
+          "spacing": 1,
           "type": 14,
         },
         {
-          "content": "**<t:1792026000:D>**
-<t:1792026000:t> · <t:1792026000:R>",
-          "type": 10,
+          "accessory": {
+            "custom_id": "attendance:ros:c00000000000000000000team:c0000000000000000000raid1",
+            "emoji": undefined,
+            "label": "Roster",
+            "style": 2,
+            "type": 2,
+          },
+          "components": [
+            {
+              "content": "🟡 **Wed, Oct 14** 8:00 PM · 9/10
+-# ⠀ 🛡️ 1/2 ➕ 3/3 ⚔️ 5/5
+-# ⠀ ❌ You're out",
+              "type": 10,
+            },
+          ],
+          "type": 9,
         },
         {
-          "content": "🟡 **9 of 10 attending**
-❌ <@u-tank1>",
+          "divider": true,
+          "spacing": 1,
+          "type": 14,
+        },
+        {
+          "content": "🚫 **Wed, Oct 21** · Cancelled",
           "type": 10,
         },
         {
           "divider": true,
-          "spacing": 2,
+          "spacing": 1,
           "type": 14,
         },
         {
@@ -71,7 +103,7 @@ Pick any date below to call out or switch back.",
               "custom_id": "attendance:cal:c00000000000000000000team:-1",
               "options": [
                 {
-                  "description": "You're attending — pick to call out",
+                  "description": "You're in. Pick to call out",
                   "emoji": {
                     "animated": false,
                     "id": undefined,
@@ -81,7 +113,7 @@ Pick any date below to call out or switch back.",
                   "value": "c0000000000000000000raid0",
                 },
                 {
-                  "description": "You're called out — pick to switch back in",
+                  "description": "You're called out. Pick to switch back in",
                   "emoji": {
                     "animated": false,
                     "id": undefined,
@@ -91,7 +123,7 @@ Pick any date below to call out or switch back.",
                   "value": "c0000000000000000000raid1",
                 },
                 {
-                  "description": "You're attending — pick to call out",
+                  "description": "You're in. Pick to call out",
                   "emoji": {
                     "animated": false,
                     "id": undefined,
@@ -101,7 +133,7 @@ Pick any date below to call out or switch back.",
                   "value": "c0000000000000000000raid3",
                 },
               ],
-              "placeholder": "Call out or switch back…",
+              "placeholder": "Call out or switch back in…",
               "type": 3,
             },
           ],

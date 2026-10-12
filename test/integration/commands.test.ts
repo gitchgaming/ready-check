@@ -64,7 +64,7 @@ describe("/schedule", () => {
     const reply = run.replies[0];
     expect(isEphemeral(reply)).toBe(true);
     expect(reply.flags).toContain(MessageFlags.IsComponentsV2);
-    expect(payloadText(reply)).toContain("## Main Raid — schedule");
+    expect(payloadText(reply)).toContain("**MAIN RAID · YOUR SCHEDULE**");
     expect(flattenComponents(reply).find((c) => c.custom_id === `attendance:cal:${main.id}:0`).options[0].value).toBe(raid.id);
   });
 
@@ -72,7 +72,7 @@ describe("/schedule", () => {
     const { alt, guild, client } = await twoTeams();
     const bobAlt = fakeChatInput({ commandName: "schedule", guild, userId: "u-bob", options: { team: alt.id } });
     await schedule.execute(bobAlt, client);
-    expect(payloadText(bobAlt.replies[0])).toContain("## Raid — schedule"); // unnamed team
+    expect(payloadText(bobAlt.replies[0])).toContain("**ALT RAID · YOUR SCHEDULE**"); // unnamed team: the role name
 
     const aliceAlt = fakeChatInput({ commandName: "schedule", guild, userId: "u-alice", options: { team: alt.id } });
     await schedule.execute(aliceAlt, client);
@@ -80,7 +80,19 @@ describe("/schedule", () => {
 
     const officer = fakeChatInput({ commandName: "schedule", guild, userId: "u-carol", officer: true, options: { team: alt.id } });
     await schedule.execute(officer, client);
-    expect(payloadText(officer.replies[0])).toContain("## Raid — schedule");
+    expect(payloadText(officer.replies[0])).toContain("**ALT RAID · YOUR SCHEDULE**");
+  });
+
+  it("opens an officer's own team by default", async () => {
+    await makeTeam();
+    await makeTeam({ roleId: altRole.id, name: null });
+    const dave = raider("Dave", [], "u-dave");
+    dave.roles.cache.delete(ROLE_ID);
+    dave.roles.cache.set(altRole.id, altRole as never);
+    const { guild, client } = world({ members: [dave], roles: [teamRole, altRole], ownerId: "u-owner" });
+    const run = fakeChatInput({ commandName: "schedule", guild, userId: "u-dave", officer: true });
+    await schedule.execute(run, client);
+    expect(payloadText(run.replies[0])).toContain("**ALT RAID · YOUR SCHEDULE**");
   });
 
   it("tells raiders without a team, and refuses outside a server", async () => {

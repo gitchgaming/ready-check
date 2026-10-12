@@ -477,11 +477,11 @@ describe("buildTeamRosterCard", () => {
 
 describe("buildCalendarMessage", () => {
   const nav = { canEarlier: true, canLater: true };
-  const rosterIds = new Set(ROSTER.map((m) => m.id));
   const build = (
     instances: RaidRow[],
-    { offset = 0, open = instances, viewer = "u-tank1", navState = nav, roster = rosterIds } = {},
-  ) => buildCalendarMessage(team(), instances, offset, navState, roster, open, viewer);
+    { offset = 0, open = instances, viewer = "u-tank1", navState = nav, roster = ROSTER, name = "Main Raid" } = {},
+  ) => buildCalendarMessage(team(), name, instances, offset, navState, roster, open, viewer);
+  const days = (p: Payload) => texts(containers(p)[0]).slice(1);
 
   it("is one V2 container that never pings", () => {
     const p = build(weeklyRaids(3));
@@ -490,51 +490,66 @@ describe("buildCalendarMessage", () => {
     expect(p.components).toHaveLength(1);
   });
 
-  it("puts each day between dividers: date/time block then attendance block", () => {
-    const raids = weeklyRaids(2);
-    const container = containers(build(raids))[0];
-    const types = container.components.map((c: any) => c.type);
-    const { TextDisplay: T, Separator: S, ActionRow: R } = ComponentType;
-    expect(types).toEqual([T, S, T, T, S, T, T, S, R, R]);
-    const unix = raids[0]!.startsAt.getTime() / 1000;
-    expect(container.components[2].content).toBe(`**<t:${unix}:D>**\n<t:${unix}:t> · <t:${unix}:R>`);
-  });
-
-  it.each([
-    [[], "🟢 **10 of 10 attending**"],
-    [["u-mage"], "🟡 **9 of 10 attending**\n❌ <@u-mage>"],
-    [ids(6).map((_, i) => ROSTER[i]!.id), "🔴 **4 of 10 attending**"],
-  ])("shows attendance and call-outs (out: %j)", (out, expected) => {
-    const t = texts(containers(build([raid("2026-10-08T01:00:00Z", { out })]))[0]);
-    expect(t[2]!.startsWith(expected)).toBe(true);
-  });
-
-  it("only counts call-outs from current roster members", () => {
-    const t = texts(containers(build([raid("2026-10-08T01:00:00Z", { out: ["gone", "u-mage"], in: ["u-rogue"] })]))[0]);
-    expect(t[2]).toBe("🟡 **9 of 10 attending**\n❌ <@u-mage>");
-  });
-
-  it("shows a cancelled day as cancelled", () => {
-    const t = texts(containers(build([raid("2026-10-08T01:00:00Z", { cancelled: true })]))[0]);
-    expect(t[2]).toBe("🚫 **Cancelled**");
-  });
-
-  it("calls an unnamed team 'Raid'", () => {
-    const p = buildCalendarMessage(team({ name: null }), [], 0, nav, rosterIds, [], "v");
-    expect(texts(containers(p)[0])[0]).toMatch(/^## Raid — schedule\n/);
-  });
-
-  it("explains how to use it when any shown raid is open", () => {
+  it("has a small-caps header like the public post, then each day between dividers", () => {
     const container = containers(build(weeklyRaids(2)))[0];
-    expect(container.components[0].content).toBe("## Main Raid — schedule\nPick any date below to call out or switch back.");
+    const { TextDisplay: T, Separator: S, Section: X, ActionRow: R } = ComponentType;
+    expect(container.components.map((c: any) => c.type)).toEqual([T, S, X, S, X, S, R, R]);
+    expect(container.components[0].content).toBe(
+      "-# **MAIN RAID · YOUR SCHEDULE**\n-# Pick a date below to call out or switch back in.",
+    );
     expect(container.accent_color).toBe(0x5865f2);
   });
 
-  it("says attendance is locked, in grey, when every shown raid is past", () => {
-    const past = [raid("2026-09-24T01:00:00Z", { closed: true }), raid("2026-10-01T01:00:00Z", { closed: true })];
-    const container = containers(build(past, { open: weeklyRaids(2) }))[0];
-    expect(container.components[0].content).toBe("## Main Raid — schedule\nThese raids already happened — attendance is locked.");
+  it("shows each day as Coming Up does, then your own status", () => {
+    const [comingUp] = texts(containers(buildPublicMessage(team(), weeklyRaids(2), ROSTER))[1]).slice(1);
+    const [day] = days(build(weeklyRaids(2).slice(1)));
+    expect(day).toBe(`${comingUp}\n-# ⠀\u2003✅ You're in`);
+  });
+
+  it.each([
+    ["u-tank1", ["u-mage"], "✅ You're in · Called out: `Zap`"],
+    ["u-mage", ["u-mage", "u-heal2"], "❌ You're out · Called out: `Lightbringer`"],
+    ["u-mage", ["u-mage"], "❌ You're out"],
+  ])("as %s with %j out, ends the day with %j", (viewer, out, expected) => {
+    const [day] = days(build([raid("2026-10-08T01:00:00Z", { out })], { viewer }));
+    expect(day!.split("\n")[0]).toMatch(/^.+ \*\*Wed, Oct 7\*\* 8:00 PM · \d+\/10$/);
+    expect(day!.endsWith(expected)).toBe(true);
+  });
+
+  it("gives each raid but a cancelled one a Roster button beside it", () => {
+    const raids = [raid("2026-10-01T01:00:00Z", { closed: true }), ...weeklyRaids(2, (i) => ({ cancelled: i === 1 }))];
+    const p = build(raids);
+    const rosters = buttons(p).filter((b) => b.label === "Roster");
+    expect(rosters.map((b) => b.custom_id)).toEqual([
+      `attendance:ros:${TEAM_ID}:${raids[0]!.id}`,
+      `attendance:ros:${TEAM_ID}:${raids[1]!.id}`,
+    ]);
+    expect(rosters.every((b) => b.style === ButtonStyle.Secondary)).toBe(true);
+  });
+
+  it("puts past raids in the past tense, locked and grey", () => {
+    const past = [raid("2026-09-24T01:00:00Z", { closed: true, out: ["u-tank1"] }), raid("2026-10-01T01:00:00Z", { closed: true })];
+    const p = build(past, { open: weeklyRaids(2) });
+    const container = containers(p)[0];
+    expect(container.components[0].content).toBe(
+      "-# **MAIN RAID · YOUR SCHEDULE**\n-# These raids already happened, so attendance is locked.",
+    );
     expect(container.accent_color).toBe(0x6b7280);
+    expect(days(p).map((d) => d.split("\n").at(-1))).toEqual(["-# ⠀\u2003❌ You were out", "-# ⠀\u2003✅ You were in"]);
+  });
+
+  it("only counts call-outs from current roster members", () => {
+    const [day] = days(build([raid("2026-10-08T01:00:00Z", { out: ["gone", "u-mage"], in: ["u-rogue"] })]));
+    expect(day).toContain("· 9/10\n");
+    expect(day!.endsWith("Called out: `Zap`")).toBe(true);
+  });
+
+  it("shows a cancelled day as one line, like Coming Up", () => {
+    expect(days(build([raid("2026-10-08T01:00:00Z", { cancelled: true })]))).toEqual(["🚫 **Wed, Oct 7** · Cancelled"]);
+  });
+
+  it("uses the team name it's given", () => {
+    expect(texts(containers(build([], { name: "Alt Raid" }))[0])[0]).toMatch(/^-# \*\*ALT RAID · YOUR SCHEDULE\*\*\n/);
   });
 
   it("has an empty state with no raids and no select", () => {
@@ -545,20 +560,28 @@ describe("buildCalendarMessage", () => {
     expect(selects(p)).toEqual([]);
   });
 
+  it("is view-only, without a select or a status line, for someone not on the roster", () => {
+    const p = build([raid("2026-10-08T01:00:00Z", { out: ["u-mage"] })], { viewer: "officer" });
+    expect(selects(p)).toEqual([]);
+    expect(texts(containers(p)[0])[0]).toContain("You're not on this team's roster, so this is view-only.");
+    expect(days(p)[0]!.endsWith("\n-# ⠀\u2003Called out: `Zap`")).toBe(true);
+  });
+
   it("lists every open raid in the select with the viewer's own status", () => {
     const open = weeklyRaids(3, (i) => ({ out: i === 1 ? ["u-tank1", "u-mage"] : i === 2 ? ["u-mage"] : [] }));
     const [select] = selects(build(open.slice(0, 1), { open, offset: 2 }));
     expect(select.custom_id).toBe(`attendance:cal:${TEAM_ID}:2`);
     expect(select.options.map((o: any) => [o.label, o.value, o.emoji.name, o.description])).toEqual([
-      ["Wed, Oct 7 · 8:00 PM", open[0]!.id, "✅", "You're attending — pick to call out"],
-      ["Wed, Oct 14 · 8:00 PM", open[1]!.id, "❌", "You're called out — pick to switch back in"],
-      ["Wed, Oct 21 · 8:00 PM", open[2]!.id, "✅", "You're attending — pick to call out"],
+      ["Wed, Oct 7 · 8:00 PM", open[0]!.id, "✅", "You're in. Pick to call out"],
+      ["Wed, Oct 14 · 8:00 PM", open[1]!.id, "❌", "You're called out. Pick to switch back in"],
+      ["Wed, Oct 21 · 8:00 PM", open[2]!.id, "✅", "You're in. Pick to call out"],
     ]);
   });
 
-  it("labels select options in the team's timezone", () => {
-    const p = buildCalendarMessage(team({ timezone: "Asia/Tokyo" }), [], 0, nav, rosterIds, weeklyRaids(1), "v");
+  it("shows dates and select options in the team's timezone", () => {
+    const p = buildCalendarMessage(team({ timezone: "Asia/Tokyo" }), "Main Raid", weeklyRaids(1), 0, nav, ROSTER, weeklyRaids(1), "u-tank1");
     expect(selects(p)[0].options[0].label).toBe("Thu, Oct 8 · 10:00 AM");
+    expect(days(p)[0]).toContain("**Thu, Oct 8** 10:00 AM");
   });
 
   it("leaves cancelled and closed raids out of the select and caps it at 25", () => {
@@ -571,6 +594,7 @@ describe("buildCalendarMessage", () => {
   it("drops the select when nothing is selectable", () => {
     const p = build(weeklyRaids(1), { open: weeklyRaids(2, () => ({ cancelled: true })) });
     expect(selects(p)).toEqual([]);
+    expect(texts(containers(p)[0])[0]).toContain("Nothing to call out of right now.");
   });
 
   it.each([
@@ -579,7 +603,7 @@ describe("buildCalendarMessage", () => {
     [{ canEarlier: false, canLater: false }, [true, true]],
     [{ canEarlier: true, canLater: true }, [false, false]],
   ])("nav buttons with %j are disabled %j", (navState, disabled) => {
-    const navButtons = buttons(build(weeklyRaids(1), { navState, offset: -3 }));
+    const navButtons = buttons(build(weeklyRaids(1), { navState, offset: -3 })).filter((b) => b.custom_id.startsWith("mynav:"));
     expect(navButtons.map((b) => b.custom_id)).toEqual([`mynav:earlier:${TEAM_ID}:-3`, `mynav:later:${TEAM_ID}:-3`]);
     expect(navButtons.map((b) => b.disabled ?? false)).toEqual(disabled);
   });
@@ -618,10 +642,11 @@ describe("snapshots", () => {
     const past = raid("2026-10-01T01:00:00Z", { id: cuid("past0"), closed: true, out: ["u-tank1"] });
     const p = buildCalendarMessage(
       team(),
-      [past, raids[0]!, raids[1]!],
+      "Main Raid",
+      [past, raids[0]!, raids[1]!, raids[2]!],
       -1,
       { canEarlier: false, canLater: true },
-      new Set(ROSTER.map((m) => m.id)),
+      ROSTER,
       raids,
       "u-tank1",
     );
