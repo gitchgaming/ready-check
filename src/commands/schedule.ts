@@ -6,7 +6,7 @@ import { personalCalendar } from "../lib/scheduler.js";
 
 export const data = new SlashCommandBuilder()
   .setName("schedule")
-  .setDescription("Privately view your raid schedule, past and future.")
+  .setDescription("Privately see your team's raids, past and future, and call out of any date.")
   .addStringOption((opt) =>
     opt
       .setName("team")

@@ -2,7 +2,7 @@ import { DateTime } from "luxon";
 import { MessageFlags, type Client, type Guild } from "discord.js";
 import { prisma } from "./db.js";
 import type { RaidTeam } from "../generated/prisma/client.js";
-import { MAX_SELECT_OPTIONS, buildCalendarMessage, buildPublicMessage } from "./embeds.js";
+import { MAX_SELECT_OPTIONS, buildCalendarMessage, buildPublicMessage, type Notice } from "./embeds.js";
 import { fetchRosterMembers } from "./roster.js";
 import { teamDisplayName } from "./pickers.js";
 
@@ -139,8 +139,11 @@ export async function instancesForWindow(teamId: string, offset: number): Promis
   };
 }
 
-/** Builds one viewer's personal schedule: the paged window plus every open raid for the select. */
-export async function personalCalendar(team: RaidTeam, guild: Guild, offset: number, viewerId: string) {
+/**
+ * Builds one viewer's personal schedule: the paged window plus every open raid for
+ * the select. `notice` goes on top.
+ */
+export async function personalCalendar(team: RaidTeam, guild: Guild, offset: number, viewerId: string, notice?: Notice) {
   const [{ instances, canEarlier, canLater }, openInstances, members] = await Promise.all([
     instancesForWindow(team.id, offset),
     nextOpenInstances(team.id, MAX_SELECT_OPTIONS),
@@ -155,6 +158,7 @@ export async function personalCalendar(team: RaidTeam, guild: Guild, offset: num
     members,
     openInstances,
     viewerId,
+    notice,
   );
 }
 
@@ -179,7 +183,7 @@ export async function renderTeamMessage(client: Client, teamId: string): Promise
   const guild = await client.guilds.fetch(team.guildId).catch(() => null);
   if (!guild) return;
   const members = await fetchRosterMembers(guild, team.roleId);
-  const content = buildPublicMessage(team, instances, members);
+  const content = buildPublicMessage(team, teamDisplayName(team, guild), instances, members);
 
   const channel = await client.channels.fetch(team.channelId).catch(() => null);
   if (!channel || !channel.isTextBased() || !("send" in channel)) return;

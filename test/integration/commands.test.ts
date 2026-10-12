@@ -39,6 +39,9 @@ describe("/attendance", () => {
     expect(text).toContain(`❌ You're out for **${TUE_LABEL}**.`);
     expect(text).toContain("You're out of the next raid");
     expect(flattenComponents(run.replies[0] as any).filter((c) => c.label === "Back in")).toHaveLength(1);
+    expect(flattenComponents(run.replies[0] as any).find((c) => c.label === "Undo").custom_id).toBe(
+      `attendance:undo:${main.id}:${raid.id}:in:a`,
+    );
     expect(await prisma.attendance.count({ where: { userId: "u-alice" } })).toBe(1);
     expect(channel.sent).toHaveLength(1);
 
@@ -222,21 +225,16 @@ describe("/roster", () => {
     expect(onlyReply(dm)).toBe("This command only works in a server.");
   });
 
-  it("autocompletes upcoming raids, cancelled included, with current-roster attendance", async () => {
+  it("autocompletes upcoming raids, not cancelled ones, with current-roster attendance", async () => {
     const { main, guild } = await twoTeams();
     await makeRaid(main.id, "2026-09-30T01:00:00Z", { closed: true });
     const raid = await makeRaid(main.id, TUE_8PM);
-    const cancelled = await makeRaid(main.id, "2026-10-08T01:00:00Z", { cancelled: true });
+    await makeRaid(main.id, "2026-10-08T01:00:00Z", { cancelled: true });
     await callOut(raid.id, "u-bob");
     await callOut(raid.id, "u-left"); // no longer on the roster: not counted
     const ac = fakeAutocomplete({ commandName: "roster", guild, userId: "u-alice", focused: "date" });
     await roster.autocomplete(ac);
-    expect(ac.responses).toEqual([
-      [
-        { name: `${TUE_LABEL} · 1/2`, value: raid.id },
-        { name: "Wed, Oct 7 · 8:00 PM · cancelled", value: cancelled.id },
-      ],
-    ]);
+    expect(ac.responses).toEqual([[{ name: `${TUE_LABEL} · 1/2`, value: raid.id }]]);
   });
 
   it("autocomplete names the team when you can view several, and handles no team or no raids", async () => {

@@ -300,6 +300,53 @@ function textLength(component: { toJSON(): unknown }): number {
   return total;
 }
 
+/**
+ * A line on top of a private view saying what just changed. A confirmation of an
+ * attendance change carries an Undo button (its customId, from `undoCustomId`).
+ */
+export type Notice = string | { text: string; undoId: string };
+
+/** Where an Undo button redraws: the Status reply, /attendance, or /schedule at an offset. */
+export type UndoView = "s" | "a" | `c${number}`;
+
+/** Undo sets the raider to `target` explicitly (never toggles), so a stale click can't flip the wrong way. */
+export function undoCustomId(teamId: string, raidId: string, target: "in" | "out", view: UndoView): string {
+  return `attendance:undo:${teamId}:${raidId}:${target}:${view}`;
+}
+
+/** The one wording for an attendance change, with an Undo button that switches it back. */
+export function confirmation(out: boolean, dateLabel: string, teamId: string, raidId: string, view: UndoView): Notice {
+  return {
+    text: out ? `❌ You're out for **${dateLabel}**.` : `✅ You're back in for **${dateLabel}**.`,
+    undoId: undoCustomId(teamId, raidId, out ? "in" : "out", view),
+  };
+}
+
+/** Components a notice costs: a text block, or a section with its text and Undo button. */
+function noticeCost(notice: Notice | undefined): number {
+  return notice === undefined ? 0 : typeof notice === "string" ? 1 : 3;
+}
+
+function noticeComponents(notice: Notice | undefined) {
+  if (notice === undefined) return [];
+  if (typeof notice === "string") return [text(notice)];
+  return [
+    new SectionBuilder()
+      .addTextDisplayComponents(text(notice.text))
+      .setButtonAccessory(
+        new ButtonBuilder().setCustomId(notice.undoId).setLabel("Undo").setStyle(ButtonStyle.Secondary),
+      ),
+  ];
+}
+
+/** A confirmation on its own, as the private reply to a Status click. */
+export function buildNoticeMessage(notice: Notice) {
+  return { flags: V2_FLAGS, components: noticeComponents(notice), allowedMentions: NO_PINGS };
+}
+
+/** What the schedule post and /schedule say before a team has any raids. */
+const NO_RAIDS_YET = "No raids to show here yet. Officers can add weekly raid nights with `/raidlead nights add`.";
+
 /** The text beside the Next Up Status button. */
 const STATUS_NOTE = "-# Can't make it, or back in? **Status** toggles your attendance.";
 
@@ -324,6 +371,7 @@ interface RaidCardOptions {
  */
 function raidCard(
   team: RaidTeam,
+  teamName: string,
   instance: InstanceWithAttendance,
   members: GuildMember[],
   textBudget: number,
@@ -332,7 +380,7 @@ function raidCard(
   const when = raidDate(instance, team.timezone);
   const unix = Math.floor(instance.startsAt.getTime() / 1000);
   const header = text(
-    `-# **${(team.name ?? "Raid").toUpperCase()} · ${label}**\n## ${when.toFormat("ccc, LLL d · h:mm a")}\n-# <t:${unix}:R>`,
+    `-# **${teamName.toUpperCase()} · ${label}**\n## ${when.toFormat("ccc, LLL d · h:mm a")}\n-# <t:${unix}:R>`,
   );
 
   if (instance.cancelled) {
@@ -435,30 +483,40 @@ function comingUpContainer(team: RaidTeam, later: InstanceWithAttendance[], memb
  * button toggles the clicker's call-out. It's shared, so it can't show anyone's own
  * status; the select at the bottom opens the personal schedule for that.
  */
-export function buildPublicMessage(team: RaidTeam, instances: InstanceWithAttendance[], members: GuildMember[]) {
+export function buildPublicMessage(
+  team: RaidTeam,
+  teamName: string,
+  instances: InstanceWithAttendance[],
+  members: GuildMember[],
+) {
   const shown = instances.slice(0, MAX_PUBLIC_DAYS);
   const [next, ...later] = shown;
 
   const comingUp = comingUpContainer(team, later, members);
   const components = next
     ? [
-        raidCard(team, next, members, MAX_MESSAGE_TEXT - textLength(comingUp), { label: "NEXT UP", withButton: true }),
+        raidCard(team, teamName, next, members, MAX_MESSAGE_TEXT - textLength(comingUp), { label: "NEXT UP", withButton: true }),
         comingUp,
       ]
     : [
-        new ContainerBuilder().addTextDisplayComponents(
-          text(
-            `## ${team.name ?? "Raid"} — schedule\nNo raids to show here yet. Officers can add weekly raid nights with \`/raidlead nights add\`.`,
+        new ContainerBuilder()
+          .setAccentColor(0x5865f2)
+          .addTextDisplayComponents(
+            text(`-# **${teamName.toUpperCase()} · SCHEDULE**\n## No raids yet\n-# ${NO_RAIDS_YET}`),
           ),
-        ),
       ];
 
   return { flags: V2_FLAGS, components, allowedMentions: NO_PINGS };
 }
 
 /** A read-only card for one raid (the /roster view): like Next Up, without the Status button. */
-export function buildRaidRosterCard(team: RaidTeam, instance: InstanceWithAttendance, members: GuildMember[]) {
-  const card = raidCard(team, instance, members, MAX_MESSAGE_TEXT, { label: "ROSTER", withButton: false });
+export function buildRaidRosterCard(
+  team: RaidTeam,
+  teamName: string,
+  instance: InstanceWithAttendance,
+  members: GuildMember[],
+) {
+  const card = raidCard(team, teamName, instance, members, MAX_MESSAGE_TEXT, { label: "ROSTER", withButton: false });
   return { flags: V2_FLAGS, components: [card], allowedMentions: NO_PINGS };
 }
 
@@ -545,7 +603,8 @@ function calendarDay(
  * the select lists every open raid with the viewer's own status, so any date is
  * one pick away without paging. Each raid but a cancelled one has a Roster button
  * that privately opens its roster card. Someone not on the roster (an officer looking at
- * another team) gets the card without the select.
+ * another team) gets the card without the select. `notice` (what a pick just
+ * changed, with Undo) goes on top.
  */
 export function buildCalendarMessage(
   team: RaidTeam,
@@ -556,13 +615,14 @@ export function buildCalendarMessage(
   members: GuildMember[],
   openInstances: InstanceWithAttendance[],
   viewerId: string,
+  notice?: Notice,
 ) {
   const viewer = members.find((m) => m.id === viewerId);
   const dates = viewer ? selectableInstances(openInstances) : [];
   const anyOpen = instances.some((i) => !i.closed);
   const intro =
     instances.length === 0
-      ? "No raids to show here yet. Officers can add weekly raid nights with `/raidlead nights add`."
+      ? NO_RAIDS_YET
       : !anyOpen
         ? "These raids already happened, so attendance is locked."
         : dates.length > 0
@@ -624,7 +684,7 @@ export function buildCalendarMessage(
     ),
   );
 
-  return { flags: V2_FLAGS, components: [container], allowedMentions: NO_PINGS };
+  return { flags: V2_FLAGS, components: [...noticeComponents(notice), container], allowedMentions: NO_PINGS };
 }
 
 /** Switches the viewer back in for one raid from /attendance, then redraws it. */
@@ -647,8 +707,8 @@ export interface AttendanceTeam {
 /**
  * Components V2 caps a message at 40 components. A team's container costs 4
  * (container, header, divider, footer) and each call-out 4 (divider, section,
- * text, button), with 1 more for the confirmation line. So one team fits
- * 1 + 4 + 4 × 8 = 37.
+ * text, button), with up to 3 more for the confirmation and its Undo button. So
+ * one team fits 3 + 4 + 4 × 8 = 39.
  */
 const MAX_ATTENDANCE_COMPONENTS = 40;
 
@@ -657,8 +717,8 @@ const MAX_ATTENDANCE_COMPONENTS = 40;
  * then each raid they're called out of as a Coming Up line with a Back in
  * button. `notice` (e.g. what /attendance date: just changed) goes on top.
  */
-export function buildAttendanceMessage(teams: AttendanceTeam[], viewerId: string, notice?: string) {
-  const fixed = (notice ? 1 : 0) + 4 * teams.length;
+export function buildAttendanceMessage(teams: AttendanceTeam[], viewerId: string, notice?: Notice) {
+  const fixed = noticeCost(notice) + 4 * teams.length;
   const perTeam = Math.max(0, Math.floor((MAX_ATTENDANCE_COMPONENTS - fixed) / 4 / Math.max(1, teams.length)));
 
   const containers = teams.map(({ team, teamName, instances, members }) => {
@@ -702,7 +762,7 @@ export function buildAttendanceMessage(teams: AttendanceTeam[], viewerId: string
 
   return {
     flags: V2_FLAGS,
-    components: [...(notice ? [text(notice)] : []), ...containers],
+    components: [...noticeComponents(notice), ...containers],
     allowedMentions: NO_PINGS,
   };
 }

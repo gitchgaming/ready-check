@@ -4,7 +4,7 @@ import { attendanceView, raidDateAutocomplete, setAttendance } from "../lib/atte
 
 export const data = new SlashCommandBuilder()
   .setName("attendance")
-  .setDescription("See which raids you're called out of, or pick a date to call out or switch back in.")
+  .setDescription("Privately see the raids you're called out of, or pick a date to call out or switch back in.")
   .addStringOption((opt) =>
     opt
       .setName("date")

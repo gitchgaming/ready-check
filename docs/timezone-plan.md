@@ -77,7 +77,7 @@ Today these print team time as plain text with no zone:
 | Coming Up lines (`raidLine`, also each day of `/schedule`) | `**Tue, Oct 6** 8:00 PM` | `**<t:unix:D>** <t:unix:t>` |
 | Cancelled Coming Up line (`raidLine`) | `🚫 **Tue, Oct 6** · Cancelled` | `🚫 **<t:unix:D>** · Cancelled` |
 | `setAttendance` replies (`attendance.ts` ~line 125) | `…called out for Tue, Oct 6 · 8:00 PM` | `…for <t:unix:F>` |
-| Date button reply (`attendanceControls.ts` ~line 99) | `You're out for Tue, Oct 6` | `You're out for <t:unix:F>` |
+| Status button and Back in replies (`attendanceControls.ts`), `/attendance` confirmations | `❌ You're out for **Tue, Oct 6 · 8:00 PM**` | `❌ You're out for **<t:unix:F>**` |
 | `raid add/cancel/restore/remove` replies (`raid.ts` ~lines 35, 73, 126) | `formatRaidLabel(...)` (+ `(America/Chicago)` on add) | see 3 below for `add`; `<t:unix:F>` for the rest |
 
 The personal schedule's days reuse Coming Up's `raidLine`, so changing it

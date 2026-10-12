@@ -59,14 +59,14 @@ function nextUp(p: Payload) {
 
 describe("buildPublicMessage — envelope", () => {
   it("is a Components V2 message that never pings, with or without raids", () => {
-    for (const p of [buildPublicMessage(team(), weeklyRaids(3), ROSTER), buildPublicMessage(team(), [], ROSTER)]) {
+    for (const p of [buildPublicMessage(team(), "Main Raid", weeklyRaids(3), ROSTER), buildPublicMessage(team(), "Main Raid", [], ROSTER)]) {
       expect(p.flags).toEqual([MessageFlags.IsComponentsV2]);
       expect(p.allowedMentions).toEqual({ parse: [] });
     }
   });
 
   it("has a Next Up container then a Coming Up container", () => {
-    const [first, second, ...rest] = containers(buildPublicMessage(team(), weeklyRaids(3), ROSTER));
+    const [first, second, ...rest] = containers(buildPublicMessage(team(), "Main Raid", weeklyRaids(3), ROSTER));
     expect(first.type).toBe(ComponentType.Container);
     expect(second.type).toBe(ComponentType.Container);
     expect(rest).toEqual([]);
@@ -75,23 +75,25 @@ describe("buildPublicMessage — envelope", () => {
   });
 
   it("shows an empty state with no raids: one container, no buttons or select", () => {
-    const p = buildPublicMessage(team(), [], ROSTER);
+    const p = buildPublicMessage(team(), "Main Raid", [], ROSTER);
     expect(containers(p)).toHaveLength(1);
     expect(payloadText(p)).toBe(
-      "## Main Raid — schedule\nNo raids to show here yet. Officers can add weekly raid nights with `/raidlead nights add`.",
+      "-# **MAIN RAID · SCHEDULE**\n## No raids yet\n-# No raids to show here yet. Officers can add weekly raid nights with `/raidlead nights add`.",
     );
     expect(buttons(p)).toEqual([]);
     expect(selects(p)).toEqual([]);
   });
 
-  it("calls an unnamed team 'Raid'", () => {
-    expect(payloadText(buildPublicMessage(team({ name: null }), [], []))).toContain("## Raid — schedule");
-    expect(texts(nextUp(buildPublicMessage(team({ name: null }), weeklyRaids(1), ROSTER)))[0]).toContain("**RAID · NEXT UP**");
+  it("labels both states with the team name it's given (the role's name for an unnamed team)", () => {
+    expect(payloadText(buildPublicMessage(team({ name: null }), "Raiders", [], []))).toContain("**RAIDERS · SCHEDULE**");
+    expect(texts(nextUp(buildPublicMessage(team({ name: null }), "Raiders", weeklyRaids(1), ROSTER)))[0]).toContain(
+      "**RAIDERS · NEXT UP**",
+    );
   });
 
   it(`shows at most MAX_PUBLIC_DAYS (${MAX_PUBLIC_DAYS}) raids, soonest first`, () => {
     const raids = weeklyRaids(MAX_PUBLIC_DAYS + 3);
-    const p = buildPublicMessage(team(), raids, ROSTER);
+    const p = buildPublicMessage(team(), "Main Raid", raids, ROSTER);
     const raidIds = buttons(p).map((b) => b.custom_id.split(":")[3]);
     expect(raidIds).toEqual(raids.slice(0, MAX_PUBLIC_DAYS).map((r) => r.id));
   });
@@ -101,10 +103,10 @@ describe("buildPublicMessage — Next Up", () => {
   it("heads the card with the team name, label and date in the team's timezone", () => {
     const [first] = weeklyRaids(1);
     const unix = first!.startsAt.getTime() / 1000;
-    expect(texts(nextUp(buildPublicMessage(team(), [first!], ROSTER)))[0]).toBe(
+    expect(texts(nextUp(buildPublicMessage(team(), "Main Raid", [first!], ROSTER)))[0]).toBe(
       `-# **MAIN RAID · NEXT UP**\n## Wed, Oct 7 · 8:00 PM\n-# <t:${unix}:R>`,
     );
-    const berlin = buildPublicMessage(team({ timezone: "Europe/Berlin" }), [first!], ROSTER);
+    const berlin = buildPublicMessage(team({ timezone: "Europe/Berlin" }), "Main Raid", [first!], ROSTER);
     expect(texts(nextUp(berlin))[0]).toContain("## Thu, Oct 8 · 3:00 AM");
   });
 
@@ -116,7 +118,7 @@ describe("buildPublicMessage — Next Up", () => {
     [3, 2, 3, "red", 0xed4245],
     [3, 3, 0, "red", 0xed4245],
   ])("with %i raiders and %i out: %i green segments, %s accent", (size, outCount, green, _status, accent) => {
-    const p = buildPublicMessage(team(), [raid("2026-10-08T01:00:00Z", { out: ids(outCount) })], squad(size));
+    const p = buildPublicMessage(team(), "Main Raid", [raid("2026-10-08T01:00:00Z", { out: ids(outCount) })], squad(size));
     const card = nextUp(p);
     expect(card.accent_color).toBe(accent);
     expect(texts(card)[1]).toBe(`${"🟩".repeat(green)}${"🟥".repeat(10 - green)}  **${size - outCount}/${size} ready**`);
@@ -124,18 +126,19 @@ describe("buildPublicMessage — Next Up", () => {
 
   it("draws the bar with the segment app emojis when they're uploaded", async () => {
     await loadAppEmojis(fakeClient({ emojis: ["seg_green", "seg_red"] }));
-    const p = buildPublicMessage(team(), [raid("2026-10-08T01:00:00Z", { out: ["u0"] })], squad(2));
+    const p = buildPublicMessage(team(), "Main Raid", [raid("2026-10-08T01:00:00Z", { out: ["u0"] })], squad(2));
     expect(texts(nextUp(p))[1]).toBe(`${"<:seg_green:9000>".repeat(5)}${"<:seg_red:9001>".repeat(5)}  **1/2 ready**`);
   });
 
   it("summarises each role as in/roster by icon, with a dot only when short of RAID_TYPES minimums", () => {
     // Full ROSTER: 2 tanks (min 2), 3 healers (min 3), 4 DPS (min 10, but all are in).
-    const all = buildPublicMessage(team(), weeklyRaids(1), ROSTER);
+    const all = buildPublicMessage(team(), "Main Raid", weeklyRaids(1), ROSTER);
     expect(texts(nextUp(all))[2]).toBe("🛡️ **2/2**\u2003➕ **3/3**\u2003⚔️ **5/5**");
 
     // One tank out → one short (yellow); two healers out → red; one DPS out, 3 < 10 → red.
     const short = buildPublicMessage(
       team(),
+      "Main Raid",
       weeklyRaids(1, () => ({ out: ["u-tank1", "u-heal1", "u-heal2", "u-mage"] })),
       ROSTER,
     );
@@ -144,13 +147,13 @@ describe("buildPublicMessage — Next Up", () => {
 
   it("shows no dot on a role once its minimum is met, even with call-outs", () => {
     const tanks = squad(4, ["Tanks"]);
-    const p = buildPublicMessage(team(), [raid("2026-10-08T01:00:00Z", { out: ["u0", "u1"] })], tanks);
+    const p = buildPublicMessage(team(), "Main Raid", [raid("2026-10-08T01:00:00Z", { out: ["u0", "u1"] })], tanks);
     expect(texts(nextUp(p))[2]).toBe("🛡️ **2/4**\u2003➕ **0/0**\u2003⚔️ **0/0**");
   });
 
   it("uses the dot app emojis when uploaded", async () => {
     await loadAppEmojis(fakeClient({ emojis: ["dot_grey", "dot_yellow", "dot_red", "healer"] }));
-    const p = buildPublicMessage(team(), weeklyRaids(1, () => ({ out: ["u-tank1", "u-heal1", "u-heal2"] })), ROSTER);
+    const p = buildPublicMessage(team(), "Main Raid", weeklyRaids(1, () => ({ out: ["u-tank1", "u-heal1", "u-heal2"] })), ROSTER);
     expect(texts(nextUp(p))[2]).toBe(
       "🛡️ **1/2** <:dot_yellow:9001>\u2002<:healer:9003> **1/3** <:dot_red:9002>\u2002⚔️ **5/5**",
     );
@@ -165,7 +168,7 @@ describe("buildPublicMessage — Next Up", () => {
       raider("Cleave", ["Warriors", "Phys"], "w1"),
       raider("Brick", ["Warriors", "Tanks"], "w2"),
     ];
-    const lines = texts(nextUp(buildPublicMessage(team(), weeklyRaids(1), roster)))[3]!.split("\n");
+    const lines = texts(nextUp(buildPublicMessage(team(), "Main Raid", weeklyRaids(1), roster)))[3]!.split("\n");
     expect(lines).toEqual([
       "-# **TANKS · 2**",
       "**Warrior** `Brick`",
@@ -183,7 +186,7 @@ describe("buildPublicMessage — Next Up", () => {
   it("uses class emojis in place of class names when uploaded", async () => {
     await loadAppEmojis(fakeClient({ emojis: ["warrior"] }));
     const roster = [raider("Wall", ["Warriors", "Tanks"], "a"), raider("Holy", ["Mages", "DPS"], "b")];
-    const lines = texts(nextUp(buildPublicMessage(team(), weeklyRaids(1), roster)))[3]!.split("\n");
+    const lines = texts(nextUp(buildPublicMessage(team(), "Main Raid", weeklyRaids(1), roster)))[3]!.split("\n");
     expect(lines[1]).toBe("<:warrior:9000> `Wall`");
     expect(lines.at(-1)).toBe("**Mage** `Holy`");
   });
@@ -197,7 +200,7 @@ describe("buildPublicMessage — Next Up", () => {
       raider("Wall", ["Warriors", "Offtank"], "d"),
       raider("Main", ["Warriors", "Tanks", "Offheals"], "e"),
     ];
-    const lines = texts(nextUp(buildPublicMessage(team(), weeklyRaids(1), roster)))[3]!.split("\n");
+    const lines = texts(nextUp(buildPublicMessage(team(), "Main Raid", weeklyRaids(1), roster)))[3]!.split("\n");
     expect(lines).toContain("-# **TANKS · 1**");
     expect(lines).toContain("**Warrior** `Main`");
     expect(lines.at(-1)).toBe(
@@ -208,26 +211,26 @@ describe("buildPublicMessage — Next Up", () => {
   it("adds an off-spec key under the role counts only when the roster has off-specs, counting those attending", async () => {
     await loadAppEmojis(fakeClient({ emojis: ["mark_offtank"] }));
     const roster = [...ROSTER, raider("Skarr", ["Warriors", "Offtank"], "u-ot"), raider("Fern", ["Druids", "DPS", "Offheals"], "u-oh")];
-    const summary = texts(nextUp(buildPublicMessage(team(), weeklyRaids(1, () => ({ out: ["u-oh"] })), roster)))[2]!;
+    const summary = texts(nextUp(buildPublicMessage(team(), "Main Raid", weeklyRaids(1, () => ({ out: ["u-oh"] })), roster)))[2]!;
     expect(summary.split("\n")[1]).toBe("-# <:mark_offtank:9000> Offtank 1 · ➕ Offheals 0");
-    expect(texts(nextUp(buildPublicMessage(team(), weeklyRaids(1), ROSTER)))[2]).not.toContain("\n");
+    expect(texts(nextUp(buildPublicMessage(team(), "Main Raid", weeklyRaids(1), ROSTER)))[2]).not.toContain("\n");
   });
 
   it("counts raiders with no type role as Damage, and ends their section with an unlabelled line for those with no class", () => {
-    const roster = texts(nextUp(buildPublicMessage(team(), weeklyRaids(1), ROSTER)))[3]!.split("\n");
+    const roster = texts(nextUp(buildPublicMessage(team(), "Main Raid", weeklyRaids(1), ROSTER)))[3]!.split("\n");
     expect(roster.at(-1)).toBe("`Newbie`");
     expect(roster.join("\n")).not.toMatch(/NO ROLE|Other/);
   });
 
   it("shows names as chips, as typed, with backticks swapped so a chip can't break", () => {
-    const p = buildPublicMessage(team(), weeklyRaids(1), [raider("*Star*_`Lord`_", ["Mages", "DPS"], "x")]);
+    const p = buildPublicMessage(team(), "Main Raid", weeklyRaids(1), [raider("*Star*_`Lord`_", ["Mages", "DPS"], "x")]);
     expect(texts(nextUp(p))[3]).toContain("`*Star*_ˋLordˋ_`");
   });
 
   it("moves called-out raiders into a Called Out block by class, names only, tanks then healers then damage", async () => {
     await loadAppEmojis(fakeClient({ emojis: ["warrior", "mark_tank", "mark_dps"] }));
     const out = ["u-new", "u-warr", "u-tank1", "u-mage", "u-heal1"];
-    const p = buildPublicMessage(team(), weeklyRaids(1, () => ({ out })), ROSTER);
+    const p = buildPublicMessage(team(), "Main Raid", weeklyRaids(1, () => ({ out })), ROSTER);
     const t = texts(nextUp(p));
     expect(t[3]).not.toMatch(/Tankalot|Axe|Zap|Newbie|Mendy/);
     expect(t[4]!.split("\n")).toEqual([
@@ -242,18 +245,19 @@ describe("buildPublicMessage — Next Up", () => {
   it("leaves role and off-spec markers out of Called Out", async () => {
     await loadAppEmojis(fakeClient({ emojis: ["mark_offtank", "mark_dps"] }));
     const roster = [raider("Skarr", ["Warriors", "DPS", "Offtank"], "u-ot")];
-    const t = texts(nextUp(buildPublicMessage(team(), weeklyRaids(1, () => ({ out: ["u-ot"] })), roster)));
+    const t = texts(nextUp(buildPublicMessage(team(), "Main Raid", weeklyRaids(1, () => ({ out: ["u-ot"] })), roster)));
     expect(t.find((x) => x.startsWith("-# **CALLED OUT"))).toBe("-# **CALLED OUT · 1**\n**Warrior** `Skarr`");
   });
 
   it("has no Called Out block when everyone is in", () => {
-    const t = texts(nextUp(buildPublicMessage(team(), weeklyRaids(1), ROSTER)));
+    const t = texts(nextUp(buildPublicMessage(team(), "Main Raid", weeklyRaids(1), ROSTER)));
     expect(t.join("\n")).not.toContain("CALLED OUT");
   });
 
   it("only counts call-outs from current roster members, and ignores IN rows", () => {
     const p = buildPublicMessage(
       team(),
+      "Main Raid",
       weeklyRaids(1, () => ({ out: ["u-mage", "someone-who-left"], in: ["u-rogue"] })),
       ROSTER,
     );
@@ -265,7 +269,7 @@ describe("buildPublicMessage — Next Up", () => {
 
   it("ends with the Status ⇄ button for the next raid, on its own line as a section accessory", () => {
     const [first] = weeklyRaids(1);
-    const card = nextUp(buildPublicMessage(team(), [first!], ROSTER));
+    const card = nextUp(buildPublicMessage(team(), "Main Raid", [first!], ROSTER));
     const last = card.components.at(-1);
     expect(last.type).toBe(ComponentType.Section);
     expect(last.components[0].content).toContain("**Status** toggles your attendance");
@@ -278,7 +282,7 @@ describe("buildPublicMessage — Next Up", () => {
   });
 
   it("separates the summary from the roster with a divider", () => {
-    const types = nextUp(buildPublicMessage(team(), weeklyRaids(1), ROSTER)).components.map((c: any) => c.type);
+    const types = nextUp(buildPublicMessage(team(), "Main Raid", weeklyRaids(1), ROSTER)).components.map((c: any) => c.type);
     expect(types).toEqual([
       ComponentType.TextDisplay,
       ComponentType.TextDisplay,
@@ -291,7 +295,7 @@ describe("buildPublicMessage — Next Up", () => {
 
   it("keeps a cancelled next raid in the Next Up spot, grey, without stats or a button", () => {
     const raids = weeklyRaids(3, (i) => ({ cancelled: i === 0 }));
-    const p = buildPublicMessage(team(), raids, ROSTER);
+    const p = buildPublicMessage(team(), "Main Raid", raids, ROSTER);
     const card = nextUp(p);
     expect(card.accent_color).toBe(0x6b7280);
     expect(texts(card)).toEqual([expect.stringContaining("## Wed, Oct 7 · 8:00 PM"), "🚫 **Cancelled**"]);
@@ -299,7 +303,7 @@ describe("buildPublicMessage — Next Up", () => {
   });
 
   it("always shows the Tanks, Healers and Damage headings, with a dash when a section is empty", () => {
-    const t = texts(nextUp(buildPublicMessage(team(), weeklyRaids(1), [raider("Wall", ["Warriors", "Tanks"], "a")])));
+    const t = texts(nextUp(buildPublicMessage(team(), "Main Raid", weeklyRaids(1), [raider("Wall", ["Warriors", "Tanks"], "a")])));
     expect(t[3]!.split("\n")).toEqual([
       "-# **TANKS · 1**",
       "**Warrior** `Wall`",
@@ -311,7 +315,7 @@ describe("buildPublicMessage — Next Up", () => {
   });
 
   it("says so when the role has no members", () => {
-    const t = texts(nextUp(buildPublicMessage(team(), weeklyRaids(1), [])));
+    const t = texts(nextUp(buildPublicMessage(team(), "Main Raid", weeklyRaids(1), [])));
     expect(t[3]).toBe("-# **TANKS · 0** —\n\n-# **HEALERS · 0** —\n\n-# **DAMAGE · 0** —");
   });
 
@@ -319,7 +323,7 @@ describe("buildPublicMessage — Next Up", () => {
     const longRoster = Array.from({ length: 300 }, (_, i) =>
       raider(`Raider-${String(i).padStart(3, "0")}-${"n".repeat(20)}`, ["Warriors", "DPS"], `u${i}`),
     );
-    const t = texts(nextUp(buildPublicMessage(team(), weeklyRaids(1), longRoster)));
+    const t = texts(nextUp(buildPublicMessage(team(), "Main Raid", weeklyRaids(1), longRoster)));
     const lines = t[3]!.split("\n");
     const more = /^-# …and (\d+) more$/.exec(lines.at(-1)!);
     expect(more).not.toBeNull();
@@ -329,7 +333,7 @@ describe("buildPublicMessage — Next Up", () => {
 
   it("truncates a long Called Out block with '…and N more'", () => {
     const roster = squad(400);
-    const p = buildPublicMessage(team(), [raid("2026-10-08T01:00:00Z", { out: ids(380) })], roster);
+    const p = buildPublicMessage(team(), "Main Raid", [raid("2026-10-08T01:00:00Z", { out: ids(380) })], roster);
     const block = texts(nextUp(p)).find((x) => x.startsWith("-# **CALLED OUT"))!;
     expect(block.startsWith("-# **CALLED OUT · 380**\n")).toBe(true);
     const more = /\n-# …and (\d+) more$/.exec(block);
@@ -342,7 +346,7 @@ describe("buildPublicMessage — Next Up", () => {
 describe("buildPublicMessage — Coming Up", () => {
   it("gives each later raid a section with its date, count, a dotless role line and own button", () => {
     const raids = weeklyRaids(3, (i) => ({ out: i === 1 ? ["u-tank1"] : [] }));
-    const comingUp = containers(buildPublicMessage(team(), raids, ROSTER))[1];
+    const comingUp = containers(buildPublicMessage(team(), "Main Raid", raids, ROSTER))[1];
     const sections = comingUp.components.filter((c: any) => c.type === ComponentType.Section);
     expect(sections).toHaveLength(2);
     expect(sections[0].components[0].content).toBe(
@@ -357,21 +361,21 @@ describe("buildPublicMessage — Coming Up", () => {
 
   it("formats Coming Up dates in the team's timezone across DST", () => {
     // weeklyRaids keeps 8 PM Chicago; the Nov 4 raid is after DST ends.
-    const comingUp = containers(buildPublicMessage(team(), weeklyRaids(5), ROSTER))[1];
+    const comingUp = containers(buildPublicMessage(team(), "Main Raid", weeklyRaids(5), ROSTER))[1];
     expect(texts(comingUp).at(-1)).toMatch(/^🟢 \*\*Wed, Nov 4\*\* 8:00 PM/);
   });
 
   it("uses the large dot app emojis for each raid's status when uploaded", async () => {
     await loadAppEmojis(fakeClient({ emojis: ["dot_lg_green", "dot_lg_red"] }));
     const raids = weeklyRaids(3, (i) => ({ out: i === 2 ? ids(3) : [] }));
-    const t = texts(containers(buildPublicMessage(team(), raids, squad(4)))[1]);
+    const t = texts(containers(buildPublicMessage(team(), "Main Raid", raids, squad(4)))[1]);
     expect(t[1]).toMatch(/^<:dot_lg_green:9000> /);
     expect(t[2]).toMatch(/^<:dot_lg_red:9001> .* · 1\/4/);
   });
 
   it("shows a cancelled later raid as one line with no button", () => {
     const raids = weeklyRaids(3, (i) => ({ cancelled: i === 1 }));
-    const p = buildPublicMessage(team(), raids, ROSTER);
+    const p = buildPublicMessage(team(), "Main Raid", raids, ROSTER);
     const comingUp = containers(p)[1];
     expect(comingUp.components[1]).toEqual({ type: ComponentType.TextDisplay, content: "🚫 **Wed, Oct 14** · Cancelled" });
     expect(buttons(p).map((b) => b.custom_id.split(":")[3])).toEqual([raids[0]!.id, raids[2]!.id]);
@@ -379,7 +383,7 @@ describe("buildPublicMessage — Coming Up", () => {
 
   it("ends with the select: See more dates, then a roster shortcut per Coming Up raid", () => {
     const raids = weeklyRaids(4, (i) => ({ cancelled: i === 2 }));
-    const comingUp = containers(buildPublicMessage(team(), raids, ROSTER))[1];
+    const comingUp = containers(buildPublicMessage(team(), "Main Raid", raids, ROSTER))[1];
     const row = comingUp.components.at(-1);
     expect(row.type).toBe(ComponentType.ActionRow);
     const [select] = row.components;
@@ -395,14 +399,14 @@ describe("buildPublicMessage — Coming Up", () => {
   });
 
   it("with no Coming Up raids, the select only opens the personal view", () => {
-    const comingUp = containers(buildPublicMessage(team(), weeklyRaids(1), ROSTER))[1];
+    const comingUp = containers(buildPublicMessage(team(), "Main Raid", weeklyRaids(1), ROSTER))[1];
     const [select] = comingUp.components.at(-1).components;
     expect(select.placeholder).toBe("📅 See more dates…");
     expect(select.options).toHaveLength(1);
   });
 
   it("with only one raid, Coming Up holds just the select", () => {
-    const comingUp = containers(buildPublicMessage(team(), weeklyRaids(1), ROSTER))[1];
+    const comingUp = containers(buildPublicMessage(team(), "Main Raid", weeklyRaids(1), ROSTER))[1];
     expect(comingUp.components.map((c: any) => c.type)).toEqual([ComponentType.ActionRow]);
   });
 });
@@ -410,13 +414,13 @@ describe("buildPublicMessage — Coming Up", () => {
 describe("buildRaidRosterCard", () => {
   it("is the Next Up card labelled ROSTER, without the Status button", () => {
     const raids = weeklyRaids(1, () => ({ out: ["u-mage"] }));
-    const card = buildRaidRosterCard(team(), raids[0]!, ROSTER);
+    const card = buildRaidRosterCard(team(), "Main Raid", raids[0]!, ROSTER);
     expect(card.flags).toEqual([MessageFlags.IsComponentsV2]);
     expect(card.allowedMentions).toEqual({ parse: [] });
     expect(card.components).toHaveLength(1);
     expect(buttons(card)).toEqual([]);
 
-    const publicTexts = texts(nextUp(buildPublicMessage(team(), raids, ROSTER)));
+    const publicTexts = texts(nextUp(buildPublicMessage(team(), "Main Raid", raids, ROSTER)));
     const cardTexts = texts(containers(card)[0]);
     expect(cardTexts[0]).toBe(publicTexts[0]!.replace("NEXT UP", "ROSTER"));
     // Same bar, summary, roster and Called Out block; only the button's section is missing.
@@ -424,7 +428,7 @@ describe("buildRaidRosterCard", () => {
   });
 
   it("shows a cancelled raid as cancelled", () => {
-    const card = buildRaidRosterCard(team(), raid("2026-10-08T01:00:00Z", { cancelled: true }), ROSTER);
+    const card = buildRaidRosterCard(team(), "Main Raid", raid("2026-10-08T01:00:00Z", { cancelled: true }), ROSTER);
     expect(texts(containers(card)[0])[1]).toBe("🚫 **Cancelled**");
   });
 });
@@ -459,7 +463,7 @@ describe("buildTeamRosterCard", () => {
   });
 
   it("is Next Up's roster when everyone's attending", () => {
-    const nextUpTexts = texts(nextUp(buildPublicMessage(team(), weeklyRaids(1), ROSTER)));
+    const nextUpTexts = texts(nextUp(buildPublicMessage(team(), "Main Raid", weeklyRaids(1), ROSTER)));
     expect(texts(containers(card())[0]).at(-1)).toBe(nextUpTexts.at(-2));
   });
 
@@ -502,7 +506,7 @@ describe("buildCalendarMessage", () => {
   });
 
   it("shows each day as Coming Up does, then your own status", () => {
-    const [comingUp] = texts(containers(buildPublicMessage(team(), weeklyRaids(2), ROSTER))[1]).slice(1);
+    const [comingUp] = texts(containers(buildPublicMessage(team(), "Main Raid", weeklyRaids(2), ROSTER))[1]).slice(1);
     const [day] = days(build(weeklyRaids(2).slice(1)));
     expect(day).toBe(`${comingUp}\n-# ⠀\u2003✅ You're in`);
   });
@@ -612,7 +616,7 @@ describe("buildCalendarMessage", () => {
 
 describe("asEphemeral", () => {
   it("adds the Ephemeral flag, keeps V2, and leaves the original untouched", () => {
-    const original = buildPublicMessage(team(), weeklyRaids(1), ROSTER);
+    const original = buildPublicMessage(team(), "Main Raid", weeklyRaids(1), ROSTER);
     const ephemeral = asEphemeral(original);
     expect(ephemeral.flags).toEqual([MessageFlags.IsComponentsV2, MessageFlags.Ephemeral]);
     expect(original.flags).toEqual([MessageFlags.IsComponentsV2]);
@@ -632,11 +636,11 @@ describe("snapshots", () => {
   }));
 
   it("public message", () => {
-    expect(json(buildPublicMessage(team(), raids, ROSTER))).toMatchSnapshot();
+    expect(json(buildPublicMessage(team(), "Main Raid", raids, ROSTER))).toMatchSnapshot();
   });
 
   it("raid roster card", () => {
-    expect(json(buildRaidRosterCard(team(), raids[0]!, ROSTER))).toMatchSnapshot();
+    expect(json(buildRaidRosterCard(team(), "Main Raid", raids[0]!, ROSTER))).toMatchSnapshot();
   });
 
   it("personal schedule", () => {
@@ -683,7 +687,7 @@ describe("buildAttendanceMessage", () => {
     expect(header(p)).toBe(
       "-# **MAIN RAID · YOUR ATTENDANCE**\n## You're in for 2 of the next 4 raids\n-# Called out of 2. **Back in** switches you back.",
     );
-    const comingUp = texts(containers(buildPublicMessage(team(), raids, ROSTER))[1]).slice(1);
+    const comingUp = texts(containers(buildPublicMessage(team(), "Main Raid", raids, ROSTER))[1]).slice(1);
     expect(texts(containers(p)[0]).slice(1, 3)).toEqual([comingUp[0], comingUp[2]]);
     expect(buttons(p).map((b) => [b.label, b.custom_id])).toEqual([
       ["Back in", `attendance:in:${TEAM_ID}:${raids[1]!.id}`],

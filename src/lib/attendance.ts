@@ -1,7 +1,14 @@
 import type { AutocompleteInteraction, ChatInputCommandInteraction, Client, Guild } from "discord.js";
 import { MessageFlags } from "discord.js";
 import { prisma } from "./db.js";
-import { PICK_TO_CALL_OUT, PICK_TO_COME_BACK, asEphemeral, buildAttendanceMessage } from "./embeds.js";
+import {
+  PICK_TO_CALL_OUT,
+  PICK_TO_COME_BACK,
+  asEphemeral,
+  buildAttendanceMessage,
+  confirmation,
+  type Notice,
+} from "./embeds.js";
 import { MAX_CHOICES, NO_CHOICE, formatRaidLabel, respondFiltered, teamDisplayName, teamsForMember } from "./pickers.js";
 import { fetchRosterMembers } from "./roster.js";
 import { renderTeamMessage } from "./scheduler.js";
@@ -80,11 +87,29 @@ export async function raidDateAutocomplete(
   );
 }
 
+/** Calls a raider out of one raid, or back in. Returns whether anything changed. */
+export async function setOut(raidId: string, userId: string, out: boolean): Promise<boolean> {
+  if (!out) {
+    const { count } = await prisma.attendance.deleteMany({ where: { raidInstanceId: raidId, userId } });
+    return count > 0;
+  }
+  const existing = await prisma.attendance.findUnique({
+    where: { raidInstanceId_userId: { raidInstanceId: raidId, userId } },
+  });
+  if (existing?.status === "OUT") return false;
+  await prisma.attendance.upsert({
+    where: { raidInstanceId_userId: { raidInstanceId: raidId, userId } },
+    create: { raidInstanceId: raidId, userId, status: "OUT" },
+    update: { status: "OUT" },
+  });
+  return true;
+}
+
 /**
  * The /attendance view for one raider: each of their teams with every upcoming
  * raid they're called out of. `notice` goes on top.
  */
-export async function attendanceView(guild: Guild, userId: string, notice?: string) {
+export async function attendanceView(guild: Guild, userId: string, notice?: Notice) {
   const teams = await teamsForMember(guild, userId);
   const blocks = await Promise.all(
     teams.map(async (team) => ({
@@ -185,8 +210,7 @@ export async function setAttendance(
   await renderTeamMessage(client, instance.raidTeamId);
 
   if (showView) {
-    const notice =
-      status === "OUT" ? `❌ You're out for **${dateLabel}**.` : `✅ You're back in for **${dateLabel}**.`;
+    const notice = confirmation(status === "OUT", dateLabel, instance.raidTeamId, instance.id, "a");
     await interaction.reply(asEphemeral(await attendanceView(interaction.guild, subjectId, notice)));
     return;
   }

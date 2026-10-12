@@ -44,8 +44,9 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
 }
 
 /**
- * Upcoming raids (cancelled ones included) of the given teams, each with its
- * current attendance, e.g. "Wed, Oct 7 · 8:00 PM · 17/20".
+ * Upcoming raids of the given teams, each with its current attendance (not
+ * cancelled ones, which have no roster to show, as on the schedule post),
+ * e.g. "Wed, Oct 7 · 8:00 PM · 17/20".
  */
 async function dateAutocomplete(interaction: AutocompleteInteraction, teams: RaidTeam[]): Promise<void> {
   if (teams.length === 0) {
@@ -61,7 +62,7 @@ async function dateAutocomplete(interaction: AutocompleteInteraction, teams: Rai
       teams.map(async (team) => {
         const [raids, rosterIds] = await Promise.all([
           prisma.raidInstance.findMany({
-            where: { raidTeamId: team.id, closed: false },
+            where: { raidTeamId: team.id, closed: false, cancelled: false },
             include: { attendance: { where: { status: "OUT" } } },
             orderBy: { startsAt: "asc" },
             take: perTeam,
@@ -71,8 +72,7 @@ async function dateAutocomplete(interaction: AutocompleteInteraction, teams: Rai
         return raids.map((raid) => {
           // Only current role holders count, as on the schedule post.
           const out = raid.attendance.filter((a) => rosterIds.has(a.userId)).length;
-          const status = raid.cancelled ? "cancelled" : `${rosterIds.size - out}/${rosterIds.size}`;
-          const label = `${formatRaidLabel(raid.startsAt, team.timezone)} · ${status}`;
+          const label = `${formatRaidLabel(raid.startsAt, team.timezone)} · ${rosterIds.size - out}/${rosterIds.size}`;
           return {
             startsAt: raid.startsAt,
             name: showTeam ? `${label} · ${teamDisplayName(team, interaction.guild)}` : label,
@@ -134,5 +134,5 @@ export async function execute(interaction: ChatInputCommandInteraction, _client:
   }
 
   const members = await fetchRosterMembers(guild, team.roleId);
-  await interaction.reply(asEphemeral(buildRaidRosterCard(team, raid, members)));
+  await interaction.reply(asEphemeral(buildRaidRosterCard(team, teamDisplayName(team, guild), raid, members)));
 }
