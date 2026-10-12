@@ -74,14 +74,14 @@ Today these print team time as plain text with no zone:
 | Where | Now | Change to |
 |---|---|---|
 | Next Up heading, `raidCard` (`embeds.ts` ~line 306) | `## Tue, Oct 6 · 8:00 PM` | `## <t:unix:D>` heading, `<t:unix:t> · <t:unix:R>` below it (check how a timestamp renders in a `##` heading in the test server, and fall back to `<t:unix:F>` if it looks off) |
-| Coming Up lines (`comingUpContainer`, ~lines 360, 369) | `**Tue, Oct 6** 8:00 PM` | `**<t:unix:D>** <t:unix:t>` |
-| Cancelled Coming Up line | `🚫 **Tue, Oct 6** · Cancelled` | `🚫 **<t:unix:D>** · Cancelled` |
+| Coming Up lines (`raidLine`, also each day of `/schedule`) | `**Tue, Oct 6** 8:00 PM` | `**<t:unix:D>** <t:unix:t>` |
+| Cancelled Coming Up line (`raidLine`) | `🚫 **Tue, Oct 6** · Cancelled` | `🚫 **<t:unix:D>** · Cancelled` |
 | `setAttendance` replies (`attendance.ts` ~line 125) | `…called out for Tue, Oct 6 · 8:00 PM` | `…for <t:unix:F>` |
 | Date button reply (`attendanceControls.ts` ~line 99) | `You're out for Tue, Oct 6` | `You're out for <t:unix:F>` |
 | `raid add/cancel/restore/remove` replies (`raid.ts` ~lines 35, 73, 126) | `formatRaidLabel(...)` (+ `(America/Chicago)` on add) | see 3 below for `add`; `<t:unix:F>` for the rest |
 
-The personal schedule's day blocks already use timestamps (`dayBlocks`), so
-they don't change.
+The personal schedule's days reuse Coming Up's `raidLine`, so changing it
+covers both.
 
 Add one helper (e.g. `discordTime(date, style)` in `embeds.ts` or `time.ts`) so
 the `Math.floor(getTime() / 1000)` conversion lives in one place.
