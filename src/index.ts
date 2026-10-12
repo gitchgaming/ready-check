@@ -1,5 +1,4 @@
 import "dotenv/config";
-import { seedDemoCallOuts } from "./lib/demoRoster.js";
 import { ActivityType, Client, Events, GatewayIntentBits } from "discord.js";
 import { routeInteraction } from "./interactions/router.js";
 import { backupConfig, dailyKeys, runBackup } from "./lib/backup.js";
@@ -74,8 +73,6 @@ client.once(Events.ClientReady, async (readyClient) => {
     await ensureMembersCached(guild).catch((err) => console.error("Member cache warmup failed:", err));
   }
   await syncAllRaidTeams(readyClient).catch((err) => console.error("Initial raid sync failed:", err));
-  await seedDemoCallOuts().catch((err) => console.error("Seeding demo call-outs failed:", err));
-  await syncAllRaidTeams(readyClient).catch((err) => console.error("Raid sync after demo seed failed:", err));
   setInterval(() => {
     syncAllRaidTeams(readyClient).catch((err) => console.error("Scheduled raid sync failed:", err));
   }, SYNC_INTERVAL_MS);
