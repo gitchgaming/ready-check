@@ -9,6 +9,7 @@ import {
 } from "discord.js";
 import { OFFICER_PERMISSION, isOfficer } from "../../lib/access.js";
 import { raidDateAutocomplete, setAttendance } from "../../lib/attendance.js";
+import { DEFAULT_RAID_SIZE, RAID_SIZES } from "../../lib/classes.js";
 import { MAX_COMING_UP } from "../../lib/embeds.js";
 import {
   NO_CHOICE,
@@ -29,6 +30,8 @@ import * as team from "./team.js";
 
 const roleOption = (opt: SlashCommandRoleOption) =>
   opt.setName("role").setDescription("The raid team's role").setRequired(true);
+
+const SIZE_CHOICES = RAID_SIZES.map((size) => ({ name: `${size}-player`, value: size }));
 
 export const data = new SlashCommandBuilder()
   .setName("raidlead")
@@ -60,6 +63,12 @@ export const data = new SlashCommandBuilder()
               .setDescription("Raids listed under Coming Up, after the next raid (default 3)")
               .setMinValue(0)
               .setMaxValue(MAX_COMING_UP),
+          )
+          .addIntegerOption((opt) =>
+            opt
+              .setName("size")
+              .setDescription(`Players the raid is built for (default ${DEFAULT_RAID_SIZE})`)
+              .addChoices(...SIZE_CHOICES),
           ),
       )
       .addSubcommand((sub) =>
@@ -83,6 +92,9 @@ export const data = new SlashCommandBuilder()
               .setDescription("Raids listed under Coming Up, after the next raid")
               .setMinValue(0)
               .setMaxValue(MAX_COMING_UP),
+          )
+          .addIntegerOption((opt) =>
+            opt.setName("size").setDescription("Players the raid is built for").addChoices(...SIZE_CHOICES),
           ),
       )
       .addSubcommand((sub) =>

@@ -32,11 +32,6 @@ export interface RaidType {
   emoji?: string;
   /** Small padded app emoji marking this role beside a called-out raider's name. */
   marker?: string;
-  /**
-   * How many of this role a raid needs. Drives the role status dots on the
-   * schedule. A design assumption for now; could become a per-team setting.
-   */
-  min: number;
   roles: string[];
 }
 
@@ -45,19 +40,42 @@ export interface RaidType {
  * A raider with only an off-spec role (see OFF_SPECS) counts as Damage.
  */
 export const RAID_TYPES: RaidType[] = [
-  { label: "Tanks", icon: "🛡️", emoji: "tank", marker: "mark_tank", min: 2, roles: ["Tanks", "Tank"] },
-  { label: "Healers", icon: "➕", emoji: "healer", marker: "mark_healer", min: 3, roles: ["Healers", "Healer"] },
+  { label: "Tanks", icon: "🛡️", emoji: "tank", marker: "mark_tank", roles: ["Tanks", "Tank"] },
+  { label: "Healers", icon: "➕", emoji: "healer", marker: "mark_healer", roles: ["Healers", "Healer"] },
   {
     label: "Damage",
     icon: "⚔️",
     emoji: "dps",
     marker: "mark_dps",
-    min: 10,
     roles: ["Damage", "DPS", "Wizards", "Wizard", "Phys", "Physical"],
   },
 ];
 
 const DAMAGE = RAID_TYPES[2]!;
+
+/** The raid sizes a team can pick (the `size` option). */
+export const RAID_SIZES = [20, 25] as const;
+export const DEFAULT_RAID_SIZE = 25;
+
+/** A role's targets: green at `want` or more, yellow from `need`, red below. */
+export interface RoleTarget {
+  need: number;
+  want: number;
+}
+
+const TANKS: RoleTarget = { need: 2, want: 3 };
+const HEALERS: RoleTarget = { need: 4, want: 5 };
+/** How far under its want Damage, or the whole raid, can be and still show yellow. */
+export const SHORT_MARGIN = 2;
+
+/**
+ * Each type's targets for a raid size, in RAID_TYPES order. Tanks and healers
+ * are fixed; Damage wants the rest of the raid.
+ */
+export function roleTargets(size: number): RoleTarget[] {
+  const damageWant = size - TANKS.want - HEALERS.want;
+  return [TANKS, HEALERS, { need: damageWant - SHORT_MARGIN, want: damageWant }];
+}
 
 /**
  * Secondary roles of damage mains, shown as a marker beside their name in the

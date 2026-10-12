@@ -278,11 +278,11 @@ describe("team setup", () => {
     const { run, channel } = setup();
     const reply = onlyReply(await run("team", "setup", { role: ROLE_ID, channel: CHANNEL_ID, timezone: " Europe/London " }));
     expect(reply).toBe(
-      `✅ Created raid team **Main Raid** for <@&${ROLE_ID}>, posting its schedule in <#${CHANNEL_ID}>.\n` +
+      `✅ Created 25-player raid team **Main Raid** for <@&${ROLE_ID}>, posting its schedule in <#${CHANNEL_ID}>.\n` +
         "Next, add its weekly raid nights with `/raidlead nights add`.",
     );
     const [created] = await prisma.raidTeam.findMany();
-    expect(created).toMatchObject({ guildId: GUILD_ID, roleId: ROLE_ID, channelId: CHANNEL_ID, timezone: "Europe/London", name: "Main Raid", displayCount: 3 });
+    expect(created).toMatchObject({ guildId: GUILD_ID, roleId: ROLE_ID, channelId: CHANNEL_ID, timezone: "Europe/London", name: "Main Raid", displayCount: 3, raidSize: 25 });
     expect(channel.sent).toHaveLength(1);
     expect(created!.messageId).toBe(channel.sent[0]!.id);
   });
@@ -293,13 +293,21 @@ describe("team setup", () => {
     expect(await prisma.raidTeam.findFirst()).toMatchObject({ name: "Weekend", displayCount: 0 });
   });
 
+  it("takes a raid size", async () => {
+    const { run } = setup();
+    expect(onlyReply(await run("team", "setup", { role: ROLE_ID, channel: CHANNEL_ID, timezone: TZ, size: 20 }))).toMatch(
+      /^✅ Created 20-player raid team/,
+    );
+    expect(await prisma.raidTeam.findFirst()).toMatchObject({ raidSize: 20 });
+  });
+
   it("still creates the team and replies when the schedule can't be posted (e.g. no Send Messages)", async () => {
     const { run, channel } = setup();
     channel.send = async () => {
       throw new Error("Missing Permissions");
     };
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(onlyReply(await run("team", "setup", { role: ROLE_ID, channel: CHANNEL_ID, timezone: TZ }))).toMatch(/^✅ Created raid team/);
+    expect(onlyReply(await run("team", "setup", { role: ROLE_ID, channel: CHANNEL_ID, timezone: TZ }))).toMatch(/^✅ Created 25-player raid team/);
     expect(await prisma.raidTeam.count()).toBe(1);
     expect(errors).toHaveBeenCalledWith(expect.stringContaining("Failed to sync raid team"), expect.any(Error));
   });
@@ -333,10 +341,19 @@ describe("team edit", () => {
     const { run, channel } = setup();
     const existing = channel.seedMessage("public");
     const reply = onlyReply(await run("team", "edit", { role: ROLE_ID, name: "Core", timezone: "Europe/Paris", "coming-up": 5 }));
-    expect(reply).toBe(`✅ Updated **Core**.\n• Channel: <#${CHANNEL_ID}>\n• Timezone: Europe/Paris\n• Coming Up raids: 5`);
+    expect(reply).toBe(`✅ Updated **Core**.\n• Channel: <#${CHANNEL_ID}>\n• Timezone: Europe/Paris\n• Raid size: 25-player\n• Coming Up raids: 5`);
     expect(await team(t.id)).toMatchObject({ name: "Core", timezone: "Europe/Paris", displayCount: 5, messageId: "public" });
     expect(existing.payloads).toHaveLength(2);
     expect(channel.sent).toHaveLength(0);
+  });
+
+  it("changes the raid size alone, and re-renders against it", async () => {
+    const t = await makeTeam({ messageId: "public" });
+    const { run, channel } = setup();
+    const existing = channel.seedMessage("public");
+    expect(onlyReply(await run("team", "edit", { role: ROLE_ID, size: 20 }))).toContain("• Raid size: 20-player");
+    expect(await team(t.id)).toMatchObject({ raidSize: 20 });
+    expect(existing.payloads).toHaveLength(2);
   });
 
   it("moving the channel deletes the old message and posts in the new channel", async () => {

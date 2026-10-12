@@ -111,51 +111,61 @@ describe("buildPublicMessage — Next Up", () => {
   });
 
   it.each([
-    [20, 0, 10, "green", 0x3ba55c],
-    [20, 1, 9, "yellow", 0xf0b232], // any call-out shows at least one red segment
-    [20, 10, 5, "yellow", 0xf0b232], // exactly half in is still yellow
-    [20, 11, 4, "red", 0xed4245],
-    [3, 2, 3, "red", 0xed4245],
-    [3, 3, 0, "red", 0xed4245],
-  ])("with %i raiders and %i out: %i green segments, %s accent", (size, outCount, green, _status, accent) => {
-    const p = buildPublicMessage(team(), "Main Raid", [raid("2026-10-08T01:00:00Z", { out: ids(outCount) })], squad(size));
+    [25, 26, 0, 10, "🟩", 0x3ba55c], // more than the raid size is still a full green bar
+    [25, 25, 0, 10, "🟩", 0x3ba55c],
+    [25, 25, 1, 9, "🟨", 0xf0b232], // any shortfall leaves at least one empty segment
+    [25, 25, 2, 9, "🟨", 0xf0b232],
+    [25, 25, 3, 8, "🟥", 0xed4245],
+    [25, 30, 30, 0, "🟥", 0xed4245],
+    [20, 20, 2, 9, "🟨", 0xf0b232],
+    [20, 20, 3, 8, "🟥", 0xed4245],
+  ])("a %i-player raid with %i raiders and %i out: %i filled segments in %s", (raidSize, count, outCount, filled, seg, accent) => {
+    const p = buildPublicMessage(
+      team({ raidSize }),
+      "Main Raid",
+      [raid("2026-10-08T01:00:00Z", { out: ids(outCount) })],
+      squad(count),
+    );
     const card = nextUp(p);
     expect(card.accent_color).toBe(accent);
-    expect(texts(card)[1]).toBe(`${"🟩".repeat(green)}${"🟥".repeat(10 - green)}  **${size - outCount}/${size} ready**`);
+    expect(texts(card)[1]).toBe(`${seg.repeat(filled)}${"⬜".repeat(10 - filled)}  **${count - outCount}/${raidSize} ready**`);
   });
 
   it("draws the bar with the segment app emojis when they're uploaded", async () => {
-    await loadAppEmojis(fakeClient({ emojis: ["seg_green", "seg_red"] }));
-    const p = buildPublicMessage(team(), "Main Raid", [raid("2026-10-08T01:00:00Z", { out: ["u0"] })], squad(2));
-    expect(texts(nextUp(p))[1]).toBe(`${"<:seg_green:9000>".repeat(5)}${"<:seg_red:9001>".repeat(5)}  **1/2 ready**`);
+    await loadAppEmojis(fakeClient({ emojis: ["seg_yellow", "seg_empty"] }));
+    const p = buildPublicMessage(team(), "Main Raid", [raid("2026-10-08T01:00:00Z", { out: ["u0"] })], squad(25));
+    expect(texts(nextUp(p))[1]).toBe(`${"<:seg_yellow:9000>".repeat(9)}<:seg_empty:9001>  **24/25 ready**`);
   });
 
-  it("summarises each role as in/roster by icon, with a dot only when short of RAID_TYPES minimums", () => {
-    // Full ROSTER: 2 tanks (min 2), 3 healers (min 3), 4 DPS (min 10, but all are in).
-    const all = buildPublicMessage(team(), "Main Raid", weeklyRaids(1), ROSTER);
-    expect(texts(nextUp(all))[2]).toBe("🛡️ **2/2**\u2003➕ **3/3**\u2003⚔️ **5/5**");
+  /** `tanks` tanks, `healers` healers and `dps` damage raiders, with distinct ids. */
+  const lineup = (tanks: number, healers: number, dps: number) => [
+    ...Array.from({ length: tanks }, (_, i) => raider(`Tank ${i}`, ["Tanks"], `t${i}`)),
+    ...Array.from({ length: healers }, (_, i) => raider(`Healer ${i}`, ["Healers"], `h${i}`)),
+    ...Array.from({ length: dps }, (_, i) => raider(`Damage ${i}`, ["DPS"], `d${i}`)),
+  ];
 
-    // One tank out → one short (yellow); two healers out → red; one DPS out, 3 < 10 → red.
-    const short = buildPublicMessage(
-      team(),
-      "Main Raid",
-      weeklyRaids(1, () => ({ out: ["u-tank1", "u-heal1", "u-heal2", "u-mage"] })),
-      ROSTER,
-    );
-    expect(texts(nextUp(short))[2]).toBe("🛡️ **1/2** 🟡\u2002➕ **1/3** 🔴\u2002⚔️ **4/5** 🔴");
+  it("summarises each role as in/want by icon with its dot: green at want, yellow at need, red below", () => {
+    // 25-player: tanks need 2 / want 3, healers 4 / 5, damage 15 / 17.
+    const full = buildPublicMessage(team(), "Main Raid", weeklyRaids(1), lineup(3, 5, 18));
+    expect(texts(nextUp(full))[2]).toBe("🛡️ **3/3** 🟢\u2002➕ **5/5** 🟢\u2002⚔️ **18/17** 🟢");
+
+    const thin = buildPublicMessage(team(), "Main Raid", weeklyRaids(1, () => ({ out: ["t0", "h0", "d0", "d1", "d2"] })), lineup(3, 5, 18));
+    expect(texts(nextUp(thin))[2]).toBe("🛡️ **2/3** 🟡\u2002➕ **4/5** 🟡\u2002⚔️ **15/17** 🟡");
+
+    const short = buildPublicMessage(team(), "Main Raid", weeklyRaids(1, () => ({ out: ["t0", "t1", "h0", "h1", "d0", "d1", "d2", "d3"] })), lineup(3, 5, 18));
+    expect(texts(nextUp(short))[2]).toBe("🛡️ **1/3** 🔴\u2002➕ **3/5** 🔴\u2002⚔️ **14/17** 🔴");
   });
 
-  it("shows no dot on a role once its minimum is met, even with call-outs", () => {
-    const tanks = squad(4, ["Tanks"]);
-    const p = buildPublicMessage(team(), "Main Raid", [raid("2026-10-08T01:00:00Z", { out: ["u0", "u1"] })], tanks);
-    expect(texts(nextUp(p))[2]).toBe("🛡️ **2/4**\u2003➕ **0/0**\u2003⚔️ **0/0**");
+  it("gives Damage the rest of a 20-player raid", () => {
+    const p = buildPublicMessage(team({ raidSize: 20 }), "Main Raid", weeklyRaids(1), lineup(3, 5, 10));
+    expect(texts(nextUp(p))[2]).toBe("🛡️ **3/3** 🟢\u2002➕ **5/5** 🟢\u2002⚔️ **10/12** 🟡");
   });
 
   it("uses the dot app emojis when uploaded", async () => {
-    await loadAppEmojis(fakeClient({ emojis: ["dot_grey", "dot_yellow", "dot_red", "healer"] }));
-    const p = buildPublicMessage(team(), "Main Raid", weeklyRaids(1, () => ({ out: ["u-tank1", "u-heal1", "u-heal2"] })), ROSTER);
+    await loadAppEmojis(fakeClient({ emojis: ["dot_green", "dot_yellow", "dot_red", "healer"] }));
+    const p = buildPublicMessage(team(), "Main Raid", weeklyRaids(1, () => ({ out: ["t0"] })), lineup(3, 5, 10));
     expect(texts(nextUp(p))[2]).toBe(
-      "🛡️ **1/2** <:dot_yellow:9001>\u2002<:healer:9003> **1/3** <:dot_red:9002>\u2002⚔️ **5/5**",
+      "🛡️ **2/3** <:dot_yellow:9001>\u2002<:healer:9003> **5/5** <:dot_green:9000>\u2002⚔️ **10/17** <:dot_red:9002>",
     );
   });
 
@@ -262,7 +272,7 @@ describe("buildPublicMessage — Next Up", () => {
       ROSTER,
     );
     const t = texts(nextUp(p));
-    expect(t[1]).toContain("**9/10 ready**");
+    expect(t[1]).toContain("**9/25 ready**");
     expect(t[4]).toBe("-# **CALLED OUT · 1**\n**Mage** `Zap`");
     expect(t[3]).toContain("Stabby");
   });
@@ -346,13 +356,13 @@ describe("buildPublicMessage — Next Up", () => {
 describe("buildPublicMessage — Coming Up", () => {
   it("gives each later raid a section with its date, count, a dotless role line and own button", () => {
     const raids = weeklyRaids(3, (i) => ({ out: i === 1 ? ["u-tank1"] : [] }));
-    const comingUp = containers(buildPublicMessage(team(), "Main Raid", raids, ROSTER))[1];
+    const comingUp = containers(buildPublicMessage(team({ raidSize: 20 }), "Main Raid", raids, [...ROSTER, ...squad(10)]))[1];
     const sections = comingUp.components.filter((c: any) => c.type === ComponentType.Section);
     expect(sections).toHaveLength(2);
     expect(sections[0].components[0].content).toBe(
-      "🟡 **Wed, Oct 14** 8:00 PM · 9/10\n-# \u2800\u2003🛡️ 1/2\u2003➕ 3/3\u2003⚔️ 5/5",
+      "🟡 **Wed, Oct 14** 8:00 PM · 19/20\n-# \u2800\u2003🛡️ 1/3\u2003➕ 3/5\u2003⚔️ 15/12",
     );
-    expect(sections[1].components[0].content).toMatch(/^🟢 \*\*Wed, Oct 21\*\* 8:00 PM · 10\/10\n/);
+    expect(sections[1].components[0].content).toMatch(/^🟢 \*\*Wed, Oct 21\*\* 8:00 PM · 20\/20\n/);
     expect(sections.map((s: any) => s.accessory.custom_id)).toEqual([
       `attendance:btn:${TEAM_ID}:${raids[1]!.id}`,
       `attendance:btn:${TEAM_ID}:${raids[2]!.id}`,
@@ -362,15 +372,15 @@ describe("buildPublicMessage — Coming Up", () => {
   it("formats Coming Up dates in the team's timezone across DST", () => {
     // weeklyRaids keeps 8 PM Chicago; the Nov 4 raid is after DST ends.
     const comingUp = containers(buildPublicMessage(team(), "Main Raid", weeklyRaids(5), ROSTER))[1];
-    expect(texts(comingUp).at(-1)).toMatch(/^🟢 \*\*Wed, Nov 4\*\* 8:00 PM/);
+    expect(texts(comingUp).at(-1)).toMatch(/^🔴 \*\*Wed, Nov 4\*\* 8:00 PM/);
   });
 
   it("uses the large dot app emojis for each raid's status when uploaded", async () => {
     await loadAppEmojis(fakeClient({ emojis: ["dot_lg_green", "dot_lg_red"] }));
     const raids = weeklyRaids(3, (i) => ({ out: i === 2 ? ids(3) : [] }));
-    const t = texts(containers(buildPublicMessage(team(), "Main Raid", raids, squad(4)))[1]);
+    const t = texts(containers(buildPublicMessage(team(), "Main Raid", raids, squad(25)))[1]);
     expect(t[1]).toMatch(/^<:dot_lg_green:9000> /);
-    expect(t[2]).toMatch(/^<:dot_lg_red:9001> .* · 1\/4/);
+    expect(t[2]).toMatch(/^<:dot_lg_red:9001> .* · 22\/25/);
   });
 
   it("shows a cancelled later raid as one line with no button", () => {
@@ -517,7 +527,7 @@ describe("buildCalendarMessage", () => {
     ["u-mage", ["u-mage"], "❌ You're out"],
   ])("as %s with %j out, ends the day with %j", (viewer, out, expected) => {
     const [day] = days(build([raid("2026-10-08T01:00:00Z", { out })], { viewer }));
-    expect(day!.split("\n")[0]).toMatch(/^.+ \*\*Wed, Oct 7\*\* 8:00 PM · \d+\/10$/);
+    expect(day!.split("\n")[0]).toMatch(/^.+ \*\*Wed, Oct 7\*\* 8:00 PM · \d+\/25$/);
     expect(day!.endsWith(expected)).toBe(true);
   });
 
@@ -545,8 +555,18 @@ describe("buildCalendarMessage", () => {
 
   it("only counts call-outs from current roster members", () => {
     const [day] = days(build([raid("2026-10-08T01:00:00Z", { out: ["gone", "u-mage"], in: ["u-rogue"] })]));
-    expect(day).toContain("· 9/10\n");
+    expect(day).toContain("· 9/25\n");
     expect(day!.endsWith("Called out: `Zap`")).toBe(true);
+  });
+
+  it("breaks a long called-out list onto indented lines instead of letting it wrap", () => {
+    const names = ["Aegisa", "Arcanis", "Bulwark", "Frostbyte", "Gromwall", "Kneecap", "Lightwell", "Mendara", "Pyrel", "Shiv", "Solace"];
+    const roster = [...names.map((n, i) => raider(n, ["DPS"], `x${i}`)), raider("Me", ["DPS"], "me")];
+    const [day] = days(build([raid("2026-10-08T01:00:00Z", { out: names.map((_, i) => `x${i}`) })], { roster, viewer: "me" }));
+    expect(day!.split("\n").slice(2)).toEqual([
+      "-# ⠀\u2003✅ You're in · Called out: `Aegisa` `Arcanis` `Bulwark` `Frostbyte` `Gromwall`",
+      "-# ⠀\u2003`Kneecap` `Lightwell` `Mendara` `Pyrel` `Shiv` `Solace`",
+    ]);
   });
 
   it("shows a cancelled day as one line, like Coming Up", () => {

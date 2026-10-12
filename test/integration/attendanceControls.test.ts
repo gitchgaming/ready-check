@@ -52,7 +52,7 @@ describe("public date button", () => {
     expect(buttonIds(first.replies[0])).toEqual([`attendance:undo:${team.id}:${raid.id}:in:s`]);
     expect(await isOut(raid.id)).toBe(true);
     expect(renders()).toBe(1);
-    expect(payloadText(publicMessage.payloads[1] as any)).toContain("**1/2 ready**");
+    expect(payloadText(publicMessage.payloads[1] as any)).toContain("**1/25 ready**");
 
     const second = fakeButton(id, base);
     await handleAttendanceControl(second, client);
@@ -154,7 +154,7 @@ describe("public roster shortcut", () => {
     const reply = pick.replies[0];
     expect(isEphemeral(reply)).toBe(true);
     expect(payloadText(reply as any)).toContain("ROSTER");
-    expect(payloadText(reply as any)).toContain("**1/2 ready**");
+    expect(payloadText(reply as any)).toContain("**1/25 ready**");
     expect(await prisma.attendance.count()).toBe(1); // looking changes nothing
     expect(renders()).toBe(1);
   });
@@ -193,7 +193,7 @@ describe("personal schedule Roster button", () => {
     expect(click.replies).toHaveLength(1);
     expect(click.updates).toHaveLength(0);
     expect(isEphemeral(click.replies[0])).toBe(true);
-    expect(payloadText(click.replies[0] as any)).toContain("**1/2 ready**");
+    expect(payloadText(click.replies[0] as any)).toContain("**1/25 ready**");
     expect(await prisma.attendance.count()).toBe(1);
     expect(renders()).toBe(0);
   });

@@ -134,9 +134,15 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   date picker skips cancelled raids, which have no roster (as Coming Up's
   select and `/schedule`'s Roster buttons do). The bot sends no embeds; every
   view is a V2 container.
-- Role status dots use per-type minimums in `RAID_TYPES` (`min`: Tanks 2,
-  Healers 3, DPS 10). These are placeholders: the game has 40/20/10-player
-  raids and the real minimums are undecided (see `docs/future-features.md`).
+- Each team has a raid size, 20 or 25 (`raidSize`, the `size` option on
+  `team setup`/`team edit`, default 25), with fixed role targets
+  (`roleTargets` in `classes.ts`): Tanks need 2 / want 3, Healers 4 / 5,
+  Damage wants the rest and needs 2 fewer. A role is 🟢 at its want, 🟡 at
+  its need, 🔴 below, shown as in/want with a dot on every Next Up role. The
+  raid's status (accent, Coming Up dot, bar color) is headcount only: 🟢 at
+  the size, 🟡 up to 2 under, 🔴 more. The bar is 10 segments in that color,
+  filled for raiders in out of the size, outlined (`seg_empty`) for open spots.
+  Officer-set targets are a possible later step (`docs/future-features.md`).
 - A cancelled raid stays in the Next Up spot until it closes (a few hours
   after its start), rather than promoting the next raid.
 - Attendance rows exist only for call-outs (status "OUT"); attending = no row.
@@ -197,8 +203,8 @@ testing is for look and feel only.
 
 ## Pending work
 
-- `docs/future-features.md`: ideas and open questions to pick up later (role
-  minimums per raid size, image size). Add new ones
+- `docs/future-features.md`: ideas and open questions to pick up later (officer-set
+  role targets, image size). Add new ones
   there; remove them once built.
 - Staging is live and verified (2026-10-09), except one guard path: with
   staging stopped, `check-staging` should report it stopped and let

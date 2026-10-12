@@ -46,12 +46,12 @@ describe("setAttendance", () => {
     expect(onlyReply(await run("TOGGLE"))).toBe(`❌ Marked you as called out for ${TUE_LABEL}.`);
     expect(await isOut(raid.id, "u-alice")).toBe(true);
     expect(channel.sent).toHaveLength(1);
-    expect(payloadText(channel.sent[0]!.payloads[0] as any)).toContain("**1/2 ready**");
+    expect(payloadText(channel.sent[0]!.payloads[0] as any)).toContain("**1/25 ready**");
 
     expect(onlyReply(await run("TOGGLE"))).toBe(`✅ Marked you as attending ${TUE_LABEL}.`);
     expect(await isOut(raid.id, "u-alice")).toBe(false);
     expect(channel.sent[0]!.payloads).toHaveLength(2);
-    expect(payloadText(channel.sent[0]!.payloads[1] as any)).toContain("**2/2 ready**");
+    expect(payloadText(channel.sent[0]!.payloads[1] as any)).toContain("**2/25 ready**");
   });
 
   it("OUT and IN say 'already' and change nothing when there's nothing to change", async () => {

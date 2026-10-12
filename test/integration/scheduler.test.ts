@@ -331,7 +331,7 @@ describe("renderTeamMessage", () => {
     expect(channel.sent).toHaveLength(1);
     const posted = channel.sent[0]!;
     expect(posted.flags.has(MessageFlags.IsComponentsV2)).toBe(true);
-    expect(payloadText(posted.payloads[0] as any)).toContain("**1/2 ready**");
+    expect(payloadText(posted.payloads[0] as any)).toContain("**1/25 ready**");
     expect((posted.payloads[0] as any).allowedMentions).toEqual({ parse: [] });
     expect((await prisma.raidTeam.findUniqueOrThrow({ where: { id: team.id } })).messageId).toBe(posted.id);
 
@@ -339,7 +339,7 @@ describe("renderTeamMessage", () => {
     await renderTeamMessage(client, team.id);
     expect(channel.sent).toHaveLength(1);
     expect(posted.payloads).toHaveLength(2);
-    expect(payloadText(posted.payloads[1] as any)).toContain("**2/2 ready**");
+    expect(payloadText(posted.payloads[1] as any)).toContain("**2/25 ready**");
     expect(guild.fullFetches).toBe(0);
   });
 
@@ -446,6 +446,6 @@ describe("renderTeamMessage", () => {
     ];
     const { channel, client } = world({ members });
     await renderTeamMessage(client, team.id);
-    expect(payloadText(channel.sent[0]!.payloads[0] as any)).toContain("**1/1 ready**");
+    expect(payloadText(channel.sent[0]!.payloads[0] as any)).toContain("**1/25 ready**");
   });
 });

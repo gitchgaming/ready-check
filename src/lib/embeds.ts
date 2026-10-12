@@ -19,6 +19,9 @@ import {
   CLASSES,
   OFF_SPECS,
   RAID_TYPES,
+  SHORT_MARGIN,
+  roleTargets,
+  type RoleTarget,
   memberClass,
   memberOffSpecs,
   memberRaidType,
@@ -94,6 +97,7 @@ function selectRow(select: StringSelectMenuBuilder) {
 const STATUS_COLORS = { green: 0x3ba55c, yellow: 0xf0b232, red: 0xed4245, grey: 0x6b7280 } as const;
 const DOT_FALLBACKS = { green: "🟢", yellow: "🟡", red: "🔴", grey: "⚪" } as const;
 type Status = keyof typeof DOT_FALLBACKS;
+const SEG_FALLBACKS: Record<Status, string> = { green: "🟩", yellow: "🟨", red: "🟥", grey: "⬛" };
 
 const BAR_SEGMENTS = 10;
 // Discord has no indent and strips leading whitespace, so the line starts with
@@ -111,21 +115,23 @@ export function statusMark(out: boolean): string {
   return out ? appEmoji("mark_out", "❌") : appEmoji("mark_in", "✅");
 }
 
-/** Whole-raid status: everyone in → green, at least half → yellow, else red. */
-function raidStatus(attending: number, total: number): Status {
-  return attending === total ? "green" : attending * 2 >= total ? "yellow" : "red";
+/** Whole-raid status against the raid size: full → green, up to SHORT_MARGIN under → yellow, else red. */
+function raidStatus(attending: number, size: number): Status {
+  return attending >= size ? "green" : attending >= size - SHORT_MARGIN ? "yellow" : "red";
 }
 
-/** Role status: enough (or all of that role) in → grey, one short → yellow, else red. */
-function roleStatus(inCount: number, rosterCount: number, min: number): Status {
-  if (inCount === rosterCount || inCount >= min) return "grey";
-  return inCount === min - 1 ? "yellow" : "red";
+/** Role status: at its want → green, at its need → yellow, else red. */
+function roleStatus(inCount: number, target: RoleTarget): Status {
+  return inCount >= target.want ? "green" : inCount >= target.need ? "yellow" : "red";
 }
 
-/** 10 segments; any call-out shows at least one red one. */
-function attendanceBar(attending: number, total: number): string {
-  const green = attending === total ? BAR_SEGMENTS : Math.min(BAR_SEGMENTS - 1, Math.floor((BAR_SEGMENTS * attending) / total));
-  return appEmoji("seg_green", "🟩").repeat(green) + appEmoji("seg_red", "🟥").repeat(BAR_SEGMENTS - green);
+/**
+ * 10 segments in the raid's status color, filled for raiders in out of the raid
+ * size and outlined for open spots; any shortfall leaves at least one outlined.
+ */
+function attendanceBar(attending: number, size: number, status: Status): string {
+  const filled = attending >= size ? BAR_SEGMENTS : Math.min(BAR_SEGMENTS - 1, Math.floor((BAR_SEGMENTS * attending) / size));
+  return appEmoji(`seg_${status}`, SEG_FALLBACKS[status]).repeat(filled) + appEmoji("seg_empty", "⬜").repeat(BAR_SEGMENTS - filled);
 }
 
 /**
@@ -136,32 +142,31 @@ function rosterType(member: GuildMember): RaidType {
   return memberRaidType(member) ?? RAID_TYPES.at(-1)!;
 }
 
-/** Who's in and out of one raid, and per-role counts, from the current roster. */
-function raidAttendance(instance: InstanceWithAttendance, members: GuildMember[]) {
+/** Who's in and out of one raid, and per-role counts against the team's raid size. */
+function raidAttendance(team: RaidTeam, instance: InstanceWithAttendance, members: GuildMember[]) {
   const outIds = new Set(instance.attendance.filter((a) => a.status === "OUT").map((a) => a.userId));
   const attending = members.filter((m) => !outIds.has(m.id));
   const out = members.filter((m) => outIds.has(m.id));
-  const roles = RAID_TYPES.map((type) => {
-    const rosterCount = members.filter((m) => rosterType(m) === type).length;
+  const targets = roleTargets(team.raidSize);
+  const roles = RAID_TYPES.map((type, i) => {
     const inCount = attending.filter((m) => rosterType(m) === type).length;
-    return { type, inCount, rosterCount, status: roleStatus(inCount, rosterCount, type.min) };
+    return { type, inCount, want: targets[i]!.want, status: roleStatus(inCount, targets[i]!) };
   });
-  return { attending, out, total: members.length, roles, status: raidStatus(attending.length, members.length) };
+  return { attending, out, size: team.raidSize, roles, status: raidStatus(attending.length, team.raidSize) };
 }
 
 /**
- * Role counts by icon. Next Up's are bold, with a dot only on a role that's short,
- * so the line fits on a phone without wrapping, even with double-digit counts and
- * all three dots; Coming Up's are plain, since each raid's own dot covers it. Roles
- * are an em space apart; a dot is padded, so only an en space follows one.
+ * Role counts by icon, each as raiders in out of the role's want. Next Up's are
+ * bold with every role's dot, which still fits a phone line with double-digit
+ * counts; Coming Up's are plain, since each raid's own dot covers it. Roles are
+ * an em space apart; a dot is padded, so only an en space follows one.
  */
 function roleCounts(roles: ReturnType<typeof raidAttendance>["roles"], nextUp = false): string {
   const b = nextUp ? "**" : "";
-  const dotted = (r: (typeof roles)[number]) => nextUp && r.status !== "grey";
   return roles
     .map((r, i) => {
-      const sep = i === 0 ? "" : dotted(roles[i - 1]!) ? "\u2002" : "\u2003";
-      return `${sep}${raidTypeIcon(r.type)} ${b}${r.inCount}/${r.rosterCount}${b}${dotted(r) ? ` ${dot(r.status)}` : ""}`;
+      const sep = i === 0 ? "" : nextUp ? "\u2002" : "\u2003";
+      return `${sep}${raidTypeIcon(r.type)} ${b}${r.inCount}/${r.want}${b}${nextUp ? ` ${dot(r.status)}` : ""}`;
     })
     .join("");
 }
@@ -397,8 +402,8 @@ function raidCard(
       .addTextDisplayComponents(header, text("🚫 **Cancelled**"));
   }
 
-  const raid = raidAttendance(instance, members);
-  const bar = text(`${attendanceBar(raid.attending.length, raid.total)}  **${raid.attending.length}/${raid.total} ready**`);
+  const raid = raidAttendance(team, instance, members);
+  const bar = text(`${attendanceBar(raid.attending.length, raid.size, raid.status)}  **${raid.attending.length}/${raid.size} ready**`);
   const summary = text(roleCounts(raid.roles, true) + offSpecKey(members, raid.attending));
   const fixedText = [header, bar, summary].reduce((n, t) => n + (t.data.content?.length ?? 0), 0);
   const rosterBudget = textBudget - fixedText - (withButton ? STATUS_NOTE.length : 0);
@@ -434,8 +439,8 @@ function raidCard(
 function raidLine(team: RaidTeam, instance: InstanceWithAttendance, members: GuildMember[]): string {
   const when = raidDate(instance, team.timezone);
   if (instance.cancelled) return `🚫 **${when.toFormat("ccc, LLL d")}** · Cancelled`;
-  const raid = raidAttendance(instance, members);
-  return `${dot(raid.status, true)} **${when.toFormat("ccc, LLL d")}** ${when.toFormat("h:mm a")} · ${raid.attending.length}/${raid.total}\n-# ${INDENT}${roleCounts(raid.roles)}`;
+  const raid = raidAttendance(team, instance, members);
+  return `${dot(raid.status, true)} **${when.toFormat("ccc, LLL d")}** ${when.toFormat("h:mm a")} · ${raid.attending.length}/${raid.size}\n-# ${INDENT}${roleCounts(raid.roles)}`;
 }
 
 /**
@@ -563,14 +568,36 @@ function rosterButton(team: RaidTeam, instance: InstanceWithAttendance) {
     .setStyle(ButtonStyle.Secondary);
 }
 
-/** Names as chips after `prefix`, ending with "…and N more" before passing `budget` characters. */
-function chipList(prefix: string, names: string[], budget: number): string {
+/**
+ * About how many characters of small text fit on a line beside a button on
+ * desktop, a chip counting three more for its padding and space. Chip lists break before
+ * this themselves, since Discord can't indent a wrapped line. A phone is
+ * narrower and still wraps its lines to the edge.
+ */
+const CHIP_LINE_WIDTH = 80;
+
+/** Rough on-screen width of a line: a custom emoji is about two characters. */
+function visibleWidth(line: string): number {
+  return line.replace(/^-# /, "").replace(/<a?:\w+:\d+>/g, "xx").length;
+}
+
+/**
+ * Names as chips after `prefix`, ending with "…and N more" before passing
+ * `budget` characters. With `indent`, a line that would get too wide breaks
+ * onto a new small-text line starting with `indent`, so the chips line up
+ * under the text instead of wrapping to the edge.
+ */
+function chipList(prefix: string, names: string[], budget: number, indent?: string): string {
   let line = prefix;
+  let width = visibleWidth(prefix.slice(prefix.lastIndexOf("\n") + 1));
   for (const [i, name] of names.entries()) {
-    const piece = ` ${chip(name)}`;
+    const chipWidth = name.length + 3;
+    const wrap = indent !== undefined && width + chipWidth > CHIP_LINE_WIDTH;
+    const piece = `${wrap ? `\n-# ${indent}` : " "}${chip(name)}`;
     const more = ` …and ${names.length - i} more`;
     if (line.length + piece.length + (i < names.length - 1 ? more.length : 0) > budget) return line + more;
     line += piece;
+    width = wrap ? visibleWidth(indent) + chipWidth : width + chipWidth;
   }
   return line;
 }
@@ -589,7 +616,7 @@ function calendarDay(
   const line = raidLine(team, instance, members);
   if (instance.cancelled) return line;
 
-  const { out } = raidAttendance(instance, members);
+  const { out } = raidAttendance(team, instance, members);
   const viewerOut = viewer !== undefined && out.includes(viewer);
   const parts: string[] = [];
   if (viewer) {
@@ -602,7 +629,7 @@ function calendarDay(
     .map((m) => m.displayName)
     .sort((a, b) => a.localeCompare(b));
   if (others.length === 0) return parts.length > 0 ? head : line;
-  return chipList(`${head}${parts.length > 0 ? " · " : ""}Called out:`, others, budget);
+  return chipList(`${head}${parts.length > 0 ? " · " : ""}Called out:`, others, budget, INDENT);
 }
 
 /**

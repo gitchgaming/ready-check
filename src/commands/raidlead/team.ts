@@ -28,6 +28,7 @@ export async function setup(interaction: ChatInputCommandInteraction, client: Cl
   const timezone = interaction.options.getString("timezone", true).trim();
   const name = interaction.options.getString("name");
   const comingUp = interaction.options.getInteger("coming-up");
+  const size = interaction.options.getInteger("size");
 
   if (invalidTimezone(timezone)) {
     await replyBadTimezone(interaction, timezone);
@@ -53,12 +54,13 @@ export async function setup(interaction: ChatInputCommandInteraction, client: Cl
       timezone,
       name: name ?? role.name,
       ...(comingUp !== null ? { displayCount: comingUp } : {}),
+      ...(size !== null ? { raidSize: size } : {}),
     },
   });
 
   await interaction.reply({
     content:
-      `✅ Created raid team **${team.name}** for <@&${role.id}>, posting its schedule in <#${channel.id}>.\n` +
+      `✅ Created ${team.raidSize}-player raid team **${team.name}** for <@&${role.id}>, posting its schedule in <#${channel.id}>.\n` +
       "Next, add its weekly raid nights with `/raidlead nights add`.",
     flags: MessageFlags.Ephemeral,
   });
@@ -74,8 +76,9 @@ export async function edit(interaction: ChatInputCommandInteraction, client: Cli
   const timezone = interaction.options.getString("timezone")?.trim();
   const name = interaction.options.getString("name");
   const comingUp = interaction.options.getInteger("coming-up");
+  const size = interaction.options.getInteger("size");
 
-  if (!channel && !timezone && !name && comingUp === null) {
+  if (!channel && !timezone && !name && comingUp === null && size === null) {
     await interaction.reply({ content: "Pick at least one setting to change.", flags: MessageFlags.Ephemeral });
     return;
   }
@@ -96,6 +99,7 @@ export async function edit(interaction: ChatInputCommandInteraction, client: Cli
       ...(timezone ? { timezone } : {}),
       ...(name ? { name } : {}),
       ...(comingUp !== null ? { displayCount: comingUp } : {}),
+      ...(size !== null ? { raidSize: size } : {}),
     },
   });
 
@@ -104,6 +108,7 @@ export async function edit(interaction: ChatInputCommandInteraction, client: Cli
       `✅ Updated **${updated.name ?? interaction.options.getRole("role", true).name}**.\n` +
       `• Channel: <#${updated.channelId}>\n` +
       `• Timezone: ${updated.timezone}\n` +
+      `• Raid size: ${updated.raidSize}-player\n` +
       `• Coming Up raids: ${updated.displayCount}`,
     flags: MessageFlags.Ephemeral,
   });
