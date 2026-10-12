@@ -134,6 +134,46 @@ describe('public "See more dates" select', () => {
   });
 });
 
+describe("public roster shortcut", () => {
+  it("privately shows that raid's roster card and resets the public select", async () => {
+    const { team, raid, client, base, renders } = await setup();
+    await callOut(raid.id, "u-bob");
+    const pick = fakeSelect(`attendance:pub:${team.id}`, [`roster:${raid.id}`], base);
+    await handleAttendanceControl(pick, client);
+
+    expect(pick.replies).toHaveLength(1);
+    const reply = pick.replies[0];
+    expect(isEphemeral(reply)).toBe(true);
+    expect(payloadText(reply as any)).toContain("ROSTER");
+    expect(payloadText(reply as any)).toContain("**1/2 ready**");
+    expect(await prisma.attendance.count()).toBe(1); // looking changes nothing
+    expect(renders()).toBe(1);
+  });
+
+  it("lets an officer off the roster look", async () => {
+    const { team, raid, client, guild } = await setup({ onRoster: false });
+    const pick = fakeSelect(`attendance:pub:${team.id}`, [`roster:${raid.id}`], { guild, userId: "u-alice", officer: true });
+    await handleAttendanceControl(pick, client);
+    expect(payloadText(pick.replies[0] as any)).toContain("ROSTER");
+  });
+
+  it("turns away someone who isn't on the team", async () => {
+    const { team, raid, client, base } = await setup({ onRoster: false });
+    const pick = fakeSelect(`attendance:pub:${team.id}`, [`roster:${raid.id}`], base);
+    await handleAttendanceControl(pick, client);
+    expect(onlyReply(pick)).toBe(`Only <@&${ROLE_ID}> and officers can see this roster.`);
+  });
+
+  it("rejects another team's raid", async () => {
+    const { team, client, base } = await setup();
+    const other = await makeTeam({ roleId: "role-other" });
+    const theirs = await makeRaid(other.id, TUE_8PM);
+    const pick = fakeSelect(`attendance:pub:${team.id}`, [`roster:${theirs.id}`], base);
+    await handleAttendanceControl(pick, client);
+    expect(onlyReply(pick)).toBe("This raid no longer exists.");
+  });
+});
+
 describe("personal schedule select", () => {
   it("toggles the picked raid and updates the personal view in place, keeping its offset", async () => {
     const { team, raid, client, base, renders } = await setup();

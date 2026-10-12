@@ -39,7 +39,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   or customId prefix; `index.ts` only sets up the client), then the select and
   button handlers. State lives in the customId:
   `attendance:btn:<teamId>:<raidId>` (public date buttons),
-  `attendance:pub:<teamId>` (public "See more dates" select, value `more`),
+  `attendance:pub:<teamId>` (public "See more dates" select, value `more`, or
+  `roster:<raidId>` for a Coming Up raid's private roster card),
   `attendance:cal:<teamId>:<offset>` (personal date select, value is a raid id),
   `mynav:<dir>:<teamId>:<offset>`,
   `teamdelete:<confirm|abort>:<teamId>`.
@@ -65,8 +66,10 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - Discord can't personalize a shared message, so the public schedule message
   never pages or shows per-viewer state. Personal views (`/schedule`) are
   ephemeral and carry their state in customIds. The public message has one
-  button per visible date for one-click toggling, plus a select whose only
-  option, **See more dates**, opens the personal view. The personal select
+  button per visible date for one-click toggling, plus a select whose first
+  option, **See more dates**, opens the personal view; the rest show each
+  Coming Up raid's roster privately (a section takes only one button, so
+  these can't sit beside Status). The personal select
   lists every open raid (cap 25) with the viewer's status. Re-rendering the
   public message after each interaction resets its select.
 - Class and raid-type roles are matched by role name (`classes.ts`), not

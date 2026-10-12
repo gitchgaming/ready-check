@@ -1,7 +1,9 @@
 import type { ButtonInteraction, Client, StringSelectMenuInteraction } from "discord.js";
 import { MessageFlags } from "discord.js";
 import { prisma } from "../lib/db.js";
-import { MORE_DATES_VALUE, asEphemeral } from "../lib/embeds.js";
+import { isOfficer } from "../lib/access.js";
+import { MORE_DATES_VALUE, ROSTER_VALUE_PREFIX, asEphemeral, buildRaidRosterCard } from "../lib/embeds.js";
+import { fetchRosterMembers } from "../lib/roster.js";
 import { DateTime } from "luxon";
 import { personalCalendar, renderTeamMessage } from "../lib/scheduler.js";
 
@@ -13,7 +15,8 @@ type AttendanceInteraction = ButtonInteraction | StringSelectMenuInteraction;
  *   "attendance:pub:<raidTeamId>"                  — the "See more dates" select on the public message
  *   "attendance:cal:<raidTeamId>:<offset>"         — the date select on a personal schedule
  * A date button or a picked raid id toggles the user's own call-out;
- * MORE_DATES_VALUE opens the personal schedule.
+ * MORE_DATES_VALUE opens the personal schedule; "roster:<raidInstanceId>" privately
+ * shows that raid's roster card, as /roster with a date does.
  */
 export function isAttendanceControl(customId: string): boolean {
   return customId.startsWith("attendance:");
@@ -49,6 +52,11 @@ async function applySelection(
     const team = await prisma.raidTeam.findUnique({ where: { id: teamId } });
     if (!team) return;
     await interaction.reply(asEphemeral(await personalCalendar(team, guild, 0, interaction.user.id)));
+    return;
+  }
+
+  if (value.startsWith(ROSTER_VALUE_PREFIX)) {
+    await showRoster(interaction, teamId, value.slice(ROSTER_VALUE_PREFIX.length));
     return;
   }
 
@@ -101,4 +109,29 @@ async function applySelection(
     content: currentlyOut ? `You're back in for ${dateLabel}.` : `You're out for ${dateLabel}. Click again to undo.`,
     flags: MessageFlags.Ephemeral,
   });
+}
+
+/** One raid's roster card, privately. Like /roster, only for the team's raiders and officers. */
+async function showRoster(interaction: AttendanceInteraction, teamId: string, raidId: string): Promise<void> {
+  const guild = interaction.guild!;
+  const raid = await prisma.raidInstance.findUnique({
+    where: { id: raidId },
+    include: { raidTeam: true, attendance: true },
+  });
+  if (!raid || raid.raidTeamId !== teamId) {
+    await interaction.reply({ content: "This raid no longer exists.", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  const member = await guild.members.fetch(interaction.user.id).catch(() => null);
+  if (!isOfficer(interaction) && !member?.roles.cache.has(raid.raidTeam.roleId)) {
+    await interaction.reply({
+      content: `Only <@&${raid.raidTeam.roleId}> and officers can see this roster.`,
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  const members = await fetchRosterMembers(guild, raid.raidTeam.roleId);
+  await interaction.reply(asEphemeral(buildRaidRosterCard(raid.raidTeam, raid, members)));
 }
