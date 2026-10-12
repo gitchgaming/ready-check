@@ -42,6 +42,7 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   `attendance:pub:<teamId>` (public "See more dates" select, value `more`, or
   `roster:<raidId>` for a Coming Up raid's private roster card),
   `attendance:cal:<teamId>:<offset>` (personal date select, value is a raid id),
+  `attendance:ros:<teamId>:<raidId>` (personal view's per-day Roster button),
   `mynav:<dir>:<teamId>:<offset>`,
   `teamdelete:<confirm|abort>:<teamId>`.
 - `src/lib/` — `scheduler.ts` (instance generation, hourly sync, schedule

@@ -14,9 +14,10 @@ type AttendanceInteraction = ButtonInteraction | StringSelectMenuInteraction;
  *   "attendance:btn:<raidTeamId>:<raidInstanceId>" — a date button on the public message
  *   "attendance:pub:<raidTeamId>"                  — the "See more dates" select on the public message
  *   "attendance:cal:<raidTeamId>:<offset>"         — the date select on a personal schedule
+ *   "attendance:ros:<raidTeamId>:<raidInstanceId>" — a Roster button on a personal schedule
  * A date button or a picked raid id toggles the user's own call-out;
- * MORE_DATES_VALUE opens the personal schedule; "roster:<raidInstanceId>" privately
- * shows that raid's roster card, as /roster with a date does.
+ * MORE_DATES_VALUE opens the personal schedule; "roster:<raidInstanceId>" and a
+ * Roster button privately show that raid's roster card, as /roster with a date does.
  */
 export function isAttendanceControl(customId: string): boolean {
   return customId.startsWith("attendance:");
@@ -24,7 +25,12 @@ export function isAttendanceControl(customId: string): boolean {
 
 export async function handleAttendanceControl(interaction: AttendanceInteraction, client: Client): Promise<void> {
   const [, source, teamId, extra] = interaction.customId.split(":");
-  if ((source !== "btn" && source !== "pub" && source !== "cal") || !teamId || !interaction.guild) return;
+  if (!teamId || !interaction.guild) return;
+  if (source === "ros") {
+    if (extra) await showRoster(interaction, teamId, extra);
+    return;
+  }
+  if (source !== "btn" && source !== "pub" && source !== "cal") return;
 
   const value = interaction.isStringSelectMenu() ? interaction.values[0] : extra;
   if (!value) return;

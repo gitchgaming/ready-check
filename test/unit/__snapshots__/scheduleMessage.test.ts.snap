@@ -20,10 +20,22 @@ exports[`snapshots > personal schedule 1`] = `
           "type": 14,
         },
         {
-          "content": "🟡 **Wed, Sep 30** 8:00 PM · 9/10
+          "accessory": {
+            "custom_id": "attendance:ros:c00000000000000000000team:c0000000000000000000past0",
+            "emoji": undefined,
+            "label": "Roster",
+            "style": 2,
+            "type": 2,
+          },
+          "components": [
+            {
+              "content": "🟡 **Wed, Sep 30** 8:00 PM · 9/10
 -# ⠀ 🛡️ 1/2 ➕ 3/3 ⚔️ 5/5
 -# ⠀ ❌ You were out",
-          "type": 10,
+              "type": 10,
+            },
+          ],
+          "type": 9,
         },
         {
           "divider": true,
@@ -31,10 +43,22 @@ exports[`snapshots > personal schedule 1`] = `
           "type": 14,
         },
         {
-          "content": "🟡 **Wed, Oct 7** 8:00 PM · 8/10
+          "accessory": {
+            "custom_id": "attendance:ros:c00000000000000000000team:c0000000000000000000raid0",
+            "emoji": undefined,
+            "label": "Roster",
+            "style": 2,
+            "type": 2,
+          },
+          "components": [
+            {
+              "content": "🟡 **Wed, Oct 7** 8:00 PM · 8/10
 -# ⠀ 🛡️ 2/2 ➕ 2/3 ⚔️ 4/5
 -# ⠀ ✅ You're in · Called out: \`Lightbringer\` \`Zap\`",
-          "type": 10,
+              "type": 10,
+            },
+          ],
+          "type": 9,
         },
         {
           "divider": true,
@@ -42,10 +66,22 @@ exports[`snapshots > personal schedule 1`] = `
           "type": 14,
         },
         {
-          "content": "🟡 **Wed, Oct 14** 8:00 PM · 9/10
+          "accessory": {
+            "custom_id": "attendance:ros:c00000000000000000000team:c0000000000000000000raid1",
+            "emoji": undefined,
+            "label": "Roster",
+            "style": 2,
+            "type": 2,
+          },
+          "components": [
+            {
+              "content": "🟡 **Wed, Oct 14** 8:00 PM · 9/10
 -# ⠀ 🛡️ 1/2 ➕ 3/3 ⚔️ 5/5
 -# ⠀ ❌ You're out",
-          "type": 10,
+              "type": 10,
+            },
+          ],
+          "type": 9,
         },
         {
           "divider": true,

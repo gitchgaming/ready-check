@@ -485,6 +485,14 @@ export function buildTeamRosterCard(teamName: string, members: GuildMember[]) {
   return { flags: V2_FLAGS, components: [card], allowedMentions: NO_PINGS };
 }
 
+/** Privately shows one raid's roster card, as /roster with that date does. */
+function rosterButton(team: RaidTeam, instance: InstanceWithAttendance) {
+  return new ButtonBuilder()
+    .setCustomId(`attendance:ros:${team.id}:${instance.id}`)
+    .setLabel("Roster")
+    .setStyle(ButtonStyle.Secondary);
+}
+
 /** Names as chips after `prefix`, ending with "…and N more" before passing `budget` characters. */
 function chipList(prefix: string, names: string[], budget: number): string {
   let line = prefix;
@@ -531,7 +539,8 @@ function calendarDay(
  * The personal, ephemeral schedule, in the same style as the public post's
  * Coming Up. The card pages PAGE_SIZE raids at a time (state in the customIds);
  * the select lists every open raid with the viewer's own status, so any date is
- * one pick away without paging. Someone not on the roster (an officer looking at
+ * one pick away without paging. Each raid but a cancelled one has a Roster button
+ * that privately opens its roster card. Someone not on the roster (an officer looking at
  * another team) gets the card without the select.
  */
 export function buildCalendarMessage(
@@ -565,9 +574,15 @@ export function buildCalendarMessage(
 
   const dayBudget = Math.floor((MAX_MESSAGE_TEXT - (header.data.content?.length ?? 0)) / Math.max(1, instances.length));
   for (const instance of instances) {
-    container
-      .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-      .addTextDisplayComponents(text(calendarDay(team, instance, members, viewer, dayBudget)));
+    const day = text(calendarDay(team, instance, members, viewer, dayBudget));
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+    // A cancelled raid has no roster to show, so it's text alone, as in Coming Up.
+    if (instance.cancelled) container.addTextDisplayComponents(day);
+    else {
+      container.addSectionComponents(
+        new SectionBuilder().addTextDisplayComponents(day).setButtonAccessory(rosterButton(team, instance)),
+      );
+    }
   }
 
   container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));

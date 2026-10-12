@@ -28,7 +28,8 @@ All dates are picked from a list of your team's actual raids.
 - `/schedule` — a private, scrollable view of your team's raids, past and
   future, three at a time. Each raid shows like the schedule message's Coming
   Up (status dot, date, attendance, role counts), plus whether you're in and
-  who's called out. Its date menu lists every upcoming raid with your own status
+  who's called out, and a **Roster** button that privately shows that raid's
+  roster card (as `/roster` with that date does). Its date menu lists every upcoming raid with your own status
   (✅ in / ❌ called out), so you can toggle any date without paging.
   Only you see it, so paging it doesn't affect anyone else. The optional `team:` picker is only needed if
   you're on more than one raid team (or are an officer viewing another team,

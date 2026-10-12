@@ -174,6 +174,31 @@ describe("public roster shortcut", () => {
   });
 });
 
+describe("personal schedule Roster button", () => {
+  it("privately shows that raid's roster card as a new message, changing nothing", async () => {
+    const { team, raid, client, base, renders } = await setup();
+    await callOut(raid.id, "u-bob");
+    const click = fakeButton(`attendance:ros:${team.id}:${raid.id}`, base);
+    await handleAttendanceControl(click, client);
+
+    expect(click.replies).toHaveLength(1);
+    expect(click.updates).toHaveLength(0);
+    expect(isEphemeral(click.replies[0])).toBe(true);
+    expect(payloadText(click.replies[0] as any)).toContain("**1/2 ready**");
+    expect(await prisma.attendance.count()).toBe(1);
+    expect(renders()).toBe(0);
+  });
+
+  it("rejects another team's raid", async () => {
+    const { team, client, base } = await setup();
+    const other = await makeTeam({ roleId: "role-other" });
+    const theirs = await makeRaid(other.id, TUE_8PM);
+    const click = fakeButton(`attendance:ros:${team.id}:${theirs.id}`, base);
+    await handleAttendanceControl(click, client);
+    expect(onlyReply(click)).toBe("This raid no longer exists.");
+  });
+});
+
 describe("personal schedule select", () => {
   it("toggles the picked raid and updates the personal view in place, keeping its offset", async () => {
     const { team, raid, client, base, renders } = await setup();

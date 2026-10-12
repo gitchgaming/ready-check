@@ -492,8 +492,8 @@ describe("buildCalendarMessage", () => {
 
   it("has a small-caps header like the public post, then each day between dividers", () => {
     const container = containers(build(weeklyRaids(2)))[0];
-    const { TextDisplay: T, Separator: S, ActionRow: R } = ComponentType;
-    expect(container.components.map((c: any) => c.type)).toEqual([T, S, T, S, T, S, R, R]);
+    const { TextDisplay: T, Separator: S, Section: X, ActionRow: R } = ComponentType;
+    expect(container.components.map((c: any) => c.type)).toEqual([T, S, X, S, X, S, R, R]);
     expect(container.components[0].content).toBe(
       "-# **MAIN RAID · YOUR SCHEDULE**\n-# Pick a date below to call out or switch back in.",
     );
@@ -514,6 +514,17 @@ describe("buildCalendarMessage", () => {
     const [day] = days(build([raid("2026-10-08T01:00:00Z", { out })], { viewer }));
     expect(day!.split("\n")[0]).toMatch(/^.+ \*\*Wed, Oct 7\*\* 8:00 PM · \d+\/10$/);
     expect(day!.endsWith(expected)).toBe(true);
+  });
+
+  it("gives each raid but a cancelled one a Roster button beside it", () => {
+    const raids = [raid("2026-10-01T01:00:00Z", { closed: true }), ...weeklyRaids(2, (i) => ({ cancelled: i === 1 }))];
+    const p = build(raids);
+    const rosters = buttons(p).filter((b) => b.label === "Roster");
+    expect(rosters.map((b) => b.custom_id)).toEqual([
+      `attendance:ros:${TEAM_ID}:${raids[0]!.id}`,
+      `attendance:ros:${TEAM_ID}:${raids[1]!.id}`,
+    ]);
+    expect(rosters.every((b) => b.style === ButtonStyle.Secondary)).toBe(true);
   });
 
   it("puts past raids in the past tense, locked and grey", () => {
@@ -592,7 +603,7 @@ describe("buildCalendarMessage", () => {
     [{ canEarlier: false, canLater: false }, [true, true]],
     [{ canEarlier: true, canLater: true }, [false, false]],
   ])("nav buttons with %j are disabled %j", (navState, disabled) => {
-    const navButtons = buttons(build(weeklyRaids(1), { navState, offset: -3 }));
+    const navButtons = buttons(build(weeklyRaids(1), { navState, offset: -3 })).filter((b) => b.custom_id.startsWith("mynav:"));
     expect(navButtons.map((b) => b.custom_id)).toEqual([`mynav:earlier:${TEAM_ID}:-3`, `mynav:later:${TEAM_ID}:-3`]);
     expect(navButtons.map((b) => b.disabled ?? false)).toEqual(disabled);
   });
