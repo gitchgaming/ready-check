@@ -25,11 +25,12 @@ Class icons, one flat two-tone shape per class in its official class color
 (skull, `#8788EE`), `druid` (paw, `#FF7C0A`). A missing one just shows the
 class name.
 
-Raid types are slate badges, so they never read as a class icon: a white glyph
-on a rounded slate tile (`#5C6A85`): `tank` (shield), `healer` (plus) and
-`dps` (sword). Fallbacks: 🛡️ ➕ ⚔️. Class colors and the status colors
-(green, yellow, red, grey) take every hue, so the roles stand apart by shape
-rather than color.
+Raid types are one flat two-tone set in pale shades, kept clear of the class
+colors (Mage and Shaman are blue, Warlock is lavender): `tank` (an ice-blue
+shield, fill `#D6EBFF`, edge `#5F8FBF`), `healer` (a pale lilac plus, fill
+`#ECE4FF`, edge `#8F78D6`) and `dps` (a steel sword, fill `#DBE1EA`, edge
+`#66758C`). Fallbacks: 🛡️ ➕ ⚔️. Keep them off green, yellow, red and grey:
+those are the status colors.
 
 The SVG sources for the class, role and marker icons are in
 `assets/icon-src/`; edit one there and render it to a 128×128 PNG here.
@@ -42,7 +43,7 @@ about half the canvas with transparent padding to sit smaller than the text.
 `dot_lg_*` are the same dots at 75%, for each raid's own status.
 
 Role markers, beside names: `mark_tank`, `mark_healer` and `mark_dps`, the
-role badges at 65% with transparent padding so they sit smaller than the names
+role icons at 65% with transparent padding so they sit smaller than the names
 they mark. Off-spec markers, beside damage mains in the roster: `mark_offtank`
-and `mark_offheal`, the badge flipped (a slate glyph on a white tile with a
-slate border). Fallbacks: the type's icon, and 🛡️ ➕.
+and `mark_offheal`, outlines of the shield (`#7FA9D4`) and plus (`#A895E0`)
+with no fill. Fallbacks: the type's icon, and 🛡️ ➕.
