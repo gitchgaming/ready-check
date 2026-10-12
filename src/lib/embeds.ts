@@ -300,6 +300,50 @@ function textLength(component: { toJSON(): unknown }): number {
   return total;
 }
 
+/**
+ * A line on top of a private view saying what just changed. A confirmation of an
+ * attendance change carries an Undo button (its customId, from `undoCustomId`).
+ */
+export type Notice = string | { text: string; undoId: string };
+
+/** Where an Undo button redraws: the Status reply, /attendance, or /schedule at an offset. */
+export type UndoView = "s" | "a" | `c${number}`;
+
+/** Undo sets the raider to `target` explicitly (never toggles), so a stale click can't flip the wrong way. */
+export function undoCustomId(teamId: string, raidId: string, target: "in" | "out", view: UndoView): string {
+  return `attendance:undo:${teamId}:${raidId}:${target}:${view}`;
+}
+
+/** The one wording for an attendance change, with an Undo button that switches it back. */
+export function confirmation(out: boolean, dateLabel: string, teamId: string, raidId: string, view: UndoView): Notice {
+  return {
+    text: out ? `❌ You're out for **${dateLabel}**.` : `✅ You're back in for **${dateLabel}**.`,
+    undoId: undoCustomId(teamId, raidId, out ? "in" : "out", view),
+  };
+}
+
+/** Components a notice costs: a text block, or a section with its text and Undo button. */
+function noticeCost(notice: Notice | undefined): number {
+  return notice === undefined ? 0 : typeof notice === "string" ? 1 : 3;
+}
+
+function noticeComponents(notice: Notice | undefined) {
+  if (notice === undefined) return [];
+  if (typeof notice === "string") return [text(notice)];
+  return [
+    new SectionBuilder()
+      .addTextDisplayComponents(text(notice.text))
+      .setButtonAccessory(
+        new ButtonBuilder().setCustomId(notice.undoId).setLabel("Undo").setStyle(ButtonStyle.Secondary),
+      ),
+  ];
+}
+
+/** A confirmation on its own, as the private reply to a Status click. */
+export function buildNoticeMessage(notice: Notice) {
+  return { flags: V2_FLAGS, components: noticeComponents(notice), allowedMentions: NO_PINGS };
+}
+
 /** What the schedule post and /schedule say before a team has any raids. */
 const NO_RAIDS_YET = "No raids to show here yet. Officers can add weekly raid nights with `/raidlead nights add`.";
 
@@ -560,7 +604,7 @@ function calendarDay(
  * one pick away without paging. Each raid but a cancelled one has a Roster button
  * that privately opens its roster card. Someone not on the roster (an officer looking at
  * another team) gets the card without the select. `notice` (what a pick just
- * changed, in /attendance's words) goes on top.
+ * changed, with Undo) goes on top.
  */
 export function buildCalendarMessage(
   team: RaidTeam,
@@ -571,7 +615,7 @@ export function buildCalendarMessage(
   members: GuildMember[],
   openInstances: InstanceWithAttendance[],
   viewerId: string,
-  notice?: string,
+  notice?: Notice,
 ) {
   const viewer = members.find((m) => m.id === viewerId);
   const dates = viewer ? selectableInstances(openInstances) : [];
@@ -640,7 +684,7 @@ export function buildCalendarMessage(
     ),
   );
 
-  return { flags: V2_FLAGS, components: [...(notice ? [text(notice)] : []), container], allowedMentions: NO_PINGS };
+  return { flags: V2_FLAGS, components: [...noticeComponents(notice), container], allowedMentions: NO_PINGS };
 }
 
 /** Switches the viewer back in for one raid from /attendance, then redraws it. */
@@ -663,8 +707,8 @@ export interface AttendanceTeam {
 /**
  * Components V2 caps a message at 40 components. A team's container costs 4
  * (container, header, divider, footer) and each call-out 4 (divider, section,
- * text, button), with 1 more for the confirmation line. So one team fits
- * 1 + 4 + 4 × 8 = 37.
+ * text, button), with up to 3 more for the confirmation and its Undo button. So
+ * one team fits 3 + 4 + 4 × 8 = 39.
  */
 const MAX_ATTENDANCE_COMPONENTS = 40;
 
@@ -673,8 +717,8 @@ const MAX_ATTENDANCE_COMPONENTS = 40;
  * then each raid they're called out of as a Coming Up line with a Back in
  * button. `notice` (e.g. what /attendance date: just changed) goes on top.
  */
-export function buildAttendanceMessage(teams: AttendanceTeam[], viewerId: string, notice?: string) {
-  const fixed = (notice ? 1 : 0) + 4 * teams.length;
+export function buildAttendanceMessage(teams: AttendanceTeam[], viewerId: string, notice?: Notice) {
+  const fixed = noticeCost(notice) + 4 * teams.length;
   const perTeam = Math.max(0, Math.floor((MAX_ATTENDANCE_COMPONENTS - fixed) / 4 / Math.max(1, teams.length)));
 
   const containers = teams.map(({ team, teamName, instances, members }) => {
@@ -718,7 +762,7 @@ export function buildAttendanceMessage(teams: AttendanceTeam[], viewerId: string
 
   return {
     flags: V2_FLAGS,
-    components: [...(notice ? [text(notice)] : []), ...containers],
+    components: [...noticeComponents(notice), ...containers],
     allowedMentions: NO_PINGS,
   };
 }

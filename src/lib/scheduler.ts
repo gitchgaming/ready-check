@@ -2,7 +2,7 @@ import { DateTime } from "luxon";
 import { MessageFlags, type Client, type Guild } from "discord.js";
 import { prisma } from "./db.js";
 import type { RaidTeam } from "../generated/prisma/client.js";
-import { MAX_SELECT_OPTIONS, buildCalendarMessage, buildPublicMessage } from "./embeds.js";
+import { MAX_SELECT_OPTIONS, buildCalendarMessage, buildPublicMessage, type Notice } from "./embeds.js";
 import { fetchRosterMembers } from "./roster.js";
 import { teamDisplayName } from "./pickers.js";
 
@@ -143,7 +143,7 @@ export async function instancesForWindow(teamId: string, offset: number): Promis
  * Builds one viewer's personal schedule: the paged window plus every open raid for
  * the select. `notice` goes on top.
  */
-export async function personalCalendar(team: RaidTeam, guild: Guild, offset: number, viewerId: string, notice?: string) {
+export async function personalCalendar(team: RaidTeam, guild: Guild, offset: number, viewerId: string, notice?: Notice) {
   const [{ instances, canEarlier, canLater }, openInstances, members] = await Promise.all([
     instancesForWindow(team.id, offset),
     nextOpenInstances(team.id, MAX_SELECT_OPTIONS),

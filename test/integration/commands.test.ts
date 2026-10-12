@@ -39,6 +39,9 @@ describe("/attendance", () => {
     expect(text).toContain(`❌ You're out for **${TUE_LABEL}**.`);
     expect(text).toContain("You're out of the next raid");
     expect(flattenComponents(run.replies[0] as any).filter((c) => c.label === "Back in")).toHaveLength(1);
+    expect(flattenComponents(run.replies[0] as any).find((c) => c.label === "Undo").custom_id).toBe(
+      `attendance:undo:${main.id}:${raid.id}:in:a`,
+    );
     expect(await prisma.attendance.count({ where: { userId: "u-alice" } })).toBe(1);
     expect(channel.sent).toHaveLength(1);
 

@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, vi } from "vitest";
 import { MessageFlags, type GuildMember } from "discord.js";
 import { resetDb } from "../db.js";
-import { fakeChannel, fakeClient, fakeGuild, teamRole, type FakeRole } from "../discord.js";
+import { fakeChannel, fakeClient, fakeGuild, payloadText, teamRole, type FakeRole } from "../discord.js";
 
 /** A Tuesday, 7:00 AM in America/Chicago (CDT, UTC−5). */
 export const NOW = new Date("2026-10-06T12:00:00Z");
@@ -42,10 +42,10 @@ export function isEphemeral(payload: { flags?: unknown }): boolean {
   return typeof flags === "number" && (flags & MessageFlags.Ephemeral) !== 0;
 }
 
-/** The single reply's text, asserting there was exactly one ephemeral reply. */
+/** The single reply's text (or a V2 reply's text blocks), asserting there was exactly one ephemeral reply. */
 export function onlyReply(interaction: { replies: any[] }): string {
   if (interaction.replies.length !== 1) throw new Error(`Expected 1 reply, got ${interaction.replies.length}`);
   const reply = interaction.replies[0];
   if (!isEphemeral(reply)) throw new Error("Expected an ephemeral reply");
-  return reply.content as string;
+  return (reply.content as string | undefined) ?? payloadText(reply);
 }

@@ -13,6 +13,7 @@ import {
   MAX_PUBLIC_DAYS,
   MAX_SELECT_OPTIONS,
   buildAttendanceMessage,
+  confirmation,
   buildCalendarMessage,
   buildPublicMessage,
   buildRaidRosterCard,
@@ -347,8 +348,8 @@ describe("/attendance at its worst case", () => {
   }));
   const block = (i: number) => ({ team: team({ id: cuid(`team${i}`) }), teamName: "N".repeat(100), instances: allOut, members: roster });
 
-  it.each([1, 2, 3, 5])("called out of every raid on %i teams, with a notice, stays within the limits", (teams) => {
-    const p = buildAttendanceMessage(Array.from({ length: teams }, (_, i) => block(i)), viewer, "❌ You're out for **Wed, Oct 7 · 8:00 PM**.");
+  it.each([1, 2, 3, 5])("called out of every raid on %i teams, with a confirmation and Undo, stays within the limits", (teams) => {
+    const p = buildAttendanceMessage(Array.from({ length: teams }, (_, i) => block(i)), viewer, confirmation(true, "Wed, Oct 7 · 8:00 PM", cuid("team0"), allOut[0]!.id, "c-999"));
     expect(componentCount(p)).toBeLessThanOrEqual(MAX_COMPONENTS);
     expect(textLength(p)).toBeLessThanOrEqual(MAX_TEXT);
     for (const c of flattenComponents(p)) if (c.custom_id) expect(c.custom_id.length).toBeLessThanOrEqual(MAX_CUSTOM_ID);

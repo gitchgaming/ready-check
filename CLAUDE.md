@@ -45,6 +45,9 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   `attendance:ros:<teamId>:<raidId>` (personal view's per-day Roster button),
   `attendance:in:<teamId>:<raidId>` (`/attendance`'s Back in button; only
   ever switches back in, so a stale view can't call anyone out),
+  `attendance:undo:<teamId>:<raidId>:<in|out>:<view>` (a confirmation's Undo;
+  sets the named state, never toggles, then redraws `view`: `s` the Status
+  reply, `a` `/attendance`, `c<offset>` `/schedule`),
   `mynav:<dir>:<teamId>:<offset>`,
   `teamdelete:<confirm|abort>:<teamId>`.
 - `src/lib/` — `scheduler.ts` (instance generation, hourly sync, schedule
@@ -75,9 +78,10 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   role's name), as a small-caps "TEAM · LABEL" line (NEXT UP, SCHEDULE,
   ROSTER, YOUR SCHEDULE, YOUR ATTENDANCE); never a hard-coded "Raid".
   Confirmations use one wording everywhere: "❌ You're out for **<date>**." /
-  "✅ You're back in for **<date>**.", the date as `formatRaidLabel`, and every
-  change a raider makes gets one privately (Status reply, `/attendance`'s and
-  `/schedule`'s notice on top of the view) so a misclick is easy to undo.
+  "✅ You're back in for **<date>**.", the date as `formatRaidLabel`
+  (`confirmation` in `embeds.ts`). Every change a raider makes gets one
+  privately, with an Undo button (the Status reply; a notice on top of
+  `/attendance` and `/schedule`), so a misclick is one click to fix.
 - Discord can't personalize a shared message, so the public schedule message
   never pages or shows per-viewer state. Personal views (`/schedule`) are
   ephemeral and carry their state in customIds. The public message has one
