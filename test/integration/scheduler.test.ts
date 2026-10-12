@@ -297,9 +297,11 @@ describe("personalCalendar", () => {
     expect(all.find((c) => c.custom_id === `mynav:earlier:${team.id}:0`).disabled).toBe(false);
     expect(all.find((c) => c.custom_id === `mynav:later:${team.id}:0`).disabled).toBe(true);
     const text = payloadText(msg);
-    expect(text).toContain("**1 of 2 attending**\n❌ <@u-bob>");
+    expect(text).toContain("**Tue, Oct 6** 8:00 PM · 1/2");
+    expect(text).toContain("✅ You're in · Called out: `Bob`");
+    expect(text).toContain("❌ You're out");
     expect(text).not.toContain("u-gone");
-    expect(text).toContain("🚫 **Cancelled**");
+    expect(text).toContain("🚫 **Thu, Oct 8** · Cancelled");
     expect(select.options.map((o: any) => o.value)).not.toContain(cancelled.id);
   });
 
@@ -307,7 +309,7 @@ describe("personalCalendar", () => {
     const team = await makeTeam();
     await makeRaid(team.id, now().minus({ weeks: 1 }), { closed: true });
     await makeRaid(team.id, now().plus({ days: 1 }));
-    const { guild } = world();
+    const { guild } = world({ members: [raider("Ann", [], "u-1")] });
 
     const msg = await personalCalendar(team, guild, -1, "u-1");
     const all = flattenComponents(msg);

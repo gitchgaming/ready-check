@@ -79,50 +79,6 @@ function divider() {
   return new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large);
 }
 
-/** A day's two text blocks: date and time (tight), then attendance, a little apart. */
-function dayBlocks(instance: InstanceWithAttendance, rosterIds: Set<string>) {
-  const unix = Math.floor(instance.startsAt.getTime() / 1000);
-  const when = text(`**<t:${unix}:D>**\n<t:${unix}:t> · <t:${unix}:R>`);
-  if (instance.cancelled) return [when, text("🚫 **Cancelled**")];
-
-  const calledOutIds = instance.attendance
-    .filter((a) => a.status === "OUT" && rosterIds.has(a.userId))
-    .map((a) => a.userId);
-  const total = rosterIds.size;
-  const attending = total - calledOutIds.length;
-  const dot = attending === total ? "🟢" : attending * 2 >= total ? "🟡" : "🔴";
-  const calledOut = calledOutIds.map((id) => `\n❌ <@${id}>`).join("");
-  return [when, text(`${dot} **${attending} of ${total} attending**${calledOut}`)];
-}
-
-/** The personal schedule card: a header, then each raid day between dividers. */
-function buildScheduleContainer(
-  team: RaidTeam,
-  instances: InstanceWithAttendance[],
-  rosterIds: Set<string>,
-  openPrompt: string,
-) {
-  const anyOpen = instances.some((i) => !i.closed);
-  const intro =
-    instances.length === 0
-      ? "No raids to show here yet. Officers can add weekly raid nights with `/raidlead nights add`."
-      : anyOpen
-        ? openPrompt
-        : "These raids already happened — attendance is locked.";
-
-  const container = new ContainerBuilder()
-    .setAccentColor(instances.length > 0 && !anyOpen ? 0x6b7280 : 0x5865f2)
-    .addTextDisplayComponents(text(`## ${team.name ?? "Raid"} — schedule\n${intro}`));
-
-  for (const instance of instances) {
-    container.addSeparatorComponents(divider());
-    container.addTextDisplayComponents(dayBlocks(instance, rosterIds));
-  }
-
-  container.addSeparatorComponents(divider());
-  return container;
-}
-
 function selectableInstances(instances: InstanceWithAttendance[]) {
   return instances.filter((i) => !i.closed && !i.cancelled).slice(0, MAX_SELECT_OPTIONS);
 }
@@ -412,6 +368,17 @@ function raidCard(
 }
 
 /**
+ * One raid as Coming Up shows it: status dot, date, time and attendance, then its
+ * role counts, indented to line up under the date. A cancelled raid is one line.
+ */
+function raidLine(team: RaidTeam, instance: InstanceWithAttendance, members: GuildMember[]): string {
+  const when = raidDate(instance, team.timezone);
+  if (instance.cancelled) return `🚫 **${when.toFormat("ccc, LLL d")}** · Cancelled`;
+  const raid = raidAttendance(instance, members);
+  return `${dot(raid.status, true)} **${when.toFormat("ccc, LLL d")}** ${when.toFormat("h:mm a")} · ${raid.attending.length}/${raid.total}\n-# ${INDENT}${roleCounts(raid.roles)}`;
+}
+
+/**
  * Coming Up: each later raid on one line with its role counts, plus the select that
  * opens the personal schedule or privately shows one Coming Up raid's roster. A
  * section takes only one button, so the roster shortcuts live in the select.
@@ -421,21 +388,13 @@ function comingUpContainer(team: RaidTeam, later: InstanceWithAttendance[], memb
   if (later.length > 0) container.addTextDisplayComponents(text("-# **COMING UP**"));
 
   for (const instance of later) {
-    const when = raidDate(instance, team.timezone);
+    const line = raidLine(team, instance, members);
     if (instance.cancelled) {
-      container.addTextDisplayComponents(text(`🚫 **${when.toFormat("ccc, LLL d")}** · Cancelled`));
+      container.addTextDisplayComponents(text(line));
       continue;
     }
-    const raid = raidAttendance(instance, members);
-    const roles = roleCounts(raid.roles);
     container.addSectionComponents(
-      new SectionBuilder()
-        .addTextDisplayComponents(
-          text(
-            `${dot(raid.status, true)} **${when.toFormat("ccc, LLL d")}** ${when.toFormat("h:mm a")} · ${raid.attending.length}/${raid.total}\n-# ${INDENT}${roles}`,
-          ),
-        )
-        .setButtonAccessory(statusButton(team, instance)),
+      new SectionBuilder().addTextDisplayComponents(text(line)).setButtonAccessory(statusButton(team, instance)),
     );
   }
 
@@ -526,33 +485,103 @@ export function buildTeamRosterCard(teamName: string, members: GuildMember[]) {
   return { flags: V2_FLAGS, components: [card], allowedMentions: NO_PINGS };
 }
 
+/** Names as chips after `prefix`, ending with "…and N more" before passing `budget` characters. */
+function chipList(prefix: string, names: string[], budget: number): string {
+  let line = prefix;
+  for (const [i, name] of names.entries()) {
+    const piece = ` ${chip(name)}`;
+    const more = ` …and ${names.length - i} more`;
+    if (line.length + piece.length + (i < names.length - 1 ? more.length : 0) > budget) return line + more;
+    line += piece;
+  }
+  return line;
+}
+
 /**
- * The personal, ephemeral schedule. The card pages PAGE_SIZE raids at a time
- * (state in the customIds); the select lists every open raid with the viewer's
- * own status, so any date is one pick away without paging.
+ * One day of the personal schedule: the Coming Up line, then the viewer's own
+ * status (when they're on the roster) and who's called out.
+ */
+function calendarDay(
+  team: RaidTeam,
+  instance: InstanceWithAttendance,
+  members: GuildMember[],
+  viewer: GuildMember | undefined,
+  budget: number,
+): string {
+  const line = raidLine(team, instance, members);
+  if (instance.cancelled) return line;
+
+  const { out } = raidAttendance(instance, members);
+  const viewerOut = viewer !== undefined && out.includes(viewer);
+  const parts: string[] = [];
+  if (viewer) {
+    const tense = instance.closed ? " were" : "'re";
+    parts.push(viewerOut ? `❌ You${tense} out` : `✅ You${tense} in`);
+  }
+  const head = `${line}\n-# ${INDENT}${parts.join("")}`;
+  const others = out
+    .filter((m) => m !== viewer)
+    .map((m) => m.displayName)
+    .sort((a, b) => a.localeCompare(b));
+  if (others.length === 0) return parts.length > 0 ? head : line;
+  return chipList(`${head}${parts.length > 0 ? " · " : ""}Called out:`, others, budget);
+}
+
+/**
+ * The personal, ephemeral schedule, in the same style as the public post's
+ * Coming Up. The card pages PAGE_SIZE raids at a time (state in the customIds);
+ * the select lists every open raid with the viewer's own status, so any date is
+ * one pick away without paging. Someone not on the roster (an officer looking at
+ * another team) gets the card without the select.
  */
 export function buildCalendarMessage(
   team: RaidTeam,
+  teamName: string,
   instances: InstanceWithAttendance[],
   offset: number,
   nav: NavState,
-  rosterIds: Set<string>,
+  members: GuildMember[],
   openInstances: InstanceWithAttendance[],
   viewerId: string,
 ) {
-  const container = buildScheduleContainer(team, instances, rosterIds, "Pick any date below to call out or switch back.");
+  const viewer = members.find((m) => m.id === viewerId);
+  const dates = viewer ? selectableInstances(openInstances) : [];
+  const anyOpen = instances.some((i) => !i.closed);
+  const intro =
+    instances.length === 0
+      ? "No raids to show here yet. Officers can add weekly raid nights with `/raidlead nights add`."
+      : !anyOpen
+        ? "These raids already happened, so attendance is locked."
+        : dates.length > 0
+          ? "Pick a date below to call out or switch back in."
+          : viewer
+            ? "Nothing to call out of right now."
+            : "You're not on this team's roster, so this is view-only.";
+  const header = text(`-# **${teamName.toUpperCase()} · YOUR SCHEDULE**\n-# ${intro}`);
 
-  const dates = selectableInstances(openInstances);
+  const container = new ContainerBuilder()
+    .setAccentColor(instances.length > 0 && !anyOpen ? STATUS_COLORS.grey : 0x5865f2)
+    .addTextDisplayComponents(header);
+
+  const dayBudget = Math.floor((MAX_MESSAGE_TEXT - (header.data.content?.length ?? 0)) / Math.max(1, instances.length));
+  for (const instance of instances) {
+    container
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+      .addTextDisplayComponents(text(calendarDay(team, instance, members, viewer, dayBudget)));
+  }
+
+  container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+
   if (dates.length > 0) {
     const select = new StringSelectMenuBuilder()
       .setCustomId(`attendance:cal:${team.id}:${offset}`)
-      .setPlaceholder("Call out or switch back…")
+      .setPlaceholder("Call out or switch back in…")
       .addOptions(
         dates.map((instance) => {
           const out = instance.attendance.some((a) => a.userId === viewerId && a.status === "OUT");
           return {
             label: formatRaidLabel(instance.startsAt, team.timezone),
-            description: out ? "You're called out — pick to switch back in" : "You're attending — pick to call out",
+            description: out ? "You're called out. Pick to switch back in" : "You're in. Pick to call out",
             value: instance.id,
             emoji: out ? "❌" : "✅",
           };

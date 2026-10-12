@@ -3,7 +3,8 @@ import { MessageFlags, type Client, type Guild } from "discord.js";
 import { prisma } from "./db.js";
 import type { RaidTeam } from "../generated/prisma/client.js";
 import { MAX_SELECT_OPTIONS, buildCalendarMessage, buildPublicMessage } from "./embeds.js";
-import { fetchRosterMembers, rosterMemberIds } from "./roster.js";
+import { fetchRosterMembers } from "./roster.js";
+import { teamDisplayName } from "./pickers.js";
 
 /** How many raids /schedule pages through at a time. */
 export const PAGE_SIZE = 3;
@@ -140,12 +141,21 @@ export async function instancesForWindow(teamId: string, offset: number): Promis
 
 /** Builds one viewer's personal schedule: the paged window plus every open raid for the select. */
 export async function personalCalendar(team: RaidTeam, guild: Guild, offset: number, viewerId: string) {
-  const [{ instances, canEarlier, canLater }, openInstances, rosterIds] = await Promise.all([
+  const [{ instances, canEarlier, canLater }, openInstances, members] = await Promise.all([
     instancesForWindow(team.id, offset),
     nextOpenInstances(team.id, MAX_SELECT_OPTIONS),
-    rosterMemberIds(guild, team.roleId),
+    fetchRosterMembers(guild, team.roleId),
   ]);
-  return buildCalendarMessage(team, instances, offset, { canEarlier, canLater }, rosterIds, openInstances, viewerId);
+  return buildCalendarMessage(
+    team,
+    teamDisplayName(team, guild),
+    instances,
+    offset,
+    { canEarlier, canLater },
+    members,
+    openInstances,
+    viewerId,
+  );
 }
 
 /** Clamps a requested /schedule offset so the resulting window stays within available instances. */

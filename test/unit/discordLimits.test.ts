@@ -304,7 +304,7 @@ describe("personal schedule at its worst case", () => {
   const open = worstRaids(MAX_SELECT_OPTIONS + 10, roster);
 
   const build = (offset: number, shown: RaidRow[]) =>
-    buildCalendarMessage(team(), shown, offset, { canEarlier: true, canLater: true }, rosterIds, open, roster[0]!.id);
+    buildCalendarMessage(team(), "Main Raid", shown, offset, { canEarlier: true, canLater: true }, roster, open, roster[0]!.id);
 
   it(`lists at most ${MAX_SELECT_OPTIONS} options, each within Discord's text limits`, () => {
     const p = build(0, open.slice(0, PAGE_SIZE));
