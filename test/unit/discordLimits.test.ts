@@ -281,7 +281,7 @@ describe("public message at its worst case", () => {
         expect(textLength(buildRaidRosterCard(team(), raids[0]!, members)), label).toBeLessThanOrEqual(MAX_TEXT);
       }
     }
-  });
+  }, 30_000); // ~270 full builds: close to the default 5s on its own, over it when the suite runs in parallel
 
   it("keeps every customId, label and select option within limits with cuid-length ids", () => {
     const p = buildPublicMessage(team(), worstRaids(MAX_PUBLIC_DAYS, roster), roster);
