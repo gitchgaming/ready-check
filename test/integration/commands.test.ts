@@ -117,26 +117,29 @@ describe("/schedule", () => {
 });
 
 describe("/roster", () => {
-  it("without a date, privately shows one roster embed per team you can view", async () => {
+  it("without a date, privately shows your team's whole roster card", async () => {
     const { guild, client } = await twoTeams();
-    const bob = fakeChatInput({ commandName: "roster", guild, userId: "u-bob" });
-    await roster.execute(bob, client);
-    const reply = bob.replies[0];
-    expect(isEphemeral(reply)).toBe(true);
-    expect(reply.embeds.map((e: any) => e.data.title).sort()).toEqual(["Alt Raid — roster (1)", "Main Raid — roster (2)"]);
-
     const alice = fakeChatInput({ commandName: "roster", guild, userId: "u-alice" });
     await roster.execute(alice, client);
-    expect(alice.replies[0].embeds.map((e: any) => e.data.title)).toEqual(["Main Raid — roster (2)"]);
+    const reply = alice.replies[0];
+    expect(isEphemeral(reply)).toBe(true);
+    const text = payloadText(reply);
+    expect(text).toContain("MAIN RAID · ROSTER");
+    expect(text).toContain("## 2 raiders");
+    expect(text).toContain("TANKS · 1");
+    expect(text).toContain("DAMAGE · 1");
+    expect(flattenComponents(reply).some((c) => c.custom_id)).toBe(false);
   });
 
-  it("caps the reply at 10 embeds", async () => {
-    const roles = Array.from({ length: 12 }, (_, i) => fakeRole(`Team ${i}`, `role-t${i}`));
-    for (const r of roles) await makeTeam({ roleId: r.id, name: r.name });
-    const { guild, client } = world({ roles });
-    const run = fakeChatInput({ commandName: "roster", guild, userId: "u-officer", officer: true });
-    await roster.execute(run, client);
-    expect(run.replies[0].embeds).toHaveLength(10);
+  it("without a date, shows the picked team, or says it can't find one you can't view", async () => {
+    const { alt, guild, client } = await twoTeams();
+    const bob = fakeChatInput({ commandName: "roster", guild, userId: "u-bob", options: { team: alt.id } });
+    await roster.execute(bob, client);
+    expect(payloadText(bob.replies[0])).toContain(`${altRole.name.toUpperCase()} · ROSTER`);
+
+    const alice = fakeChatInput({ commandName: "roster", guild, userId: "u-alice", options: { team: alt.id } });
+    await roster.execute(alice, client);
+    expect(onlyReply(alice)).toBe("Couldn't find that team. Pick one from the suggestions.");
   });
 
   it("with a date, shows that raid's card without a Status button", async () => {
@@ -202,6 +205,16 @@ describe("/roster", () => {
       { name: "Wed, Oct 7 · 8:00 PM · 2/2 · Main Raid", value: m.id },
     ]);
 
+    const altOnly = fakeAutocomplete({
+      commandName: "roster",
+      guild,
+      userId: "u-bob",
+      focused: "date",
+      options: { team: alt.id },
+    });
+    await roster.autocomplete(altOnly);
+    expect(altOnly.responses[0]).toEqual([{ name: `${TUE_LABEL} · 1/1`, value: a.id }]);
+
     const carol = fakeAutocomplete({ commandName: "roster", guild, userId: "u-carol", focused: "date" });
     await roster.autocomplete(carol);
     expect(carol.responses).toEqual([[{ name: "You're not on any raid team", value: "none" }]]);
@@ -214,6 +227,19 @@ describe("/roster", () => {
     const dm = fakeAutocomplete({ commandName: "roster", guild: null, focused: "date" });
     await roster.autocomplete(dm);
     expect(dm.responses).toHaveLength(0);
+  });
+
+  it("autocompletes the teams you can view", async () => {
+    const { main, alt, guild } = await twoTeams();
+    const bob = fakeAutocomplete({ commandName: "roster", guild, userId: "u-bob", focused: "team" });
+    await roster.autocomplete(bob);
+    expect(bob.responses[0]).toEqual(
+      expect.arrayContaining([
+        { name: "Main Raid", value: main.id },
+        { name: altRole.name, value: alt.id },
+      ]),
+    );
+    expect(bob.responses[0]).toHaveLength(2);
   });
 });
 

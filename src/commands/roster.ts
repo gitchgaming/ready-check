@@ -5,14 +5,12 @@ import {
   type Client,
   MessageFlags,
 } from "discord.js";
+import type { RaidTeam } from "../generated/prisma/client.js";
 import { isOfficer } from "../lib/access.js";
 import { prisma } from "../lib/db.js";
-import { asEphemeral, buildRaidRosterCard } from "../lib/embeds.js";
+import { asEphemeral, buildRaidRosterCard, buildTeamRosterCard } from "../lib/embeds.js";
 import { MAX_CHOICES, formatRaidLabel, respondFiltered, teamDisplayName, viewableTeams } from "../lib/pickers.js";
-import { buildRosterEmbed, fetchRosterMembers, rosterMemberIds } from "../lib/roster.js";
-
-/** Discord's cap on embeds in one message. */
-const MAX_EMBEDS = 10;
+import { fetchRosterMembers, rosterMemberIds } from "../lib/roster.js";
 
 export const data = new SlashCommandBuilder()
   .setName("roster")
@@ -23,15 +21,33 @@ export const data = new SlashCommandBuilder()
       .setDescription("A raid to see who's in and out; leave empty for the whole roster")
       .setRequired(false)
       .setAutocomplete(true),
+  )
+  .addStringOption((opt) =>
+    opt
+      .setName("team")
+      .setDescription("Only needed if you're on more than one raid team")
+      .setRequired(false)
+      .setAutocomplete(true),
   );
 
-/**
- * Upcoming raids (cancelled ones included) of every team the user can view, each
- * with its current attendance, e.g. "Wed, Oct 7 · 8:00 PM · 17/20".
- */
 export async function autocomplete(interaction: AutocompleteInteraction): Promise<void> {
   if (!interaction.guild) return;
   const teams = await viewableTeams(interaction.guild, interaction.user.id, isOfficer(interaction));
+  if (interaction.options.getFocused(true).name === "team") {
+    const choices = teams.map((t) => ({ name: teamDisplayName(t, interaction.guild), value: t.id }));
+    await respondFiltered(interaction, choices, "You're not on any raid team");
+    return;
+  }
+  // Only the focused option is resolved during autocomplete, so read the team raw.
+  const teamId = interaction.options.get("team")?.value;
+  await dateAutocomplete(interaction, teamId ? teams.filter((t) => t.id === teamId) : teams);
+}
+
+/**
+ * Upcoming raids (cancelled ones included) of the given teams, each with its
+ * current attendance, e.g. "Wed, Oct 7 · 8:00 PM · 17/20".
+ */
+async function dateAutocomplete(interaction: AutocompleteInteraction, teams: RaidTeam[]): Promise<void> {
   if (teams.length === 0) {
     await respondFiltered(interaction, [], "You're not on any raid team");
     return;
@@ -75,8 +91,8 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
 
 /**
  * Read-only. With a date: that raid's card (like the schedule's Next Up, minus the
- * Status button). Without one: the full roster of each team you can view, split
- * into Tanks / Healers / DPS.
+ * Status button). Without one: the whole roster of one team (the `team` option, or
+ * your first), in the same style.
  */
 export async function execute(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
   const guild = interaction.guild;
@@ -93,12 +109,17 @@ export async function execute(interaction: ChatInputCommandInteraction, _client:
 
   const raidId = interaction.options.getString("date");
   if (!raidId) {
-    const embeds = await Promise.all(
-      teams.slice(0, MAX_EMBEDS).map(async (team) =>
-        buildRosterEmbed(teamDisplayName(team, guild), await fetchRosterMembers(guild, team.roleId)),
-      ),
-    );
-    await interaction.reply({ embeds, flags: MessageFlags.Ephemeral });
+    const teamId = interaction.options.getString("team");
+    const team = teamId ? teams.find((t) => t.id === teamId) : teams[0];
+    if (!team) {
+      await interaction.reply({
+        content: "Couldn't find that team. Pick one from the suggestions.",
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+    const members = await fetchRosterMembers(guild, team.roleId);
+    await interaction.reply(asEphemeral(buildTeamRosterCard(teamDisplayName(team, guild), members)));
     return;
   }
 

@@ -164,9 +164,8 @@ function attendanceBar(attending: number, total: number): string {
 }
 
 /**
- * A raider's section on the schedule: their type role, or Damage without one
- * (the usual case for an untagged raider). `/roster` without a date still lists
- * them under "No type role" so officers can tag them.
+ * A raider's section on the schedule and in /roster: their type role, or Damage
+ * without one (the usual case for an untagged raider).
  */
 function rosterType(member: GuildMember): RaidType {
   return memberRaidType(member) ?? RAID_TYPES.at(-1)!;
@@ -497,6 +496,33 @@ export function buildPublicMessage(team: RaidTeam, instances: InstanceWithAttend
 /** A read-only card for one raid (the /roster view): like Next Up, without the Status button. */
 export function buildRaidRosterCard(team: RaidTeam, instance: InstanceWithAttendance, members: GuildMember[]) {
   const card = raidCard(team, instance, members, MAX_MESSAGE_TEXT, { label: "ROSTER", withButton: false });
+  return { flags: V2_FLAGS, components: [card], allowedMentions: NO_PINGS };
+}
+
+/**
+ * A team's whole roster (the /roster view without a date): role counts, then
+ * everyone in the same Tanks, Healers and Damage sections as Next Up.
+ */
+export function buildTeamRosterCard(teamName: string, members: GuildMember[]) {
+  const header = text(
+    `-# **${teamName.toUpperCase()} · ROSTER**\n## ${members.length} ${members.length === 1 ? "raider" : "raiders"}`,
+  );
+  const card = new ContainerBuilder().setAccentColor(0x5865f2).addTextDisplayComponents(header);
+
+  if (members.length === 0) {
+    card.addTextDisplayComponents(text("-# No one has this role yet."));
+  } else {
+    const counts = RAID_TYPES.map(
+      (type) => `${raidTypeIcon(type)} **${members.filter((m) => rosterType(m) === type).length}**`,
+    ).join("\u2003");
+    const summary = text(counts + offSpecKey(members, members));
+    const fixedText = [header, summary].reduce((n, t) => n + (t.data.content?.length ?? 0), 0);
+    card
+      .addTextDisplayComponents(summary)
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+      .addTextDisplayComponents(text(fitSections(rosterSections(members), MAX_MESSAGE_TEXT - fixedText).join("\n")));
+  }
+
   return { flags: V2_FLAGS, components: [card], allowedMentions: NO_PINGS };
 }
 

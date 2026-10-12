@@ -9,6 +9,7 @@ import {
   buildCalendarMessage,
   buildPublicMessage,
   buildRaidRosterCard,
+  buildTeamRosterCard,
 } from "../../src/lib/embeds.js";
 import { loadAppEmojis } from "../../src/lib/emojis.js";
 import { fakeClient, flattenComponents, payloadText, raider } from "../discord.js";
@@ -424,6 +425,53 @@ describe("buildRaidRosterCard", () => {
   it("shows a cancelled raid as cancelled", () => {
     const card = buildRaidRosterCard(team(), raid("2026-10-08T01:00:00Z", { cancelled: true }), ROSTER);
     expect(texts(containers(card)[0])[1]).toBe("🚫 **Cancelled**");
+  });
+});
+
+describe("buildTeamRosterCard", () => {
+  const card = (members: GuildMember[] = ROSTER) => buildTeamRosterCard("Main Raid", members);
+
+  it("is one read-only V2 container that never pings", () => {
+    const p = card();
+    expect(p.flags).toEqual([MessageFlags.IsComponentsV2]);
+    expect(p.allowedMentions).toEqual({ parse: [] });
+    expect(p.components).toHaveLength(1);
+    expect(buttons(p)).toEqual([]);
+    expect(selects(p)).toEqual([]);
+  });
+
+  it("heads the card with the team and roster size, then counts each role", () => {
+    const [header, summary] = texts(containers(card())[0]);
+    expect(header).toBe("-# **MAIN RAID · ROSTER**\n## 10 raiders");
+    expect(summary).toBe("🛡️ **2**\u2003➕ **3**\u2003⚔️ **5**");
+    expect(texts(containers(card([ROSTER[0]!]))[0])[0]).toContain("## 1 raider");
+  });
+
+  it("lists everyone once in Next Up's sections, with untyped raiders under Damage", () => {
+    const roster = texts(containers(card())[0]).at(-1)!;
+    expect(roster.split("\n").filter((l) => l.startsWith("-# **"))).toEqual([
+      "-# **TANKS · 2**",
+      "-# **HEALERS · 3**",
+      "-# **DAMAGE · 5**",
+    ]);
+    for (const m of ROSTER) expect(roster.split(`\`${m.displayName}\``)).toHaveLength(2);
+  });
+
+  it("is Next Up's roster when everyone's attending", () => {
+    const nextUpTexts = texts(nextUp(buildPublicMessage(team(), weeklyRaids(1), ROSTER)));
+    expect(texts(containers(card())[0]).at(-1)).toBe(nextUpTexts.at(-2));
+  });
+
+  it("shows off-spec markers and the off-spec key", () => {
+    const p = card([raider("Skarr", ["Warriors", "DPS", "Offtank"]), raider("Fern", ["Druids", "Offheals"])]);
+    const [, summary, roster] = texts(containers(p)[0]);
+    expect(summary).toBe("🛡️ **0**\u2003➕ **0**\u2003⚔️ **2**\n-# 🛡️ Offtank 1 · ➕ Offheals 1");
+    expect(roster).toContain("🛡️`Skarr`");
+    expect(roster).toContain("➕`Fern`");
+  });
+
+  it("says so when no one has the role", () => {
+    expect(texts(containers(card([]))[0])).toEqual(["-# **MAIN RAID · ROSTER**\n## 0 raiders", "-# No one has this role yet."]);
   });
 });
 
