@@ -170,11 +170,16 @@ export function timezoneChoices(): Choice[] {
   return ALL_TIMEZONES.map((tz) => ({ name: tz.replace(/_/g, " "), value: tz }));
 }
 
-/** Teams a member can view: all teams for officers, otherwise the teams their roles place them on. */
+/** Teams a member can view, oldest first: all teams for officers, otherwise the teams their roles place them on. */
 export async function viewableTeams(guild: Guild, userId: string, officer: boolean): Promise<RaidTeam[]> {
-  const teams = await prisma.raidTeam.findMany({ where: { guildId: guild.id } });
-  if (officer) return teams;
-  return teamsForMember(guild, userId, teams);
+  const teams = await prisma.raidTeam.findMany({
+    where: { guildId: guild.id },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+  const mine = await teamsForMember(guild, userId, teams);
+  if (!officer) return mine;
+  // Officers see every team, their own first, so commands default to a team they're on.
+  return [...mine, ...teams.filter((t) => !mine.includes(t))];
 }
 
 /** Raid teams in this guild whose role the given member holds. */

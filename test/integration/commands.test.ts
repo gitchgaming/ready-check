@@ -83,6 +83,18 @@ describe("/schedule", () => {
     expect(payloadText(officer.replies[0])).toContain("**ALT RAID · YOUR SCHEDULE**");
   });
 
+  it("opens an officer's own team by default", async () => {
+    await makeTeam();
+    await makeTeam({ roleId: altRole.id, name: null });
+    const dave = raider("Dave", [], "u-dave");
+    dave.roles.cache.delete(ROLE_ID);
+    dave.roles.cache.set(altRole.id, altRole as never);
+    const { guild, client } = world({ members: [dave], roles: [teamRole, altRole], ownerId: "u-owner" });
+    const run = fakeChatInput({ commandName: "schedule", guild, userId: "u-dave", officer: true });
+    await schedule.execute(run, client);
+    expect(payloadText(run.replies[0])).toContain("**ALT RAID · YOUR SCHEDULE**");
+  });
+
   it("tells raiders without a team, and refuses outside a server", async () => {
     const { guild, client } = await twoTeams();
     const carol = fakeChatInput({ commandName: "schedule", guild, userId: "u-carol" });
