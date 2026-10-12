@@ -559,6 +559,16 @@ describe("buildCalendarMessage", () => {
     expect(day!.endsWith("Called out: `Zap`")).toBe(true);
   });
 
+  it("breaks a long called-out list onto indented lines instead of letting it wrap", () => {
+    const names = ["Aegisa", "Arcanis", "Bulwark", "Frostbyte", "Gromwall", "Kneecap", "Lightwell", "Mendara", "Pyrel", "Shiv", "Solace"];
+    const roster = [...names.map((n, i) => raider(n, ["DPS"], `x${i}`)), raider("Me", ["DPS"], "me")];
+    const [day] = days(build([raid("2026-10-08T01:00:00Z", { out: names.map((_, i) => `x${i}`) })], { roster, viewer: "me" }));
+    expect(day!.split("\n").slice(2)).toEqual([
+      "-# ⠀\u2003✅ You're in · Called out: `Aegisa` `Arcanis` `Bulwark` `Frostbyte` `Gromwall`",
+      "-# ⠀\u2003`Kneecap` `Lightwell` `Mendara` `Pyrel` `Shiv` `Solace`",
+    ]);
+  });
+
   it("shows a cancelled day as one line, like Coming Up", () => {
     expect(days(build([raid("2026-10-08T01:00:00Z", { cancelled: true })]))).toEqual(["🚫 **Wed, Oct 7** · Cancelled"]);
   });

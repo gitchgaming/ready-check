@@ -568,14 +568,36 @@ function rosterButton(team: RaidTeam, instance: InstanceWithAttendance) {
     .setStyle(ButtonStyle.Secondary);
 }
 
-/** Names as chips after `prefix`, ending with "…and N more" before passing `budget` characters. */
-function chipList(prefix: string, names: string[], budget: number): string {
+/**
+ * About how many characters of small text fit on a line beside a button on
+ * desktop, a chip counting three more for its padding and space. Chip lists break before
+ * this themselves, since Discord can't indent a wrapped line. A phone is
+ * narrower and still wraps its lines to the edge.
+ */
+const CHIP_LINE_WIDTH = 80;
+
+/** Rough on-screen width of a line: a custom emoji is about two characters. */
+function visibleWidth(line: string): number {
+  return line.replace(/^-# /, "").replace(/<a?:\w+:\d+>/g, "xx").length;
+}
+
+/**
+ * Names as chips after `prefix`, ending with "…and N more" before passing
+ * `budget` characters. With `indent`, a line that would get too wide breaks
+ * onto a new small-text line starting with `indent`, so the chips line up
+ * under the text instead of wrapping to the edge.
+ */
+function chipList(prefix: string, names: string[], budget: number, indent?: string): string {
   let line = prefix;
+  let width = visibleWidth(prefix.slice(prefix.lastIndexOf("\n") + 1));
   for (const [i, name] of names.entries()) {
-    const piece = ` ${chip(name)}`;
+    const chipWidth = name.length + 3;
+    const wrap = indent !== undefined && width + chipWidth > CHIP_LINE_WIDTH;
+    const piece = `${wrap ? `\n-# ${indent}` : " "}${chip(name)}`;
     const more = ` …and ${names.length - i} more`;
     if (line.length + piece.length + (i < names.length - 1 ? more.length : 0) > budget) return line + more;
     line += piece;
+    width = wrap ? visibleWidth(indent) + chipWidth : width + chipWidth;
   }
   return line;
 }
@@ -607,7 +629,7 @@ function calendarDay(
     .map((m) => m.displayName)
     .sort((a, b) => a.localeCompare(b));
   if (others.length === 0) return parts.length > 0 ? head : line;
-  return chipList(`${head}${parts.length > 0 ? " · " : ""}Called out:`, others, budget);
+  return chipList(`${head}${parts.length > 0 ? " · " : ""}Called out:`, others, budget, INDENT);
 }
 
 /**
