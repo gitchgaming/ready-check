@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" class="" viewBox="0 0 128 128" role="img" aria-label="Warlock"><g fill="#595a9d" stroke="#595a9d" stroke-width="12" stroke-linejoin="round"><path d="M64 12 C34 12 16 32 16 58 C16 72 24 82 36 86 V104 C36 110 40 114 46 114 H82 C88 114 92 110 92 104 V86 C104 82 112 72 112 58 C112 32 94 12 64 12 Z"/></g>
+      <g fill="#8788EE"><path d="M64 12 C34 12 16 32 16 58 C16 72 24 82 36 86 V104 C36 110 40 114 46 114 H82 C88 114 92 110 92 104 V86 C104 82 112 72 112 58 C112 32 94 12 64 12 Z"/></g>
+      <g fill="#595a9d" stroke="#595a9d" stroke-linecap="round"><circle cx="44" cy="58" r="12" stroke="none"/><circle cx="84" cy="58" r="12" stroke="none"/><path d="M64 74 L57 86 H71 Z" stroke="none"/><path d="M55 98 V114 M73 98 V114" stroke-width="5"/></g>
+      </svg>
