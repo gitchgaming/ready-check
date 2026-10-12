@@ -106,6 +106,11 @@ function dot(status: Status, large = false): string {
   return appEmoji(large ? `dot_lg_${status}` : `dot_${status}`, DOT_FALLBACKS[status]);
 }
 
+/** A raider's own in/out mark: a small check or X, padded to sit smaller than the text like the role markers. */
+export function statusMark(out: boolean): string {
+  return out ? appEmoji("mark_out", "❌") : appEmoji("mark_in", "✅");
+}
+
 /** Whole-raid status: everyone in → green, at least half → yellow, else red. */
 function raidStatus(attending: number, total: number): Status {
   return attending === total ? "green" : attending * 2 >= total ? "yellow" : "red";
@@ -320,7 +325,7 @@ export function undoCustomId(teamId: string, raidId: string, target: "in" | "out
 /** The one wording for an attendance change, with an Undo button that switches it back. */
 export function confirmation(out: boolean, dateLabel: string, teamId: string, raidId: string, view: UndoView): Notice {
   return {
-    text: out ? `❌ You're out for **${dateLabel}**.` : `✅ You're back in for **${dateLabel}**.`,
+    text: `${statusMark(out)} ${out ? "You're out" : "You're back in"} for **${dateLabel}**.`,
     undoId: undoCustomId(teamId, raidId, out ? "in" : "out", view),
   };
 }
@@ -589,7 +594,7 @@ function calendarDay(
   const parts: string[] = [];
   if (viewer) {
     const tense = instance.closed ? " were" : "'re";
-    parts.push(viewerOut ? `❌ You${tense} out` : `✅ You${tense} in`);
+    parts.push(`${statusMark(viewerOut)} You${tense} ${viewerOut ? "out" : "in"}`);
   }
   const head = `${line}\n-# ${INDENT}${parts.join("")}`;
   const others = out
@@ -738,7 +743,7 @@ export function buildAttendanceMessage(teams: AttendanceTeam[], viewerId: string
       n === 0
         ? "No upcoming raids yet"
         : out.length === 0
-          ? `✅ You're in for ${n === 1 ? "the next raid" : `all ${n} upcoming raids`}`
+          ? `${statusMark(false)} You're in for ${n === 1 ? "the next raid" : `all ${n} upcoming raids`}`
           : n === 1
             ? "You're out of the next raid"
             : `You're in for ${n - out.length} of the next ${n} raids`;
