@@ -1,8 +1,13 @@
-import type { AutocompleteInteraction, ChatInputCommandInteraction, Client } from "discord.js";
+import type { AutocompleteInteraction, ChatInputCommandInteraction, Client, Guild } from "discord.js";
 import { MessageFlags } from "discord.js";
 import { prisma } from "./db.js";
+import { PICK_TO_CALL_OUT, PICK_TO_COME_BACK, asEphemeral, buildAttendanceMessage } from "./embeds.js";
 import { MAX_CHOICES, NO_CHOICE, formatRaidLabel, respondFiltered, teamDisplayName, teamsForMember } from "./pickers.js";
+import { fetchRosterMembers } from "./roster.js";
 import { renderTeamMessage } from "./scheduler.js";
+
+/** Discord's cap on an autocomplete choice's name. */
+const MAX_CHOICE_NAME = 100;
 
 export type AttendanceStatus = "IN" | "OUT";
 
@@ -12,8 +17,8 @@ export type AttendanceChange = AttendanceStatus | "TOGGLE";
 /**
  * Date picker for the raids of whoever the attendance change is about. Calling
  * out or toggling lists every upcoming raid marked with their status (✅
- * attending / ❌ already out, plus what picking it does when toggling);
- * attending lists only their call-outs.
+ * attending / ❌ already out; toggling adds what picking it does, in the
+ * schedule's date select's words); attending lists only their call-outs.
  */
 export async function raidDateAutocomplete(
   interaction: AutocompleteInteraction,
@@ -60,9 +65,10 @@ export async function raidDateAutocomplete(
       const label =
         status === "IN"
           ? date
-          : `${out ? "❌" : "✅"} ${date}${status === "TOGGLE" ? (out ? " — Attend" : " — Decline") : ""}`;
+          : `${out ? "❌" : "✅"} ${date}${status === "TOGGLE" ? ` — ${out ? PICK_TO_COME_BACK : PICK_TO_CALL_OUT}` : ""}`;
+      const name = showTeam ? `${label} · ${teamDisplayName(team, interaction.guild)}` : label;
       return {
-        name: showTeam ? `${label} · ${teamDisplayName(team, interaction.guild)}` : label,
+        name: name.length > MAX_CHOICE_NAME ? `${name.slice(0, MAX_CHOICE_NAME - 1)}…` : name,
         value: instance.id,
       };
     });
@@ -74,12 +80,38 @@ export async function raidDateAutocomplete(
   );
 }
 
-/** Sets (or toggles) a raider's attendance for one raid and refreshes the schedule message. */
+/**
+ * The /attendance view for one raider: each of their teams with every upcoming
+ * raid they're called out of. `notice` goes on top.
+ */
+export async function attendanceView(guild: Guild, userId: string, notice?: string) {
+  const teams = await teamsForMember(guild, userId);
+  const blocks = await Promise.all(
+    teams.map(async (team) => ({
+      team,
+      teamName: teamDisplayName(team, guild),
+      instances: await prisma.raidInstance.findMany({
+        where: { raidTeamId: team.id, closed: false },
+        include: { attendance: true },
+        orderBy: { startsAt: "asc" },
+      }),
+      members: await fetchRosterMembers(guild, team.roleId),
+    })),
+  );
+  return buildAttendanceMessage(blocks, userId, notice);
+}
+
+/**
+ * Sets (or toggles) a raider's attendance for one raid and refreshes the schedule
+ * message. `showView` replies with the raider's /attendance view under the
+ * confirmation instead of the confirmation alone.
+ */
 export async function setAttendance(
   interaction: ChatInputCommandInteraction,
   client: Client,
   change: AttendanceChange,
   subjectId: string,
+  showView = false,
 ): Promise<void> {
   if (!interaction.guild) {
     await interaction.reply({ content: "This command only works in a server.", flags: MessageFlags.Ephemeral });
@@ -151,6 +183,13 @@ export async function setAttendance(
   }
 
   await renderTeamMessage(client, instance.raidTeamId);
+
+  if (showView) {
+    const notice =
+      status === "OUT" ? `❌ You're out for **${dateLabel}**.` : `✅ You're back in for **${dateLabel}**.`;
+    await interaction.reply(asEphemeral(await attendanceView(interaction.guild, subjectId, notice)));
+    return;
+  }
 
   await interaction.reply({
     content:

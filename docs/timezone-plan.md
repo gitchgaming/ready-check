@@ -94,7 +94,7 @@ is fine.
 ### 2. Plain text → zone label (`src/lib/pickers.ts`, `embeds.ts`)
 
 - `formatRaidLabel(date, timezone)` appends `zoneAbbrev`: `Tue, Oct 6 · 8:00 PM
-  CDT`. It's used by every raid date picker (`/callout`, `/raidlead callout`
+  CDT`. It's used by every raid date picker (`/attendance`, `/raidlead callout`
   and `attend`, `raid cancel/restore/remove`, `/roster`'s date picker) and the
   personal schedule's select labels, so one change covers them. Callers that
   put it in message text switch to timestamps (section 1) instead.

@@ -228,6 +228,47 @@ describe("personal schedule select", () => {
   });
 });
 
+describe("/attendance Back in button", () => {
+  it("switches you back in and redraws the view in place, re-rendering the public message", async () => {
+    const { team, raid, client, base, renders } = await setup();
+    await callOut(raid.id, "u-alice");
+    const click = fakeButton(`attendance:in:${team.id}:${raid.id}`, base);
+    await handleAttendanceControl(click, client);
+    expect(await isOut(raid.id)).toBe(false);
+    expect(click.replies).toEqual([]);
+    expect(click.updates).toHaveLength(1);
+    expect(isEphemeral(click.updates[0])).toBe(false);
+    const text = payloadText(click.updates[0]);
+    expect(text).toContain("✅ You're back in for **Tue, Oct 6 · 8:00 PM**.");
+    expect(text).toContain("✅ You're in for the next raid");
+    expect(renders()).toBe(1);
+  });
+
+  it("never calls you out from a stale view, and skips the re-render when nothing changed", async () => {
+    const { team, raid, client, base, renders } = await setup();
+    await handleAttendanceControl(fakeButton(`attendance:in:${team.id}:${raid.id}`, base), client);
+    expect(await isOut(raid.id)).toBe(false);
+    expect(renders()).toBe(0);
+  });
+
+  it("leaves a closed or cancelled raid alone and says why", async () => {
+    const { team, client, base } = await setup();
+    const closed = await makeRaid(team.id, "2026-09-30T01:00:00Z", { closed: true });
+    await callOut(closed.id, "u-alice");
+    const click = fakeButton(`attendance:in:${team.id}:${closed.id}`, base);
+    await handleAttendanceControl(click, client);
+    expect(await isOut(closed.id)).toBe(true);
+    expect(payloadText(click.updates[0])).toContain("has already started or passed.");
+  });
+
+  it("says when the raid is gone or belongs to another team", async () => {
+    const { client, base, raid } = await setup();
+    const click = fakeButton(`attendance:in:other-team:${raid.id}`, base);
+    await handleAttendanceControl(click, client);
+    expect(payloadText(click.updates[0])).toContain("This raid no longer exists.");
+  });
+});
+
 describe("malformed customIds", () => {
   it.each([
     ["attendance:xyz:team:raid", []],

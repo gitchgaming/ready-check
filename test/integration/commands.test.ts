@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MessageFlags } from "discord.js";
-import * as callout from "../../src/commands/callout.js";
+import * as attendance from "../../src/commands/attendance.js";
 import * as raidlead from "../../src/commands/raidlead/index.js";
 import * as roster from "../../src/commands/roster.js";
 import * as schedule from "../../src/commands/schedule.js";
@@ -28,29 +28,62 @@ async function twoTeams() {
   return { main, alt, ...w };
 }
 
-describe("/callout", () => {
-  it("toggles your own call-out for the picked raid", async () => {
+describe("/attendance", () => {
+  it("with a date, toggles your own call-out and shows your attendance under a confirmation", async () => {
     const { main, guild, client, channel } = await twoTeams();
     const raid = await makeRaid(main.id, TUE_8PM);
-    const run = fakeChatInput({ commandName: "callout", guild, userId: "u-alice", options: { date: raid.id } });
-    await callout.execute(run, client);
-    expect(onlyReply(run)).toBe(`❌ Marked you as called out for ${TUE_LABEL}.`);
+    const run = fakeChatInput({ commandName: "attendance", guild, userId: "u-alice", options: { date: raid.id } });
+    await attendance.execute(run, client);
+    expect(isEphemeral(run.replies[0])).toBe(true);
+    const text = payloadText(run.replies[0] as any);
+    expect(text).toContain(`❌ You're out for **${TUE_LABEL}**.`);
+    expect(text).toContain("You're out of the next raid");
+    expect(flattenComponents(run.replies[0] as any).filter((c) => c.label === "Back in")).toHaveLength(1);
     expect(await prisma.attendance.count({ where: { userId: "u-alice" } })).toBe(1);
     expect(channel.sent).toHaveLength(1);
+
+    const again = fakeChatInput({ commandName: "attendance", guild, userId: "u-alice", options: { date: raid.id } });
+    await attendance.execute(again, client);
+    expect(payloadText(again.replies[0] as any)).toContain(`✅ You're back in for **${TUE_LABEL}**.`);
+    expect(await prisma.attendance.count({ where: { userId: "u-alice" } })).toBe(0);
   });
 
-  it("autocompletes your own raids with toggle labels", async () => {
+  it("without a date, privately shows every team you're on and what you're called out of", async () => {
+    const { main, alt, guild, client } = await twoTeams();
+    const raid = await makeRaid(main.id, TUE_8PM);
+    await makeRaid(alt.id, TUE_8PM);
+    await callOut(raid.id, "u-bob");
+    const run = fakeChatInput({ commandName: "attendance", guild, userId: "u-bob" });
+    await attendance.execute(run, client);
+    expect(isEphemeral(run.replies[0])).toBe(true);
+    const text = payloadText(run.replies[0] as any);
+    expect(text).toContain("MAIN RAID · YOUR ATTENDANCE");
+    expect(text).toContain("ALT RAID · YOUR ATTENDANCE");
+    expect(text).toContain("✅ You're in for the next raid");
+    expect(flattenComponents(run.replies[0] as any).filter((c) => c.label === "Back in").map((c) => c.custom_id)).toEqual([
+      `attendance:in:${main.id}:${raid.id}`,
+    ]);
+  });
+
+  it("without a date, says when you're not on any team", async () => {
+    const { guild, client } = await twoTeams();
+    const run = fakeChatInput({ commandName: "attendance", guild, userId: "u-carol" });
+    await attendance.execute(run, client);
+    expect(onlyReply(run)).toBe("You're not on any raid team.");
+  });
+
+  it("autocompletes your own raids in the schedule select's words", async () => {
     const { main, guild } = await twoTeams();
     const raid = await makeRaid(main.id, TUE_8PM);
-    const ac = fakeAutocomplete({ commandName: "callout", guild, userId: "u-alice", focused: "date" });
-    await callout.autocomplete(ac);
-    expect(ac.responses).toEqual([[{ name: `✅ ${TUE_LABEL} — Decline`, value: raid.id }]]);
+    const ac = fakeAutocomplete({ commandName: "attendance", guild, userId: "u-alice", focused: "date" });
+    await attendance.autocomplete(ac);
+    expect(ac.responses).toEqual([[{ name: `✅ ${TUE_LABEL} — You're in. Pick to call out`, value: raid.id }]]);
   });
 
   it("replies when used outside a server", async () => {
     const { client } = world();
-    const run = fakeChatInput({ commandName: "callout", guild: null, userId: "u-alice", options: { date: "x" } });
-    await callout.execute(run, client);
+    const run = fakeChatInput({ commandName: "attendance", guild: null, userId: "u-alice", options: { date: "x" } });
+    await attendance.execute(run, client);
     expect(run.replies).toEqual([{ content: "This command only works in a server.", flags: MessageFlags.Ephemeral }]);
   });
 });

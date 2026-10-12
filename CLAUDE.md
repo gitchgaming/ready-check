@@ -32,7 +32,7 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 
 ## Layout
 
-- `src/commands/` — `callout` (toggles), `schedule`, `roster` (read-only; raider), and
+- `src/commands/` — `attendance` (call-outs; toggles with a date), `schedule`, `roster` (read-only; raider), and
   `raidlead/` (officer): `index.ts` builds the command and routes by
   "group sub" key; `team.ts`, `nights.ts`, `raid.ts` hold the handlers.
 - `src/interactions/` — `router.ts` (routes every interaction by command name
@@ -43,6 +43,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   `roster:<raidId>` for a Coming Up raid's private roster card),
   `attendance:cal:<teamId>:<offset>` (personal date select, value is a raid id),
   `attendance:ros:<teamId>:<raidId>` (personal view's per-day Roster button),
+  `attendance:in:<teamId>:<raidId>` (`/attendance`'s Back in button; only
+  ever switches back in, so a stale view can't call anyone out),
   `mynav:<dir>:<teamId>:<offset>`,
   `teamdelete:<confirm|abort>:<teamId>`.
 - `src/lib/` — `scheduler.ts` (instance generation, hourly sync, schedule
@@ -100,6 +102,14 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   `coming-up` option, default 3, max `MAX_COMING_UP` = 8) — and class lines
   truncate with "…and N more". V2 text pings mentions, so these messages always
   send `allowedMentions: { parse: [] }`.
+- `/attendance` (was `/callout`) is private. Without a date it's one container
+  per team the user is on (`buildAttendanceMessage`): "TEAM · YOUR ATTENDANCE",
+  "You're in for X of the next N raids", then each open raid they're called
+  out of as Coming Up's line with a Back in button (capped by the 40-component
+  limit, the rest pointed at `/schedule`). With a date it toggles and shows the
+  same view under a confirmation. Its picker uses the schedule select's words
+  (`PICK_TO_CALL_OUT` / `PICK_TO_COME_BACK`) after a dash, since autocomplete
+  choices have no description.
 - There's no roster post any more: the schedule post shows the next raid's
   roster. `/roster` is read-only and private for everyone: with a date it's that
   raid's card (`buildRaidRosterCard`, Next Up minus the button); without one it's

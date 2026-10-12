@@ -147,8 +147,8 @@ describe("raidDateAutocomplete", () => {
     await callOut(r2.id, "u-alice");
     await callOut(r1.id, "u-bob"); // someone else's call-out doesn't change yours
     expect(await choices("TOGGLE")).toEqual([
-      { name: `✅ ${TUE_LABEL} — Decline`, value: r1.id },
-      { name: "❌ Wed, Oct 7 · 8:00 PM — Attend", value: r2.id },
+      { name: `✅ ${TUE_LABEL} — You're in. Pick to call out`, value: r1.id },
+      { name: "❌ Wed, Oct 7 · 8:00 PM — You're called out. Pick to switch back in", value: r2.id },
     ]);
   });
 

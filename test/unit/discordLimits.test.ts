@@ -12,6 +12,7 @@ import {
   MAX_COMING_UP,
   MAX_PUBLIC_DAYS,
   MAX_SELECT_OPTIONS,
+  buildAttendanceMessage,
   buildCalendarMessage,
   buildPublicMessage,
   buildRaidRosterCard,
@@ -126,7 +127,7 @@ describe("slash commands", () => {
   const built = commands.map((c) => c.data.toJSON() as CommandJson);
 
   it("all build, with unique names", () => {
-    expect(built.map((c) => c.name).sort()).toEqual(["callout", "raidlead", "roster", "schedule"]);
+    expect(built.map((c) => c.name).sort()).toEqual(["attendance", "raidlead", "roster", "schedule"]);
   });
 
   it.each(built.map((c) => [c.name, c] as const))("/%s respects Discord's name, description and count limits", (_, json) => {
@@ -332,6 +333,25 @@ describe("personal schedule at its worst case", () => {
     const p = build(0, allOut);
     expect(componentCount(p)).toBeLessThanOrEqual(MAX_COMPONENTS);
     expect(textLength(p)).toBeLessThanOrEqual(MAX_TEXT);
+  });
+});
+
+// ---------------------------------------------------------------- /attendance
+
+describe("/attendance at its worst case", () => {
+  const roster = worstRoster(40);
+  const viewer = roster[0]!.id;
+  const allOut = worstRaids(MAX_SELECT_OPTIONS, roster).map((r) => ({
+    ...r,
+    attendance: [...r.attendance, { ...r.attendance[0]!, id: cuid(`v${r.id.slice(-6)}`), userId: viewer, status: "OUT" }],
+  }));
+  const block = (i: number) => ({ team: team({ id: cuid(`team${i}`) }), teamName: "N".repeat(100), instances: allOut, members: roster });
+
+  it.each([1, 2, 3, 5])("called out of every raid on %i teams, with a notice, stays within the limits", (teams) => {
+    const p = buildAttendanceMessage(Array.from({ length: teams }, (_, i) => block(i)), viewer, "❌ You're out for **Wed, Oct 7 · 8:00 PM**.");
+    expect(componentCount(p)).toBeLessThanOrEqual(MAX_COMPONENTS);
+    expect(textLength(p)).toBeLessThanOrEqual(MAX_TEXT);
+    for (const c of flattenComponents(p)) if (c.custom_id) expect(c.custom_id.length).toBeLessThanOrEqual(MAX_CUSTOM_ID);
   });
 });
 
