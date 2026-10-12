@@ -306,8 +306,11 @@ function textLength(component: { toJSON(): unknown }): number {
  */
 export type Notice = string | { text: string; undoId: string };
 
-/** Where an Undo button redraws: the Status reply, /attendance, or /schedule at an offset. */
-export type UndoView = "s" | "a" | `c${number}`;
+/**
+ * Where an Undo button redraws: the Status reply, /attendance (all teams, or "t"
+ * for just the button's team), or /schedule at an offset.
+ */
+export type UndoView = "s" | "a" | "t" | `c${number}`;
 
 /** Undo sets the raider to `target` explicitly (never toggles), so a stale click can't flip the wrong way. */
 export function undoCustomId(teamId: string, raidId: string, target: "in" | "out", view: UndoView): string {
@@ -687,10 +690,13 @@ export function buildCalendarMessage(
   return { flags: V2_FLAGS, components: [...noticeComponents(notice), container], allowedMentions: NO_PINGS };
 }
 
-/** Switches the viewer back in for one raid from /attendance, then redraws it. */
-function backInButton(team: RaidTeam, instance: InstanceWithAttendance) {
+/**
+ * Switches the viewer back in for one raid from /attendance, then redraws it;
+ * ":t" redraws only this team, as /attendance team: showed it.
+ */
+function backInButton(team: RaidTeam, instance: InstanceWithAttendance, oneTeam: boolean) {
   return new ButtonBuilder()
-    .setCustomId(`attendance:in:${team.id}:${instance.id}`)
+    .setCustomId(`attendance:in:${team.id}:${instance.id}${oneTeam ? ":t" : ""}`)
     .setLabel("Back in")
     .setStyle(ButtonStyle.Secondary);
 }
@@ -716,8 +722,9 @@ const MAX_ATTENDANCE_COMPONENTS = 40;
  * The /attendance view: per team, how many upcoming raids the viewer is in for,
  * then each raid they're called out of as a Coming Up line with a Back in
  * button. `notice` (e.g. what /attendance date: just changed) goes on top.
+ * `oneTeam` marks a view narrowed by /attendance team:, so its buttons redraw it narrowed.
  */
-export function buildAttendanceMessage(teams: AttendanceTeam[], viewerId: string, notice?: Notice) {
+export function buildAttendanceMessage(teams: AttendanceTeam[], viewerId: string, notice?: Notice, oneTeam = false) {
   const fixed = noticeCost(notice) + 4 * teams.length;
   const perTeam = Math.max(0, Math.floor((MAX_ATTENDANCE_COMPONENTS - fixed) / 4 / Math.max(1, teams.length)));
 
@@ -746,7 +753,7 @@ export function buildAttendanceMessage(teams: AttendanceTeam[], viewerId: string
         .addSectionComponents(
           new SectionBuilder()
             .addTextDisplayComponents(text(raidLine(team, instance, members)))
-            .setButtonAccessory(backInButton(team, instance)),
+            .setButtonAccessory(backInButton(team, instance, oneTeam)),
         );
     }
 

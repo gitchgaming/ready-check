@@ -257,6 +257,20 @@ describe("/attendance Back in button", () => {
     expect(renders()).toBe(1);
   });
 
+  it("with :t, redraws only its own team, with an Undo that keeps it narrowed", async () => {
+    const { team, raid, client, base } = await setup();
+    await callOut(raid.id, "u-alice");
+    const click = fakeButton(`attendance:in:${team.id}:${raid.id}:t`, base);
+    await handleAttendanceControl(click, client);
+    expect(await isOut(raid.id)).toBe(false);
+    expect(buttonIds(click.updates[0])).toContain(`attendance:undo:${team.id}:${raid.id}:out:t`);
+
+    const undo = fakeButton(`attendance:undo:${team.id}:${raid.id}:out:t`, base);
+    await handleAttendanceControl(undo, client);
+    expect(await isOut(raid.id)).toBe(true);
+    expect(buttonIds(undo.updates[0])).toContain(`attendance:in:${team.id}:${raid.id}:t`);
+  });
+
   it("never calls you out from a stale view, and skips the re-render when nothing changed", async () => {
     const { team, raid, client, base, renders } = await setup();
     await handleAttendanceControl(fakeButton(`attendance:in:${team.id}:${raid.id}`, base), client);
