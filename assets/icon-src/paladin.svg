@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" class="" viewBox="0 0 128 128" role="img" aria-label="Paladin"><g fill="#a15c7b" stroke="#a15c7b" stroke-width="12" stroke-linejoin="round"><rect x="30" y="18" width="68" height="32" rx="6"/><rect x="16" y="10" width="20" height="48" rx="5"/><rect x="92" y="10" width="20" height="48" rx="5"/><circle cx="64" cy="112" r="7"/></g><path d="M64 50 V106" fill="none" stroke="#a15c7b" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+      <g fill="#F48CBA"><rect x="30" y="18" width="68" height="32" rx="6"/><rect x="16" y="10" width="20" height="48" rx="5"/><rect x="92" y="10" width="20" height="48" rx="5"/><circle cx="64" cy="112" r="7"/></g><path d="M64 50 V106" fill="none" stroke="#F48CBA" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+      
+      </svg>
