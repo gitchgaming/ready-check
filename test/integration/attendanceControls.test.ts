@@ -41,14 +41,14 @@ describe("public date button", () => {
 
     const first = fakeButton(id, base);
     await handleAttendanceControl(first, client);
-    expect(onlyReply(first)).toBe("You're out for Tue, Oct 6. Click again to undo.");
+    expect(onlyReply(first)).toBe("❌ You're out for **Tue, Oct 6 · 8:00 PM**. Click **Status** again to undo.");
     expect(await isOut(raid.id)).toBe(true);
     expect(renders()).toBe(1);
     expect(payloadText(publicMessage.payloads[1] as any)).toContain("**1/2 ready**");
 
     const second = fakeButton(id, base);
     await handleAttendanceControl(second, client);
-    expect(onlyReply(second)).toBe("You're back in for Tue, Oct 6.");
+    expect(onlyReply(second)).toBe("✅ You're back in for **Tue, Oct 6 · 8:00 PM**.");
     expect(await isOut(raid.id)).toBe(false);
     expect(renders()).toBe(2);
   });

@@ -300,6 +300,9 @@ function textLength(component: { toJSON(): unknown }): number {
   return total;
 }
 
+/** What the schedule post and /schedule say before a team has any raids. */
+const NO_RAIDS_YET = "No raids to show here yet. Officers can add weekly raid nights with `/raidlead nights add`.";
+
 /** The text beside the Next Up Status button. */
 const STATUS_NOTE = "-# Can't make it, or back in? **Status** toggles your attendance.";
 
@@ -324,6 +327,7 @@ interface RaidCardOptions {
  */
 function raidCard(
   team: RaidTeam,
+  teamName: string,
   instance: InstanceWithAttendance,
   members: GuildMember[],
   textBudget: number,
@@ -332,7 +336,7 @@ function raidCard(
   const when = raidDate(instance, team.timezone);
   const unix = Math.floor(instance.startsAt.getTime() / 1000);
   const header = text(
-    `-# **${(team.name ?? "Raid").toUpperCase()} · ${label}**\n## ${when.toFormat("ccc, LLL d · h:mm a")}\n-# <t:${unix}:R>`,
+    `-# **${teamName.toUpperCase()} · ${label}**\n## ${when.toFormat("ccc, LLL d · h:mm a")}\n-# <t:${unix}:R>`,
   );
 
   if (instance.cancelled) {
@@ -435,30 +439,40 @@ function comingUpContainer(team: RaidTeam, later: InstanceWithAttendance[], memb
  * button toggles the clicker's call-out. It's shared, so it can't show anyone's own
  * status; the select at the bottom opens the personal schedule for that.
  */
-export function buildPublicMessage(team: RaidTeam, instances: InstanceWithAttendance[], members: GuildMember[]) {
+export function buildPublicMessage(
+  team: RaidTeam,
+  teamName: string,
+  instances: InstanceWithAttendance[],
+  members: GuildMember[],
+) {
   const shown = instances.slice(0, MAX_PUBLIC_DAYS);
   const [next, ...later] = shown;
 
   const comingUp = comingUpContainer(team, later, members);
   const components = next
     ? [
-        raidCard(team, next, members, MAX_MESSAGE_TEXT - textLength(comingUp), { label: "NEXT UP", withButton: true }),
+        raidCard(team, teamName, next, members, MAX_MESSAGE_TEXT - textLength(comingUp), { label: "NEXT UP", withButton: true }),
         comingUp,
       ]
     : [
-        new ContainerBuilder().addTextDisplayComponents(
-          text(
-            `## ${team.name ?? "Raid"} — schedule\nNo raids to show here yet. Officers can add weekly raid nights with \`/raidlead nights add\`.`,
+        new ContainerBuilder()
+          .setAccentColor(0x5865f2)
+          .addTextDisplayComponents(
+            text(`-# **${teamName.toUpperCase()} · SCHEDULE**\n## No raids yet\n-# ${NO_RAIDS_YET}`),
           ),
-        ),
       ];
 
   return { flags: V2_FLAGS, components, allowedMentions: NO_PINGS };
 }
 
 /** A read-only card for one raid (the /roster view): like Next Up, without the Status button. */
-export function buildRaidRosterCard(team: RaidTeam, instance: InstanceWithAttendance, members: GuildMember[]) {
-  const card = raidCard(team, instance, members, MAX_MESSAGE_TEXT, { label: "ROSTER", withButton: false });
+export function buildRaidRosterCard(
+  team: RaidTeam,
+  teamName: string,
+  instance: InstanceWithAttendance,
+  members: GuildMember[],
+) {
+  const card = raidCard(team, teamName, instance, members, MAX_MESSAGE_TEXT, { label: "ROSTER", withButton: false });
   return { flags: V2_FLAGS, components: [card], allowedMentions: NO_PINGS };
 }
 
@@ -562,7 +576,7 @@ export function buildCalendarMessage(
   const anyOpen = instances.some((i) => !i.closed);
   const intro =
     instances.length === 0
-      ? "No raids to show here yet. Officers can add weekly raid nights with `/raidlead nights add`."
+      ? NO_RAIDS_YET
       : !anyOpen
         ? "These raids already happened, so attendance is locked."
         : dates.length > 0

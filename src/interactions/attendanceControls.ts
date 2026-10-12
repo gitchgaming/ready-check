@@ -4,9 +4,8 @@ import { prisma } from "../lib/db.js";
 import { isOfficer } from "../lib/access.js";
 import { MORE_DATES_VALUE, ROSTER_VALUE_PREFIX, asEphemeral, buildRaidRosterCard } from "../lib/embeds.js";
 import { attendanceView } from "../lib/attendance.js";
-import { formatRaidLabel } from "../lib/pickers.js";
+import { formatRaidLabel, teamDisplayName } from "../lib/pickers.js";
 import { fetchRosterMembers } from "../lib/roster.js";
-import { DateTime } from "luxon";
 import { personalCalendar, renderTeamMessage } from "../lib/scheduler.js";
 
 type AttendanceInteraction = ButtonInteraction | StringSelectMenuInteraction;
@@ -118,9 +117,12 @@ async function applySelection(
     return;
   }
 
-  const dateLabel = DateTime.fromJSDate(instance.startsAt).setZone(instance.raidTeam.timezone).toFormat("ccc, LLL d");
+  // The same words as /attendance's confirmation.
+  const dateLabel = formatRaidLabel(instance.startsAt, instance.raidTeam.timezone);
   await interaction.reply({
-    content: currentlyOut ? `You're back in for ${dateLabel}.` : `You're out for ${dateLabel}. Click again to undo.`,
+    content: currentlyOut
+      ? `✅ You're back in for **${dateLabel}**.`
+      : `❌ You're out for **${dateLabel}**. Click **Status** again to undo.`,
     flags: MessageFlags.Ephemeral,
   });
 }
@@ -167,5 +169,5 @@ async function showRoster(interaction: AttendanceInteraction, teamId: string, ra
   }
 
   const members = await fetchRosterMembers(guild, raid.raidTeam.roleId);
-  await interaction.reply(asEphemeral(buildRaidRosterCard(raid.raidTeam, raid, members)));
+  await interaction.reply(asEphemeral(buildRaidRosterCard(raid.raidTeam, teamDisplayName(raid.raidTeam, guild), raid, members)));
 }

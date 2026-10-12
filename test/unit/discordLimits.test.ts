@@ -186,7 +186,7 @@ describe("public message at its worst case", () => {
   it("the worst-case roster covers every class and raid type", () => {
     // A 40-raider card shows every class in every section, every role and the off-spec key.
     const members = worstRoster(40);
-    const text = flattenComponents(buildRaidRosterCard(team(), weeklyRaids(1)[0]!, members))
+    const text = flattenComponents(buildRaidRosterCard(team(), "Main Raid", weeklyRaids(1)[0]!, members))
       .map((c) => c.content ?? "")
       .join("\n");
     for (const c of CLASSES) expect(text).toContain(`\n${appEmoji(c.emoji)} \``);
@@ -195,30 +195,30 @@ describe("public message at its worst case", () => {
   });
 
   it(`at MAX_PUBLIC_DAYS (${MAX_PUBLIC_DAYS}) raids stays within ${MAX_COMPONENTS} components`, () => {
-    const p = buildPublicMessage(team(), worstRaids(MAX_PUBLIC_DAYS, roster), roster);
+    const p = buildPublicMessage(team(), "Main Raid", worstRaids(MAX_PUBLIC_DAYS, roster), roster);
     expect(componentCount(p)).toBeLessThanOrEqual(MAX_COMPONENTS);
   });
 
   it("has no room for one more raid: MAX_PUBLIC_DAYS is the largest count that fits", () => {
     // Measure what one more Coming Up raid costs from the real layout, then show
     // that adding it to the full message would break the limit.
-    const atMax = componentCount(buildPublicMessage(team(), worstRaids(MAX_PUBLIC_DAYS, roster), roster));
-    const oneLess = componentCount(buildPublicMessage(team(), worstRaids(MAX_PUBLIC_DAYS - 1, roster), roster));
+    const atMax = componentCount(buildPublicMessage(team(), "Main Raid", worstRaids(MAX_PUBLIC_DAYS, roster), roster));
+    const oneLess = componentCount(buildPublicMessage(team(), "Main Raid", worstRaids(MAX_PUBLIC_DAYS - 1, roster), roster));
     const perRaid = atMax - oneLess;
     expect(perRaid).toBeGreaterThan(0);
     expect(atMax + perRaid).toBeGreaterThan(MAX_COMPONENTS);
   });
 
   it("never shows more than MAX_PUBLIC_DAYS raids however many are passed", () => {
-    const atMax = buildPublicMessage(team(), worstRaids(MAX_PUBLIC_DAYS, roster), roster);
-    const over = buildPublicMessage(team(), worstRaids(MAX_PUBLIC_DAYS + 5, roster), roster);
+    const atMax = buildPublicMessage(team(), "Main Raid", worstRaids(MAX_PUBLIC_DAYS, roster), roster);
+    const over = buildPublicMessage(team(), "Main Raid", worstRaids(MAX_PUBLIC_DAYS + 5, roster), roster);
     expect(componentCount(over)).toBe(componentCount(atMax));
   });
 
   it(`with a few raiders it stays within ${MAX_TEXT} text characters`, () => {
     const members = worstRoster(5);
     for (const days of [1, MAX_PUBLIC_DAYS]) {
-      expect(textLength(buildPublicMessage(team(), worstRaids(days, members, 0.5), members))).toBeLessThanOrEqual(MAX_TEXT);
+      expect(textLength(buildPublicMessage(team(), "Main Raid", worstRaids(days, members, 0.5), members))).toBeLessThanOrEqual(MAX_TEXT);
     }
   });
 
@@ -231,14 +231,14 @@ describe("public message at its worst case", () => {
   ])(`with %s it stays within ${MAX_TEXT} text characters`, (_, size, share) => {
     const members = worstRoster(size);
     for (const days of [1, 2, MAX_PUBLIC_DAYS]) {
-      const p = buildPublicMessage(team(), worstRaids(days, members, share), members);
+      const p = buildPublicMessage(team(), "Main Raid", worstRaids(days, members, share), members);
       expect(textLength(p), `${days} raids`).toBeLessThanOrEqual(MAX_TEXT);
     }
   });
 
   it("the read-only roster card stays within the limits when nothing truncates", () => {
     const members = worstRoster(40);
-    const p = buildRaidRosterCard(team(), worstRaids(1, members, 0.5)[0]!, members);
+    const p = buildRaidRosterCard(team(), "Main Raid", worstRaids(1, members, 0.5)[0]!, members);
     expect(textLength(p)).toBeLessThanOrEqual(MAX_TEXT);
     expect(componentCount(p)).toBeLessThanOrEqual(MAX_COMPONENTS);
   });
@@ -246,7 +246,7 @@ describe("public message at its worst case", () => {
   it("the read-only roster card stays within the text limit with a truncated roster", () => {
     for (const [size, share] of [[120, 0.5], [120, 0.25], [300, 0.5]] as const) {
       const members = worstRoster(size);
-      const p = buildRaidRosterCard(team(), worstRaids(1, members, share)[0]!, members);
+      const p = buildRaidRosterCard(team(), "Main Raid", worstRaids(1, members, share)[0]!, members);
       expect(textLength(p), `${size} raiders`).toBeLessThanOrEqual(MAX_TEXT);
     }
   });
@@ -277,14 +277,14 @@ describe("public message at its worst case", () => {
       for (const share of [0, 0.1, 0.25, 0.5, 0.9]) {
         const raids = worstRaids(MAX_PUBLIC_DAYS, members, share);
         const label = `${size} raiders, ${share * 100}% out`;
-        expect(textLength(buildPublicMessage(team(), raids, members)), label).toBeLessThanOrEqual(MAX_TEXT);
-        expect(textLength(buildRaidRosterCard(team(), raids[0]!, members)), label).toBeLessThanOrEqual(MAX_TEXT);
+        expect(textLength(buildPublicMessage(team(), "Main Raid", raids, members)), label).toBeLessThanOrEqual(MAX_TEXT);
+        expect(textLength(buildRaidRosterCard(team(), "Main Raid", raids[0]!, members)), label).toBeLessThanOrEqual(MAX_TEXT);
       }
     }
   }, 30_000); // ~270 full builds: close to the default 5s on its own, over it when the suite runs in parallel
 
   it("keeps every customId, label and select option within limits with cuid-length ids", () => {
-    const p = buildPublicMessage(team(), worstRaids(MAX_PUBLIC_DAYS, roster), roster);
+    const p = buildPublicMessage(team(), "Main Raid", worstRaids(MAX_PUBLIC_DAYS, roster), roster);
     for (const c of flattenComponents(p)) {
       if (c.custom_id) expect(c.custom_id.length).toBeLessThanOrEqual(MAX_CUSTOM_ID);
       if (c.type === ComponentType.Button) expect(c.label.length).toBeLessThanOrEqual(MAX_BUTTON_LABEL);

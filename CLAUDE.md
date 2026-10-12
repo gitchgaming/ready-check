@@ -67,7 +67,15 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   buttons re-check with `isOfficer` because admins can override visibility.
   Officers can view every team (`viewableTeams`, oldest first, their own
   teams first, so `/schedule` and `/roster` default to a team they're on).
-- Raider commands take only a date. The team comes from the user's roles.
+- Raider commands take at most a date and a team. The team comes from the
+  user's roles; `/schedule` and `/roster` have an optional `team:` for raiders
+  on several teams (and officers), while `/attendance` covers all their teams.
+  Every reply to a raider is private.
+- Every view labels its team with `teamDisplayName` (the team's name, else its
+  role's name), as a small-caps "TEAM · LABEL" line (NEXT UP, SCHEDULE,
+  ROSTER, YOUR SCHEDULE, YOUR ATTENDANCE); never a hard-coded "Raid".
+  Confirmations use one wording everywhere: "❌ You're out for **<date>**." /
+  "✅ You're back in for **<date>**.", the date as `formatRaidLabel`.
 - Discord can't personalize a shared message, so the public schedule message
   never pages or shows per-viewer state. Personal views (`/schedule`) are
   ephemeral and carry their state in customIds. The public message has one
@@ -113,8 +121,10 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - There's no roster post any more: the schedule post shows the next raid's
   roster. `/roster` is read-only and private for everyone: with a date it's that
   raid's card (`buildRaidRosterCard`, Next Up minus the button); without one it's
-  one team's whole roster in Next Up's sections (`buildTeamRosterCard`). The bot
-  sends no embeds; every view is a V2 container.
+  one team's whole roster in Next Up's sections (`buildTeamRosterCard`). Its
+  date picker skips cancelled raids, which have no roster (as Coming Up's
+  select and `/schedule`'s Roster buttons do). The bot sends no embeds; every
+  view is a V2 container.
 - Role status dots use per-type minimums in `RAID_TYPES` (`min`: Tanks 2,
   Healers 3, DPS 10). These are placeholders: the game has 40/20/10-player
   raids and the real minimums are undecided (see `docs/future-features.md`).

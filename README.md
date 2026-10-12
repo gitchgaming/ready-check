@@ -12,7 +12,8 @@ ahead (**See more dates**), or privately shows any Coming Up raid's roster.
 ## Who can do what
 
 - **Raiders** (anyone with a team's role) see three commands and the
-  schedule message's Status buttons. They can only change their own attendance.
+  schedule message's Status buttons. They can only change their own attendance,
+  and everything the commands show is private to them.
 - **Officers** are the server owner and anyone with Discord's **Manage
   Events** permission. Give that permission to your officer role. Officers
   also see `/raidlead`, which is hidden from everyone else. Server admins can
@@ -29,7 +30,7 @@ All dates are picked from a list of your team's actual raids.
   picker lists every upcoming raid in the schedule menu's words (✅ "You're
   in. Pick to call out" / ❌ "You're called out. Pick to switch back in"), so
   the same command calls out and switches back.
-- `/schedule [team:]` — a private, scrollable view of your team's raids, past
+- `/schedule [team:]` — a private, pageable view of your team's raids, past
   and future, three at a time (**← Earlier** / **Later →**). Each raid shows
   like the schedule message's Coming Up (status dot, date, attendance, role
   counts), plus whether you're in and who's called out, with a **Roster**
@@ -47,7 +48,8 @@ All dates are picked from a list of your team's actual raids.
   Status button. Without a date: the team's whole roster, laid out like Next Up's
   (role counts, then Tanks / Healers / Damage sections). The optional
   `team:` picker is only needed if you're on more than one raid team (or are an
-  officer viewing another team); it also narrows the date picker. Types and classes come from roles named
+  officer viewing another team); it also narrows the date picker, which lists
+  every upcoming raid with its attendance (cancelled ones aren't listed). Types and classes come from roles named
   `Tanks`, `Healers`, `Damage` (or `DPS`, `Wizards`/`Wizard`, `Phys`/`Physical`),
   and `Warriors`, `Mages`, etc.; a raider with several type roles counts once,
   as Tank, then Healer, then Damage. `Offtank` and `Offheals` mark a damage
@@ -80,7 +82,7 @@ Every subcommand takes the team's `role:` first.
 
 **`raid`** — change individual raids
 - `cancel date:` — the raid stays on the schedule as 🚫 Cancelled, with its
-  call-outs hidden and no date button.
+  call-outs hidden and no Status button.
 - `restore date:` — undo a cancel. Call-outs come back as they were.
 - `add date: time:` — a one-off raid outside the weekly nights. The picker
   offers the next few weeks, or type any date up to two years out, like
@@ -94,6 +96,11 @@ Every subcommand takes the team's `role:` first.
 
 ## How it works
 
+- Clicking a **Status ⇄** button toggles you for that raid and privately
+  confirms it (✅ back in / ❌ out, with the raid's date and time), in the same
+  words as `/attendance`. Click it again to undo.
+- Every view is labelled with the team's name (or its role's name, for a team
+  created without one).
 - The schedule message shows the next raid, then `coming-up` more raids
   (default 3, at most 8). It never scrolls, since paging it would change it for everyone.
   - **Next Up**: the next raid, with a 10-segment attendance bar, role counts
@@ -150,7 +157,7 @@ test and production bots share one Discord application, run
 3. **OAuth2 → General** → copy the **Client ID** into `.env` as
    `DISCORD_CLIENT_ID`.
 4. **OAuth2 → URL Generator** → scopes: `bot` and `applications.commands`.
-   Bot permissions: `Send Messages`, `Embed Links`, `Read Message History`.
+   Bot permissions: `Send Messages`, `Read Message History`.
    Open the generated URL to invite the bot to your server.
 
 ## Deploying (Railway)
@@ -164,13 +171,12 @@ rollbacks. First-time setup:
    will build from the `Dockerfile` automatically.
 2. Add a **volume**, mounted at `/data`.
 3. Set environment variables: `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, and
-   `DATABASE_URL=file:/data/prod.db`, and `DISCORD_GUILD_ID` set to the raid
-   guild so commands register there instantly.
-4. Deploy. The container runs `prisma migrate deploy` on boot, applying the
-   committed migrations to the fresh database automatically.
-5. Run `npm run deploy-commands` once from Codespaces (pointed at production
-   `DISCORD_TOKEN`/`DISCORD_CLIENT_ID` via a temporary `.env`) to register the
-   slash commands globally — this only needs to be re-run when commands change.
+   `DATABASE_URL=file:/data/prod.db`. Leave `DISCORD_GUILD_ID` unset, so
+   commands register globally.
+4. Deploy. On every boot the container applies the committed migrations
+   (`prisma migrate deploy`), registers the slash commands
+   (`deploy-commands`) and syncs the icons (`deploy-emojis`) before starting
+   the bot, so command changes go live with the deploy.
 
 ## Notes
 

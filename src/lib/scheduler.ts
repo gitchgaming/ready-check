@@ -179,7 +179,7 @@ export async function renderTeamMessage(client: Client, teamId: string): Promise
   const guild = await client.guilds.fetch(team.guildId).catch(() => null);
   if (!guild) return;
   const members = await fetchRosterMembers(guild, team.roleId);
-  const content = buildPublicMessage(team, instances, members);
+  const content = buildPublicMessage(team, teamDisplayName(team, guild), instances, members);
 
   const channel = await client.channels.fetch(team.channelId).catch(() => null);
   if (!channel || !channel.isTextBased() || !("send" in channel)) return;
