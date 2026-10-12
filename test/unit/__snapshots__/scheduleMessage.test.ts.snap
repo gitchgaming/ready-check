@@ -29,8 +29,8 @@ exports[`snapshots > personal schedule 1`] = `
           },
           "components": [
             {
-              "content": "🟡 **Wed, Sep 30** 8:00 PM · 9/10
--# ⠀ 🛡️ 1/2 ➕ 3/3 ⚔️ 5/5
+              "content": "🔴 **Wed, Sep 30** 8:00 PM · 9/25
+-# ⠀ 🛡️ 1/3 ➕ 3/5 ⚔️ 5/17
 -# ⠀ ❌ You were out",
               "type": 10,
             },
@@ -52,8 +52,8 @@ exports[`snapshots > personal schedule 1`] = `
           },
           "components": [
             {
-              "content": "🟡 **Wed, Oct 7** 8:00 PM · 8/10
--# ⠀ 🛡️ 2/2 ➕ 2/3 ⚔️ 4/5
+              "content": "🔴 **Wed, Oct 7** 8:00 PM · 8/25
+-# ⠀ 🛡️ 2/3 ➕ 2/5 ⚔️ 4/17
 -# ⠀ ✅ You're in · Called out: \`Lightbringer\` \`Zap\`",
               "type": 10,
             },
@@ -75,8 +75,8 @@ exports[`snapshots > personal schedule 1`] = `
           },
           "components": [
             {
-              "content": "🟡 **Wed, Oct 14** 8:00 PM · 9/10
--# ⠀ 🛡️ 1/2 ➕ 3/3 ⚔️ 5/5
+              "content": "🔴 **Wed, Oct 14** 8:00 PM · 9/25
+-# ⠀ 🛡️ 1/3 ➕ 3/5 ⚔️ 5/17
 -# ⠀ ❌ You're out",
               "type": 10,
             },
@@ -178,7 +178,7 @@ exports[`snapshots > public message 1`] = `
   },
   "components": [
     {
-      "accent_color": 15774258,
+      "accent_color": 15548997,
       "components": [
         {
           "content": "-# **MAIN RAID · NEXT UP**
@@ -187,11 +187,11 @@ exports[`snapshots > public message 1`] = `
           "type": 10,
         },
         {
-          "content": "🟩🟩🟩🟩🟩🟩🟩🟩🟥🟥  **8/10 ready**",
+          "content": "🟥🟥🟥⬜⬜⬜⬜⬜⬜⬜  **8/25 ready**",
           "type": 10,
         },
         {
-          "content": "🛡️ **2/2** ➕ **2/3** 🟡 ⚔️ **4/5** 🔴",
+          "content": "🛡️ **2/3** 🟡 ➕ **2/5** 🔴 ⚔️ **4/17** 🔴",
           "type": 10,
         },
         {
@@ -256,8 +256,8 @@ exports[`snapshots > public message 1`] = `
           },
           "components": [
             {
-              "content": "🟡 **Wed, Oct 14** 8:00 PM · 9/10
--# ⠀ 🛡️ 1/2 ➕ 3/3 ⚔️ 5/5",
+              "content": "🔴 **Wed, Oct 14** 8:00 PM · 9/25
+-# ⠀ 🛡️ 1/3 ➕ 3/5 ⚔️ 5/17",
               "type": 10,
             },
           ],
@@ -277,8 +277,8 @@ exports[`snapshots > public message 1`] = `
           },
           "components": [
             {
-              "content": "<:dot_lg_green:9004> **Wed, Oct 28** 8:00 PM · 10/10
--# ⠀ 🛡️ 2/2 ➕ 3/3 ⚔️ 5/5",
+              "content": "🔴 **Wed, Oct 28** 8:00 PM · 10/25
+-# ⠀ 🛡️ 2/3 ➕ 3/5 ⚔️ 5/17",
               "type": 10,
             },
           ],
@@ -343,7 +343,7 @@ exports[`snapshots > raid roster card 1`] = `
   },
   "components": [
     {
-      "accent_color": 15774258,
+      "accent_color": 15548997,
       "components": [
         {
           "content": "-# **MAIN RAID · ROSTER**
@@ -352,11 +352,11 @@ exports[`snapshots > raid roster card 1`] = `
           "type": 10,
         },
         {
-          "content": "🟩🟩🟩🟩🟩🟩🟩🟩🟥🟥  **8/10 ready**",
+          "content": "🟥🟥🟥⬜⬜⬜⬜⬜⬜⬜  **8/25 ready**",
           "type": 10,
         },
         {
-          "content": "🛡️ **2/2** ➕ **2/3** 🟡 ⚔️ **4/5** 🔴",
+          "content": "🛡️ **2/3** 🟡 ➕ **2/5** 🔴 ⚔️ **4/17** 🔴",
           "type": 10,
         },
         {

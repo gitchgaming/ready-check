@@ -30,6 +30,9 @@ model RaidTeam {
   // raid (the `coming-up` option, default 3). Personal scrolling happens only
   // through /schedule, which is ephemeral and never affects this message.
   displayCount Int @default(3)
+  // Players the raid is built for (20 or 25, the `size` option). Sets each
+  // role's targets and the attendance bar's colors (RAID_SIZES in classes.ts).
+  raidSize Int @default(25)
 
   slots     RaidSlot[]
   instances RaidInstance[]

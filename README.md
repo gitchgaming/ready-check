@@ -65,10 +65,10 @@ All dates are picked from a list of your team's actual raids.
 Every subcommand takes the team's `role:` first.
 
 **`team`** — create and manage raid teams
-- `setup channel: timezone: [name:] [coming-up:]` — create a team and post
+- `setup channel: timezone: [name:] [coming-up:] [size:]` — create a team and post
   its schedule message in `channel`. The name defaults to the
-  role's name.
-- `edit [channel:] [timezone:] [name:] [coming-up:]` — change settings.
+  role's name; `size` is the raid size, 20 or 25 players (default 25).
+- `edit [channel:] [timezone:] [name:] [coming-up:] [size:]` — change settings.
   Changing the channel moves the schedule message.
 - `publish` — post the schedule message in the current channel, replacing
   the old one. Use it if the message was deleted.
@@ -109,7 +109,8 @@ Every subcommand takes the team's `role:` first.
   created without one).
 - The schedule message shows the next raid, then `coming-up` more raids
   (default 3, at most 8). It never scrolls, since paging it would change it for everyone.
-  - **Next Up**: the next raid, with a 10-segment attendance bar, role counts
+  - **Next Up**: the next raid, with a 10-segment attendance bar (raiders in
+    out of the raid size, in the raid's status color, outlined for open spots), role counts
     by icon (🛡️ tanks, ➕ healers, ⚔️ damage) with an off-spec key under them,
     everyone attending in Tanks / Healers / Damage sections (one line per
     class, each name a chip; off-tanks and off-healers marked in Damage), and
@@ -117,10 +118,12 @@ Every subcommand takes the team's `role:` first.
   - **Coming Up**: one line per later raid with its count, then its role counts
     (no role dots; the raid's own dot covers it).
   - Role counts are kept short enough to fit on one line on a phone.
-  - Raid status (accent bar and the dot before each Coming Up date): 🟢 everyone
-    in, 🟡 at least half in, 🔴 fewer. A Next Up role gets no dot
-    when it's fine — all of that role in, or at least the minimum (Tanks 2,
-    Healers 3, Damage 10) — then 🟡 one short, 🔴 more.
+  - Raid status (accent bar, attendance bar and the dot before each Coming Up
+    date): 🟢 at least the raid size in, 🟡 one or two short, 🔴 more.
+  - Role counts read as in/target. Targets by raid size: Tanks need 2 / want 3,
+    Healers need 4 / want 5, and Damage wants the rest (17 in a 25, 12 in a
+    20) and needs 2 fewer. Each Next Up role gets a dot: 🟢 at its want, 🟡 at
+    its need, 🔴 below.
 - Call-outs only count while the raider still holds the team's role. Records
   are kept for people who lose the role, but they no longer show.
 - The schedule message (and the roster in it) refreshes when members gain or lose roles,

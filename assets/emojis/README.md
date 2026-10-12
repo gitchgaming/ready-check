@@ -37,7 +37,9 @@ The SVG sources for the class, role and marker icons are in
 
 Schedule status (from the schedule-post design handoff): `dot_green`
 `dot_yellow` `dot_red` `dot_grey` (raid and role status) and `seg_green`
-`seg_red` (the 10-segment attendance bar). Fallbacks: 🟢 🟡 🔴 ⚪ 🟩 🟥.
+`seg_yellow` `seg_red` `seg_empty` (the 10-segment attendance bar, filled in
+the raid's status color, with outlined grey `#80848E` segments for open
+spots). Fallbacks: 🟢 🟡 🔴 ⚪ 🟩 🟨 🟥 ⬜.
 Discord draws every custom emoji at the same size, so the dots are drawn at
 about half the canvas with transparent padding to sit smaller than the text.
 `dot_lg_*` are the same dots at 75%, for each raid's own status.
