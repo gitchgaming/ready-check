@@ -22,7 +22,8 @@ export type AttendanceStatus = "IN" | "OUT";
 export type AttendanceChange = AttendanceStatus | "TOGGLE";
 
 /**
- * Date picker for the raids of whoever the attendance change is about. Calling
+ * Date picker for the raids of whoever the attendance change is about, on every
+ * team they're on, or only `onlyTeamId` when given. Calling
  * out or toggling lists every upcoming raid marked with their status (✅
  * attending / ❌ already out; toggling adds what picking it does, in the
  * schedule's date select's words); attending lists only their call-outs.
@@ -31,6 +32,7 @@ export async function raidDateAutocomplete(
   interaction: AutocompleteInteraction,
   subjectId: string | undefined,
   status: AttendanceChange,
+  onlyTeamId?: string,
 ) {
   if (!interaction.guild) return;
   if (!subjectId) {
@@ -38,9 +40,10 @@ export async function raidDateAutocomplete(
     return;
   }
 
-  const teams = await teamsForMember(interaction.guild, subjectId);
+  const memberOf = await teamsForMember(interaction.guild, subjectId);
+  const teams = onlyTeamId ? memberOf.filter((t) => t.id === onlyTeamId) : memberOf;
   if (teams.length === 0) {
-    await interaction.respond([{ name: "Not on any raid team", value: NO_CHOICE }]);
+    await interaction.respond([{ name: memberOf.length > 0 ? "Not on that team" : "Not on any raid team", value: NO_CHOICE }]);
     return;
   }
 
@@ -106,11 +109,12 @@ export async function setOut(raidId: string, userId: string, out: boolean): Prom
 }
 
 /**
- * The /attendance view for one raider: each of their teams with every upcoming
- * raid they're called out of. `notice` goes on top.
+ * The /attendance view for one raider: each of their teams (or only `onlyTeamId`)
+ * with every upcoming raid they're called out of. `notice` goes on top.
  */
-export async function attendanceView(guild: Guild, userId: string, notice?: Notice) {
-  const teams = await teamsForMember(guild, userId);
+export async function attendanceView(guild: Guild, userId: string, notice?: Notice, onlyTeamId?: string) {
+  const memberOf = await teamsForMember(guild, userId);
+  const teams = onlyTeamId ? memberOf.filter((t) => t.id === onlyTeamId) : memberOf;
   const blocks = await Promise.all(
     teams.map(async (team) => ({
       team,
@@ -123,20 +127,21 @@ export async function attendanceView(guild: Guild, userId: string, notice?: Noti
       members: await fetchRosterMembers(guild, team.roleId),
     })),
   );
-  return buildAttendanceMessage(blocks, userId, notice);
+  return buildAttendanceMessage(blocks, userId, notice, onlyTeamId !== undefined);
 }
 
 /**
  * Sets (or toggles) a raider's attendance for one raid and refreshes the schedule
  * message. `showView` replies with the raider's /attendance view under the
- * confirmation instead of the confirmation alone.
+ * confirmation instead of the confirmation alone: every team, or with "team"
+ * only the picked raid's team (as /attendance team: asked).
  */
 export async function setAttendance(
   interaction: ChatInputCommandInteraction,
   client: Client,
   change: AttendanceChange,
   subjectId: string,
-  showView = false,
+  showView: boolean | "team" = false,
 ): Promise<void> {
   if (!interaction.guild) {
     await interaction.reply({ content: "This command only works in a server.", flags: MessageFlags.Ephemeral });
@@ -210,8 +215,9 @@ export async function setAttendance(
   await renderTeamMessage(client, instance.raidTeamId);
 
   if (showView) {
-    const notice = confirmation(status === "OUT", dateLabel, instance.raidTeamId, instance.id, "a");
-    await interaction.reply(asEphemeral(await attendanceView(interaction.guild, subjectId, notice)));
+    const oneTeam = showView === "team" ? instance.raidTeamId : undefined;
+    const notice = confirmation(status === "OUT", dateLabel, instance.raidTeamId, instance.id, oneTeam ? "t" : "a");
+    await interaction.reply(asEphemeral(await attendanceView(interaction.guild, subjectId, notice, oneTeam)));
     return;
   }
 

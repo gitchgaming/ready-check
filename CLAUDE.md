@@ -43,11 +43,13 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   `roster:<raidId>` for a Coming Up raid's private roster card),
   `attendance:cal:<teamId>:<offset>` (personal date select, value is a raid id),
   `attendance:ros:<teamId>:<raidId>` (personal view's per-day Roster button),
-  `attendance:in:<teamId>:<raidId>` (`/attendance`'s Back in button; only
-  ever switches back in, so a stale view can't call anyone out),
+  `attendance:in:<teamId>:<raidId>[:t]` (`/attendance`'s Back in button; only
+  ever switches back in, so a stale view can't call anyone out; `:t` redraws
+  only that team, for a view narrowed by `team:`),
   `attendance:undo:<teamId>:<raidId>:<in|out>:<view>` (a confirmation's Undo;
   sets the named state, never toggles, then redraws `view`: `s` the Status
-  reply, `a` `/attendance`, `c<offset>` `/schedule`),
+  reply, `a` `/attendance`, `t` `/attendance` for that team only,
+  `c<offset>` `/schedule`),
   `mynav:<dir>:<teamId>:<offset>`,
   `teamdelete:<confirm|abort>:<teamId>`.
 - `src/lib/` — `scheduler.ts` (instance generation, hourly sync, schedule
@@ -123,7 +125,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   limit, the rest pointed at `/schedule`). With a date it toggles and shows the
   same view under a confirmation. Its picker uses the schedule select's words
   (`PICK_TO_CALL_OUT` / `PICK_TO_COME_BACK`) after a dash, since autocomplete
-  choices have no description.
+  choices have no description. An optional `team:` (the user's own teams only;
+  officers get no extra teams here) narrows both the view and the picker.
 - There's no roster post any more: the schedule post shows the next raid's
   roster. `/roster` is read-only and private for everyone: with a date it's that
   raid's card (`buildRaidRosterCard`, Next Up minus the button); without one it's

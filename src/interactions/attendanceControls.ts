@@ -25,7 +25,8 @@ type AttendanceInteraction = ButtonInteraction | StringSelectMenuInteraction;
  *   "attendance:pub:<raidTeamId>"                  — the "See more dates" select on the public message
  *   "attendance:cal:<raidTeamId>:<offset>"         — the date select on a personal schedule
  *   "attendance:ros:<raidTeamId>:<raidInstanceId>" — a Roster button on a personal schedule
- *   "attendance:in:<raidTeamId>:<raidInstanceId>"  — a Back in button on /attendance
+ *   "attendance:in:<raidTeamId>:<raidInstanceId>[:t]" — a Back in button on /attendance
+ *                                                  (":t" when it showed only that team)
  *   "attendance:undo:<raidTeamId>:<raidInstanceId>:<in|out>:<view>"
  *                                                  — the Undo button on a confirmation
  * A date button or a picked raid id toggles the user's own call-out;
@@ -33,7 +34,7 @@ type AttendanceInteraction = ButtonInteraction | StringSelectMenuInteraction;
  * Roster button privately show that raid's roster card, as /roster with a date does.
  * Back in only ever switches the user back in, so a stale view can't call them out.
  * Undo sets the user to the state it names (never toggles) and redraws where it
- * was clicked: the Status reply ("s"), /attendance ("a") or /schedule ("c<offset>").
+ * was clicked: the Status reply ("s"), /attendance ("a", or "t" for one team) or /schedule ("c<offset>").
  */
 export function isAttendanceControl(customId: string): boolean {
   return customId.startsWith("attendance:");
@@ -47,12 +48,12 @@ export async function handleAttendanceControl(interaction: AttendanceInteraction
     return;
   }
   if (source === "in") {
-    if (extra) await backIn(interaction, client, teamId, extra);
+    if (extra) await backIn(interaction, client, teamId, extra, interaction.customId.split(":")[4] === "t");
     return;
   }
   if (source === "undo") {
     const [, , , , target, view] = interaction.customId.split(":");
-    if (extra && (target === "in" || target === "out") && view && /^(s|a|c-?\d+)$/.test(view)) {
+    if (extra && (target === "in" || target === "out") && view && /^(s|a|t|c-?\d+)$/.test(view)) {
       await undo(interaction, client, teamId, extra, target === "out", view as UndoView);
     }
     return;
@@ -155,7 +156,9 @@ async function undo(
 
   const redraw = async (notice: Notice) => {
     if (view === "s") await interaction.update(buildNoticeMessage(notice));
-    else if (view === "a") await interaction.update(await attendanceView(guild, userId, notice));
+    else if (view === "a" || view === "t") {
+      await interaction.update(await attendanceView(guild, userId, notice, view === "t" ? teamId : undefined));
+    }
     else if (raid) await interaction.update(await personalCalendar(raid.raidTeam, guild, Number(view.slice(1)) || 0, userId, notice));
   };
 
@@ -182,22 +185,30 @@ async function undo(
 }
 
 /** Switches the user back in for one raid from /attendance and redraws the view in place. */
-async function backIn(interaction: AttendanceInteraction, client: Client, teamId: string, raidId: string): Promise<void> {
+async function backIn(
+  interaction: AttendanceInteraction,
+  client: Client,
+  teamId: string,
+  raidId: string,
+  oneTeam: boolean,
+): Promise<void> {
   const guild = interaction.guild!;
+  const only = oneTeam ? teamId : undefined;
   const raid = await prisma.raidInstance.findUnique({ where: { id: raidId }, include: { raidTeam: true } });
   if (!raid || raid.raidTeamId !== teamId) {
-    await interaction.update(await attendanceView(guild, interaction.user.id, "This raid no longer exists."));
+    await interaction.update(await attendanceView(guild, interaction.user.id, "This raid no longer exists.", only));
     return;
   }
   const dateLabel = formatRaidLabel(raid.startsAt, raid.raidTeam.timezone);
   if (raid.closed || raid.cancelled) {
     const why = raid.closed ? "has already started or passed" : "has been cancelled";
-    await interaction.update(await attendanceView(guild, interaction.user.id, `**${dateLabel}** ${why}.`));
+    await interaction.update(await attendanceView(guild, interaction.user.id, `**${dateLabel}** ${why}.`, only));
     return;
   }
 
   const changed = await setOut(raid.id, interaction.user.id, false);
-  await interaction.update(await attendanceView(guild, interaction.user.id, confirmation(false, dateLabel, teamId, raid.id, "a")));
+  const notice = confirmation(false, dateLabel, teamId, raid.id, oneTeam ? "t" : "a");
+  await interaction.update(await attendanceView(guild, interaction.user.id, notice, only));
   if (changed) await renderTeamMessage(client, teamId);
 }
 

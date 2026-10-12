@@ -83,6 +83,54 @@ describe("/attendance", () => {
     expect(ac.responses).toEqual([[{ name: `✅ ${TUE_LABEL} — You're in. Pick to call out`, value: raid.id }]]);
   });
 
+  it("with team:, shows only that team, and its buttons redraw it narrowed", async () => {
+    const { main, alt, guild, client } = await twoTeams();
+    const mainRaid = await makeRaid(main.id, TUE_8PM);
+    const altRaid = await makeRaid(alt.id, TUE_8PM);
+    await callOut(mainRaid.id, "u-bob");
+    await callOut(altRaid.id, "u-bob");
+    const run = fakeChatInput({ commandName: "attendance", guild, userId: "u-bob", options: { team: alt.id } });
+    await attendance.execute(run, client);
+    const text = payloadText(run.replies[0] as any);
+    expect(text).toContain("ALT RAID · YOUR ATTENDANCE");
+    expect(text).not.toContain("MAIN RAID");
+    expect(flattenComponents(run.replies[0] as any).filter((c) => c.label === "Back in").map((c) => c.custom_id)).toEqual([
+      `attendance:in:${alt.id}:${altRaid.id}:t`,
+    ]);
+  });
+
+  it("with team: and a date, toggles and shows only that raid's team, with an Undo that keeps it narrowed", async () => {
+    const { main, alt, guild, client } = await twoTeams();
+    const raid = await makeRaid(alt.id, TUE_8PM);
+    await makeRaid(main.id, TUE_8PM);
+    const run = fakeChatInput({ commandName: "attendance", guild, userId: "u-bob", options: { date: raid.id, team: alt.id } });
+    await attendance.execute(run, client);
+    expect(payloadText(run.replies[0] as any)).not.toContain("MAIN RAID");
+    expect(flattenComponents(run.replies[0] as any).find((c) => c.label === "Undo").custom_id).toBe(
+      `attendance:undo:${alt.id}:${raid.id}:in:t`,
+    );
+  });
+
+  it("with team:, refuses a team you're not on", async () => {
+    const { alt, guild, client } = await twoTeams();
+    const run = fakeChatInput({ commandName: "attendance", guild, userId: "u-alice", options: { team: alt.id } });
+    await attendance.execute(run, client);
+    expect(onlyReply(run)).toBe("You're not on that team. Pick one from the suggestions.");
+  });
+
+  it("autocompletes team: with your own teams, and narrows the date picker to it", async () => {
+    const { main, alt, guild } = await twoTeams();
+    await makeRaid(main.id, TUE_8PM);
+    const altRaid = await makeRaid(alt.id, TUE_8PM);
+    const teams = fakeAutocomplete({ commandName: "attendance", guild, userId: "u-bob", focused: "team" });
+    await attendance.autocomplete(teams);
+    expect(teams.responses[0]!.map((c) => c.value).sort()).toEqual([main.id, alt.id].sort());
+
+    const dates = fakeAutocomplete({ commandName: "attendance", guild, userId: "u-bob", focused: "date", options: { team: alt.id } });
+    await attendance.autocomplete(dates);
+    expect(dates.responses).toEqual([[{ name: `✅ ${TUE_LABEL} — You're in. Pick to call out`, value: altRaid.id }]]);
+  });
+
   it("replies when used outside a server", async () => {
     const { client } = world();
     const run = fakeChatInput({ commandName: "attendance", guild: null, userId: "u-alice", options: { date: "x" } });
