@@ -6,6 +6,7 @@ import {
   MORE_DATES_VALUE,
   ROSTER_VALUE_PREFIX,
   asEphemeral,
+  buildAttendanceMessage,
   buildCalendarMessage,
   buildPublicMessage,
   buildRaidRosterCard,
@@ -651,5 +652,68 @@ describe("snapshots", () => {
       "u-tank1",
     );
     expect(json(asEphemeral(p))).toMatchSnapshot();
+  });
+});
+
+describe("buildAttendanceMessage", () => {
+  const block = (instances: RaidRow[], name = "Main Raid") => ({ team: team(), teamName: name, instances, members: ROSTER });
+  const build = (instances: RaidRow[], notice?: string) => buildAttendanceMessage([block(instances)], "u-mage", notice);
+  const header = (p: Payload) => texts(containers(p)[0])[0];
+
+  it("is one V2 container per team that never pings", () => {
+    const p = buildAttendanceMessage([block(weeklyRaids(2)), block(weeklyRaids(2), "Alt Raid")], "u-mage");
+    expect(p.flags).toEqual([MessageFlags.IsComponentsV2]);
+    expect(p.allowedMentions).toEqual({ parse: [] });
+    expect(containers(p).map((c: any) => texts(c)[0].split("\n")[0])).toEqual([
+      "-# **MAIN RAID · YOUR ATTENDANCE**",
+      "-# **ALT RAID · YOUR ATTENDANCE**",
+    ]);
+  });
+
+  it("when you're in for everything, says so and how to call out, with no buttons", () => {
+    const p = build(weeklyRaids(12));
+    expect(header(p)).toBe("-# **MAIN RAID · YOUR ATTENDANCE**\n## ✅ You're in for all 12 upcoming raids");
+    expect(texts(containers(p)[0]).at(-1)).toBe("-# Call out of one with `/attendance date:`");
+    expect(buttons(p)).toEqual([]);
+  });
+
+  it("lists each raid you're called out of as Coming Up does, with a Back in button", () => {
+    const raids = weeklyRaids(4, (i) => ({ out: i === 1 || i === 3 ? ["u-mage"] : i === 2 ? ["u-tank1"] : [] }));
+    const p = build(raids);
+    expect(header(p)).toBe(
+      "-# **MAIN RAID · YOUR ATTENDANCE**\n## You're in for 2 of the next 4 raids\n-# Called out of 2. **Back in** switches you back.",
+    );
+    const comingUp = texts(containers(buildPublicMessage(team(), raids, ROSTER))[1]).slice(1);
+    expect(texts(containers(p)[0]).slice(1, 3)).toEqual([comingUp[0], comingUp[2]]);
+    expect(buttons(p).map((b) => [b.label, b.custom_id])).toEqual([
+      ["Back in", `attendance:in:${TEAM_ID}:${raids[1]!.id}`],
+      ["Back in", `attendance:in:${TEAM_ID}:${raids[3]!.id}`],
+    ]);
+    expect(texts(containers(p)[0]).at(-1)).toBe("-# Call out of another raid with `/attendance date:`");
+  });
+
+  it("leaves out cancelled and closed raids, even ones you called out of", () => {
+    const raids = weeklyRaids(3, (i) => ({ out: ["u-mage"], cancelled: i === 0, closed: i === 1 }));
+    const p = build(raids);
+    expect(header(p)).toBe("-# **MAIN RAID · YOUR ATTENDANCE**\n## You're out of the next raid\n-# Called out of 1. **Back in** switches you back.");
+    expect(buttons(p).map((b) => b.custom_id)).toEqual([`attendance:in:${TEAM_ID}:${raids[2]!.id}`]);
+  });
+
+  it("says when there are no upcoming raids", () => {
+    expect(texts(containers(build([]))[0])).toEqual(["-# **MAIN RAID · YOUR ATTENDANCE**\n## No upcoming raids yet"]);
+  });
+
+  it("puts the notice above the cards", () => {
+    const p = build(weeklyRaids(1), "✅ You're back in.");
+    expect(json(p).components[0]).toEqual({ type: ComponentType.TextDisplay, content: "✅ You're back in." });
+    expect(json(p).components[1].type).toBe(ComponentType.Container);
+  });
+
+  it("caps the call-outs it shows and points at /schedule for the rest", () => {
+    const p = build(weeklyRaids(12, () => ({ out: ["u-mage"] })));
+    expect(buttons(p)).toHaveLength(9);
+    expect(texts(containers(p)[0]).at(-1)).toBe(
+      "-# …and 3 more call-outs, all in `/schedule`.\n-# Call out of another raid with `/attendance date:`",
+    );
   });
 });

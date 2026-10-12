@@ -45,6 +45,10 @@ export const MORE_DATES_VALUE = "more";
 /** Select values on the public message that privately show one raid's roster: "roster:<raidId>". */
 export const ROSTER_VALUE_PREFIX = "roster:";
 
+/** The schedule's date select and the /attendance date picker describe each raid the same way. */
+export const PICK_TO_CALL_OUT = "You're in. Pick to call out";
+export const PICK_TO_COME_BACK = "You're called out. Pick to switch back in";
+
 /**
  * Discord caps a Components V2 message at 40 components, nested ones included.
  * The public message's Next Up container costs up to 10 (container, 5 text
@@ -596,7 +600,7 @@ export function buildCalendarMessage(
           const out = instance.attendance.some((a) => a.userId === viewerId && a.status === "OUT");
           return {
             label: formatRaidLabel(instance.startsAt, team.timezone),
-            description: out ? "You're called out. Pick to switch back in" : "You're in. Pick to call out",
+            description: out ? PICK_TO_COME_BACK : PICK_TO_CALL_OUT,
             value: instance.id,
             emoji: out ? "❌" : "✅",
           };
@@ -621,4 +625,84 @@ export function buildCalendarMessage(
   );
 
   return { flags: V2_FLAGS, components: [container], allowedMentions: NO_PINGS };
+}
+
+/** Switches the viewer back in for one raid from /attendance, then redraws it. */
+function backInButton(team: RaidTeam, instance: InstanceWithAttendance) {
+  return new ButtonBuilder()
+    .setCustomId(`attendance:in:${team.id}:${instance.id}`)
+    .setLabel("Back in")
+    .setStyle(ButtonStyle.Secondary);
+}
+
+/** One team's block of the /attendance view. */
+export interface AttendanceTeam {
+  team: RaidTeam;
+  teamName: string;
+  /** The team's open raids, soonest first. */
+  instances: InstanceWithAttendance[];
+  members: GuildMember[];
+}
+
+/**
+ * Components V2 caps a message at 40 components. A team's container costs 4
+ * (container, header, divider, footer) and each call-out 4 (divider, section,
+ * text, button), with 1 more for the confirmation line. So one team fits
+ * 1 + 4 + 4 × 8 = 37.
+ */
+const MAX_ATTENDANCE_COMPONENTS = 40;
+
+/**
+ * The /attendance view: per team, how many upcoming raids the viewer is in for,
+ * then each raid they're called out of as a Coming Up line with a Back in
+ * button. `notice` (e.g. what /attendance date: just changed) goes on top.
+ */
+export function buildAttendanceMessage(teams: AttendanceTeam[], viewerId: string, notice?: string) {
+  const fixed = (notice ? 1 : 0) + 4 * teams.length;
+  const perTeam = Math.max(0, Math.floor((MAX_ATTENDANCE_COMPONENTS - fixed) / 4 / Math.max(1, teams.length)));
+
+  const containers = teams.map(({ team, teamName, instances, members }) => {
+    const upcoming = instances.filter((i) => !i.closed && !i.cancelled);
+    const out = upcoming.filter((i) => i.attendance.some((a) => a.userId === viewerId && a.status === "OUT"));
+    const shown = out.slice(0, perTeam);
+    const n = upcoming.length;
+
+    const headline =
+      n === 0
+        ? "No upcoming raids yet"
+        : out.length === 0
+          ? `✅ You're in for ${n === 1 ? "the next raid" : `all ${n} upcoming raids`}`
+          : n === 1
+            ? "You're out of the next raid"
+            : `You're in for ${n - out.length} of the next ${n} raids`;
+    const sub = out.length > 0 ? `\n-# Called out of ${out.length}. **Back in** switches you back.` : "";
+    const container = new ContainerBuilder()
+      .setAccentColor(0x5865f2)
+      .addTextDisplayComponents(text(`-# **${teamName.toUpperCase()} · YOUR ATTENDANCE**\n## ${headline}${sub}`));
+
+    for (const instance of shown) {
+      container
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addSectionComponents(
+          new SectionBuilder()
+            .addTextDisplayComponents(text(raidLine(team, instance, members)))
+            .setButtonAccessory(backInButton(team, instance)),
+        );
+    }
+
+    if (n === 0) return container;
+    const hidden = out.length - shown.length;
+    const more = hidden > 0 ? `-# …and ${hidden} more ${hidden === 1 ? "call-out" : "call-outs"}, all in \`/schedule\`.\n` : "";
+    return container
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+      .addTextDisplayComponents(
+        text(`${more}-# Call out of ${out.length > 0 ? "another raid" : "one"} with \`/attendance date:\``),
+      );
+  });
+
+  return {
+    flags: V2_FLAGS,
+    components: [...(notice ? [text(notice)] : []), ...containers],
+    allowedMentions: NO_PINGS,
+  };
 }

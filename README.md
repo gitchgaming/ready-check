@@ -22,9 +22,13 @@ ahead (**See more dates**), or privately shows any Coming Up raid's roster.
 
 All dates are picked from a list of your team's actual raids.
 
-- `/callout date:` — toggle your attendance for a raid. The picker lists
-  every upcoming raid marked ✅ (attending — "Decline") or ❌ (called
-  out — "Attend"), so the same command calls out and switches back.
+- `/attendance [date:]` — only you see it. Without a date: how many upcoming
+  raids you're in for on each of your teams, and every raid you're called out
+  of (shown like Coming Up) with a **Back in** button. With a date: toggles
+  you for that raid and shows the same view under a ✅/❌ confirmation. The
+  picker lists every upcoming raid in the schedule menu's words (✅ "You're
+  in. Pick to call out" / ❌ "You're called out. Pick to switch back in"), so
+  the same command calls out and switches back.
 - `/schedule [team:]` — a private, scrollable view of your team's raids, past
   and future, three at a time (**← Earlier** / **Later →**). Each raid shows
   like the schedule message's Coming Up (status dot, date, attendance, role

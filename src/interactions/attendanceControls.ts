@@ -3,6 +3,8 @@ import { MessageFlags } from "discord.js";
 import { prisma } from "../lib/db.js";
 import { isOfficer } from "../lib/access.js";
 import { MORE_DATES_VALUE, ROSTER_VALUE_PREFIX, asEphemeral, buildRaidRosterCard } from "../lib/embeds.js";
+import { attendanceView } from "../lib/attendance.js";
+import { formatRaidLabel } from "../lib/pickers.js";
 import { fetchRosterMembers } from "../lib/roster.js";
 import { DateTime } from "luxon";
 import { personalCalendar, renderTeamMessage } from "../lib/scheduler.js";
@@ -15,9 +17,11 @@ type AttendanceInteraction = ButtonInteraction | StringSelectMenuInteraction;
  *   "attendance:pub:<raidTeamId>"                  — the "See more dates" select on the public message
  *   "attendance:cal:<raidTeamId>:<offset>"         — the date select on a personal schedule
  *   "attendance:ros:<raidTeamId>:<raidInstanceId>" — a Roster button on a personal schedule
+ *   "attendance:in:<raidTeamId>:<raidInstanceId>"  — a Back in button on /attendance
  * A date button or a picked raid id toggles the user's own call-out;
  * MORE_DATES_VALUE opens the personal schedule; "roster:<raidInstanceId>" and a
  * Roster button privately show that raid's roster card, as /roster with a date does.
+ * Back in only ever switches the user back in, so a stale view can't call them out.
  */
 export function isAttendanceControl(customId: string): boolean {
   return customId.startsWith("attendance:");
@@ -28,6 +32,10 @@ export async function handleAttendanceControl(interaction: AttendanceInteraction
   if (!teamId || !interaction.guild) return;
   if (source === "ros") {
     if (extra) await showRoster(interaction, teamId, extra);
+    return;
+  }
+  if (source === "in") {
+    if (extra) await backIn(interaction, client, teamId, extra);
     return;
   }
   if (source !== "btn" && source !== "pub" && source !== "cal") return;
@@ -115,6 +123,26 @@ async function applySelection(
     content: currentlyOut ? `You're back in for ${dateLabel}.` : `You're out for ${dateLabel}. Click again to undo.`,
     flags: MessageFlags.Ephemeral,
   });
+}
+
+/** Switches the user back in for one raid from /attendance and redraws the view in place. */
+async function backIn(interaction: AttendanceInteraction, client: Client, teamId: string, raidId: string): Promise<void> {
+  const guild = interaction.guild!;
+  const raid = await prisma.raidInstance.findUnique({ where: { id: raidId }, include: { raidTeam: true } });
+  if (!raid || raid.raidTeamId !== teamId) {
+    await interaction.update(await attendanceView(guild, interaction.user.id, "This raid no longer exists."));
+    return;
+  }
+  const dateLabel = formatRaidLabel(raid.startsAt, raid.raidTeam.timezone);
+  if (raid.closed || raid.cancelled) {
+    const why = raid.closed ? "has already started or passed" : "has been cancelled";
+    await interaction.update(await attendanceView(guild, interaction.user.id, `**${dateLabel}** ${why}.`));
+    return;
+  }
+
+  const { count } = await prisma.attendance.deleteMany({ where: { raidInstanceId: raid.id, userId: interaction.user.id } });
+  await interaction.update(await attendanceView(guild, interaction.user.id, `✅ You're back in for **${dateLabel}**.`));
+  if (count > 0) await renderTeamMessage(client, teamId);
 }
 
 /** One raid's roster card, privately. Like /roster, only for the team's raiders and officers. */
