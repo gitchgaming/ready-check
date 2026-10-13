@@ -2,9 +2,16 @@ import type { AutocompleteInteraction, Guild } from "discord.js";
 import type { RaidTeam } from "../generated/prisma/client.js";
 import { DateTime } from "luxon";
 import { prisma } from "./db.js";
+import { zoneAbbrev, zoneGenericName } from "./time.js";
 import { weekdayName } from "./weekdays.js";
 
 export const MAX_CHOICES = 25; // Discord's limit on autocomplete results
+const MAX_CHOICE_NAME = 100; // Discord's limit on an autocomplete choice's name
+
+/** Cuts a choice name to Discord's limit with an ellipsis; a long team name could push one over. */
+export function fitChoiceName(name: string): string {
+  return name.length > MAX_CHOICE_NAME ? `${name.slice(0, MAX_CHOICE_NAME - 1)}…` : name;
+}
 
 /** Placeholder value for an informational choice that isn't a real selection. */
 export const NO_CHOICE = "none";
@@ -14,12 +21,19 @@ interface Choice {
   value: string;
 }
 
+/**
+ * A raid's moment as plain text, in team time with its zone: `Tue, Oct 6 · 8:00 PM CDT`.
+ * Only for places Discord shows text as is (autocomplete choices, select options);
+ * message text uses `raidTime`, which each viewer sees in their own timezone.
+ */
 export function formatRaidLabel(date: Date, timezone: string): string {
-  return DateTime.fromJSDate(date).setZone(timezone).toFormat("ccc, MMM d · h:mm a");
+  return `${DateTime.fromJSDate(date).setZone(timezone).toFormat("ccc, MMM d · h:mm a")} ${zoneAbbrev(date, timezone)}`;
 }
 
-export function formatNight(dayOfWeek: number, hour: number, minute: number): string {
-  return `${weekdayName(dayOfWeek)} ${DateTime.fromObject({ hour, minute }).toFormat("h:mm a")}`;
+/** A weekly night, a wall-clock rule in team time; with a timezone, labelled with its zone: `Tuesday 8:00 PM Central Time`. */
+export function formatNight(dayOfWeek: number, hour: number, minute: number, timezone?: string): string {
+  const night = `${weekdayName(dayOfWeek)} ${DateTime.fromObject({ hour, minute }).toFormat("h:mm a")}`;
+  return timezone ? `${night} ${zoneGenericName(timezone)}` : night;
 }
 
 export function teamDisplayName(team: RaidTeam, guild: Guild | null): string {
@@ -86,7 +100,7 @@ export async function nightChoices(team: RaidTeam): Promise<Choice[]> {
     where: { raidTeamId: team.id },
     orderBy: [{ dayOfWeek: "asc" }, { hour: "asc" }, { minute: "asc" }],
   });
-  return nights.map((n) => ({ name: formatNight(n.dayOfWeek, n.hour, n.minute), value: n.id }));
+  return nights.map((n) => ({ name: formatNight(n.dayOfWeek, n.hour, n.minute, team.timezone), value: n.id }));
 }
 
 const FULL_DATE_FORMATS = ["yyyy-MM-dd", "M/d/yyyy", "M/d/yy", "MMM d yyyy", "MMM d, yyyy", "MMMM d yyyy", "MMMM d, yyyy"];

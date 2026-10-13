@@ -14,7 +14,6 @@ import {
   type MessageActionRowComponentBuilder,
 } from "discord.js";
 import type { Attendance, RaidInstance, RaidTeam } from "../generated/prisma/client.js";
-import { DateTime } from "luxon";
 import {
   CLASSES,
   OFF_SPECS,
@@ -31,6 +30,7 @@ import {
 } from "./classes.js";
 import { appEmoji } from "./emojis.js";
 import { formatRaidLabel } from "./pickers.js";
+import { discordTime, raidTime } from "./time.js";
 
 type InstanceWithAttendance = RaidInstance & { attendance: Attendance[] };
 
@@ -169,10 +169,6 @@ function roleCounts(roles: ReturnType<typeof raidAttendance>["roles"], nextUp = 
       return `${sep}${raidTypeIcon(r.type)} ${b}${r.inCount}/${r.want}${b}${nextUp ? ` ${dot(r.status)}` : ""}`;
     })
     .join("");
-}
-
-function raidDate(instance: InstanceWithAttendance, timezone: string) {
-  return DateTime.fromJSDate(instance.startsAt).setZone(timezone);
 }
 
 /** A display name as an inline-code chip. A backtick would end the chip early, so it becomes a look-alike. */
@@ -328,9 +324,9 @@ export function undoCustomId(teamId: string, raidId: string, target: "in" | "out
 }
 
 /** The one wording for an attendance change, with an Undo button that switches it back. */
-export function confirmation(out: boolean, dateLabel: string, teamId: string, raidId: string, view: UndoView): Notice {
+export function confirmation(out: boolean, startsAt: Date, teamId: string, raidId: string, view: UndoView): Notice {
   return {
-    text: `${statusMark(out)} ${out ? "You're out" : "You're back in"} for **${dateLabel}**.`,
+    text: `${statusMark(out)} ${out ? "You're out" : "You're back in"} for **${raidTime(startsAt)}**.`,
     undoId: undoCustomId(teamId, raidId, out ? "in" : "out", view),
   };
 }
@@ -390,10 +386,8 @@ function raidCard(
   textBudget: number,
   { label, withButton }: RaidCardOptions,
 ) {
-  const when = raidDate(instance, team.timezone);
-  const unix = Math.floor(instance.startsAt.getTime() / 1000);
   const header = text(
-    `-# **${teamName.toUpperCase()} · ${label}**\n## ${when.toFormat("ccc, LLL d · h:mm a")}\n-# <t:${unix}:R>`,
+    `-# **${teamName.toUpperCase()} · ${label}**\n## ${raidTime(instance.startsAt)}\n-# ${discordTime(instance.startsAt, "R")}`,
   );
 
   if (instance.cancelled) {
@@ -437,10 +431,10 @@ function raidCard(
  * role counts, indented to line up under the date. A cancelled raid is one line.
  */
 function raidLine(team: RaidTeam, instance: InstanceWithAttendance, members: GuildMember[]): string {
-  const when = raidDate(instance, team.timezone);
-  if (instance.cancelled) return `🚫 **${when.toFormat("ccc, LLL d")}** · Cancelled`;
+  const when = `**${raidTime(instance.startsAt)}**`;
+  if (instance.cancelled) return `🚫 ${when} · Cancelled`;
   const raid = raidAttendance(team, instance, members);
-  return `${dot(raid.status, true)} **${when.toFormat("ccc, LLL d")}** ${when.toFormat("h:mm a")} · ${raid.attending.length}/${raid.size}\n-# ${INDENT}${roleCounts(raid.roles)}`;
+  return `${dot(raid.status, true)} ${when} · ${raid.attending.length}/${raid.size}\n-# ${INDENT}${roleCounts(raid.roles)}`;
 }
 
 /**
@@ -466,7 +460,7 @@ function comingUpContainer(team: RaidTeam, later: InstanceWithAttendance[], memb
   const rosterOptions = later
     .filter((instance) => !instance.cancelled)
     .map((instance) => ({
-      label: `Roster · ${raidDate(instance, team.timezone).toFormat("ccc, LLL d · h:mm a")}`,
+      label: `Roster · ${formatRaidLabel(instance.startsAt, team.timezone)}`,
       description: "See who's in and out for this raid",
       value: `${ROSTER_VALUE_PREFIX}${instance.id}`,
       emoji: "ℹ️",

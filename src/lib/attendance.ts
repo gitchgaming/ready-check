@@ -10,12 +10,10 @@ import {
   statusMark,
   type Notice,
 } from "./embeds.js";
-import { MAX_CHOICES, NO_CHOICE, formatRaidLabel, respondFiltered, teamDisplayName, teamsForMember } from "./pickers.js";
+import { MAX_CHOICES, NO_CHOICE, fitChoiceName, formatRaidLabel, respondFiltered, teamDisplayName, teamsForMember } from "./pickers.js";
+import { raidTime } from "./time.js";
 import { fetchRosterMembers } from "./roster.js";
 import { renderTeamMessage } from "./scheduler.js";
-
-/** Discord's cap on an autocomplete choice's name. */
-const MAX_CHOICE_NAME = 100;
 
 export type AttendanceStatus = "IN" | "OUT";
 
@@ -79,7 +77,7 @@ export async function raidDateAutocomplete(
           : `${out ? "❌" : "✅"} ${date}${status === "TOGGLE" ? ` — ${out ? PICK_TO_COME_BACK : PICK_TO_CALL_OUT}` : ""}`;
       const name = showTeam ? `${label} · ${teamDisplayName(team, interaction.guild)}` : label;
       return {
-        name: name.length > MAX_CHOICE_NAME ? `${name.slice(0, MAX_CHOICE_NAME - 1)}…` : name,
+        name: fitChoiceName(name),
         value: instance.id,
       };
     });
@@ -185,7 +183,7 @@ export async function setAttendance(
     return;
   }
 
-  const dateLabel = formatRaidLabel(instance.startsAt, instance.raidTeam.timezone);
+  const dateLabel = raidTime(instance.startsAt);
   const who = onBehalf ? `<@${subjectId}>` : "you";
   const alreadyOut = await prisma.attendance.findUnique({
     where: { raidInstanceId_userId: { raidInstanceId: instance.id, userId: subjectId } },
@@ -217,7 +215,7 @@ export async function setAttendance(
 
   if (showView) {
     const oneTeam = showView === "team" ? instance.raidTeamId : undefined;
-    const notice = confirmation(status === "OUT", dateLabel, instance.raidTeamId, instance.id, oneTeam ? "t" : "a");
+    const notice = confirmation(status === "OUT", instance.startsAt, instance.raidTeamId, instance.id, oneTeam ? "t" : "a");
     await interaction.reply(asEphemeral(await attendanceView(interaction.guild, subjectId, notice, oneTeam)));
     return;
   }

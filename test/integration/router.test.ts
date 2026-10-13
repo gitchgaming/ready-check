@@ -70,7 +70,7 @@ describe("routeInteraction: components", () => {
     const { client, team, raid, base } = await setup();
     const click = fakeButton(`attendance:btn:${team.id}:${raid.id}`, base);
     await routeInteraction(click, client);
-    expect(onlyReply(click)).toBe("❌ You're out for **Tue, Oct 6 · 8:00 PM**.");
+    expect(onlyReply(click)).toBe("❌ You're out for **<t:1791334800:F>**.");
     expect(await prisma.attendance.count()).toBe(1);
 
     const more = fakeSelect(`attendance:pub:${team.id}`, ["more"], base);

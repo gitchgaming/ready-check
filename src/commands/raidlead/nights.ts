@@ -1,10 +1,22 @@
 import type { ChatInputCommandInteraction, Client } from "discord.js";
+import type { RaidTeam } from "../../generated/prisma/client.js";
 import { MessageFlags } from "discord.js";
 import { prisma } from "../../lib/db.js";
 import { formatNight } from "../../lib/pickers.js";
-import { syncRaidTeam } from "../../lib/scheduler.js";
-import { parseHourMinute } from "../../lib/time.js";
+import { DateTime } from "luxon";
+import { nextOccurrence, syncRaidTeam } from "../../lib/scheduler.js";
+import { parseHourMinute, raidTime, zoneGenericName } from "../../lib/time.js";
 import { requireTeam } from "./shared.js";
+
+/** A night's next raid as a timestamp, which each viewer sees in their own timezone. */
+function nextRaid(team: RaidTeam, night: { dayOfWeek: number; hour: number; minute: number }): string {
+  return raidTime(nextOccurrence(night.dayOfWeek, night.hour, night.minute, team.timezone, DateTime.now()).toJSDate());
+}
+
+/** Team time, named for a weekly night: `Central Time (America/Chicago)`. */
+function teamTime(team: RaidTeam): string {
+  return `${zoneGenericName(team.timezone)} (${team.timezone})`;
+}
 
 export async function add(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
   const team = await requireTeam(interaction);
@@ -30,7 +42,7 @@ export async function add(interaction: ChatInputCommandInteraction, client: Clie
   });
 
   await interaction.reply({
-    content: `✅ Added ${formatNight(day, time.hour, time.minute)} (${team.timezone}) as a weekly raid night.`,
+    content: `✅ Added ${formatNight(day, time.hour, time.minute)} ${teamTime(team)} as a weekly raid night. Next: ${nextRaid(team, { dayOfWeek: day, ...time })}.`,
     flags: MessageFlags.Ephemeral,
   });
 
@@ -51,7 +63,7 @@ export async function remove(interaction: ChatInputCommandInteraction, _client: 
   await prisma.raidSlot.delete({ where: { id: night.id } });
   await interaction.reply({
     content:
-      `🗑️ Removed ${formatNight(night.dayOfWeek, night.hour, night.minute)} as a weekly raid night. ` +
+      `🗑️ Removed ${formatNight(night.dayOfWeek, night.hour, night.minute, team.timezone)} as a weekly raid night. ` +
       "Raids already on the schedule stay; cancel them with `/raidlead raid cancel` if needed.",
     flags: MessageFlags.Ephemeral,
   });
@@ -70,7 +82,8 @@ export async function list(interaction: ChatInputCommandInteraction, _client: Cl
     content:
       nights.length === 0
         ? "No weekly raid nights yet. Add one with `/raidlead nights add`."
-        : nights.map((n) => `• ${formatNight(n.dayOfWeek, n.hour, n.minute)}`).join("\n") + `\n(${team.timezone})`,
+        : nights.map((n) => `• ${formatNight(n.dayOfWeek, n.hour, n.minute)} · next ${nextRaid(team, n)}`).join("\n") +
+          `\n-# Nights are in team time, ${teamTime(team)}.`,
     flags: MessageFlags.Ephemeral,
   });
 }

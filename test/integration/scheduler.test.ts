@@ -291,17 +291,17 @@ describe("personalCalendar", () => {
     const all = flattenComponents(msg);
     const select = all.find((c) => c.custom_id === `attendance:cal:${team.id}:0`);
     expect(select.options.map((o: any) => [o.value, o.emoji.name, o.label])).toEqual([
-      [r1.id, "✅", "Tue, Oct 6 · 8:00 PM"],
-      [r2.id, "❌", "Wed, Oct 7 · 8:00 PM"],
+      [r1.id, "✅", "Tue, Oct 6 · 8:00 PM CDT"],
+      [r2.id, "❌", "Wed, Oct 7 · 8:00 PM CDT"],
     ]);
     expect(all.find((c) => c.custom_id === `mynav:earlier:${team.id}:0`).disabled).toBe(false);
     expect(all.find((c) => c.custom_id === `mynav:later:${team.id}:0`).disabled).toBe(true);
     const text = payloadText(msg);
-    expect(text).toContain("**Tue, Oct 6** 8:00 PM · 1/2");
+    expect(text).toContain("**<t:1791334800:F>** · 1/2");
     expect(text).toContain("✅ You're in · Called out: `Bob`");
     expect(text).toContain("❌ You're out");
     expect(text).not.toContain("u-gone");
-    expect(text).toContain("🚫 **Thu, Oct 8** · Cancelled");
+    expect(text).toContain("🚫 **<t:1791507600:F>** · Cancelled");
     expect(select.options.map((o: any) => o.value)).not.toContain(cancelled.id);
   });
 

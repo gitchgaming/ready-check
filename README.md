@@ -193,3 +193,7 @@ rollbacks. First-time setup:
   few hundred interactions a week at most).
 - Timezones are per raid team (set in `/raidlead team setup`), so a team's raid times
   stay correct across daylight saving changes.
+- Every date and time in a message is a Discord timestamp, so each person sees
+  it in their own timezone. Discord can't do that in pickers and dropdown
+  options, so those show the team's time with its zone (`Tue, Oct 6 · 8:00 PM
+  CDT`), and weekly nights are labelled with the zone's name (`Central Time`).

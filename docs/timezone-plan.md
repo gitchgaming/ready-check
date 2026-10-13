@@ -1,5 +1,10 @@
 # Plan: fixed team time, clearly labelled
 
+> **Status (2026-10-13): sections 1 and 2 done** (message text → timestamps,
+> plain text → zone labels, with the zone helpers in `src/lib/time.ts`).
+> Message text uses `<t:unix:F>` throughout, which keeps the weekday, rather
+> than the `D` + `t` pair below. Sections 3–5 are still to do.
+>
 > **Status (2026-10-06): agreed, not started.** Builds on the test suite from
 > #7. Merge that first: this plan relies on its snapshots and wording tests to
 > catch every changed string. One PR, with commits in the order at the end.

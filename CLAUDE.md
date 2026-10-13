@@ -80,7 +80,7 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   role's name), as a small-caps "TEAM · LABEL" line (NEXT UP, SCHEDULE,
   ROSTER, YOUR SCHEDULE, YOUR ATTENDANCE); never a hard-coded "Raid".
   Confirmations use one wording everywhere: "❌ You're out for **<date>**." /
-  "✅ You're back in for **<date>**.", the date as `formatRaidLabel`
+  "✅ You're back in for **<date>**.", the date as `raidTime`
   (`confirmation` in `embeds.ts`). Every change a raider makes gets one
   privately, with an Undo button (the Status reply; a notice on top of
   `/attendance` and `/schedule`), so a misclick is one click to fix.
@@ -151,8 +151,12 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   UI) and upserted hourly. Never delete a generated raid — the sync recreates
   it. `cancelled` keeps it visible as 🚫 Cancelled; only `oneOff` raids (from
   `/raidlead raid add`) can be hard-deleted with `raid remove`.
-- Dates shown to users must be formatted in the team's timezone (or Discord
-  `<t:...>` timestamps), never the server clock, which is UTC.
+- Every date or time in message text is a Discord timestamp (`raidTime`, a
+  `<t:unix:F>`, in `time.ts`), so each viewer sees their own timezone. Plain
+  text Discord shows as is (autocomplete choices, select options) uses team
+  time with its zone (`formatRaidLabel`: `Tue, Oct 6 · 8:00 PM CDT`); weekly
+  nights, which are rules, carry the zone's generic name (`Central Time`).
+  Never the server clock, which is UTC.
 - Every date input is an autocomplete picker. Only `raid add` accepts free-typed
   dates (`parseTypedDate`); pickers for existing raids list real raids only.
 - Role membership comes from the member cache (warmed once at startup, kept
@@ -209,8 +213,9 @@ testing is for look and feel only.
 - Staging is live and verified (2026-10-09), except one guard path: with
   staging stopped, `check-staging` should report it stopped and let
   `npm run dev` start. Confirm it the first time the user asks to run dev.
-- Fixed team time, clearly labelled: see `docs/timezone-plan.md` (agreed, not
-  started; builds on the test suite).
+- Fixed team time, clearly labelled: see `docs/timezone-plan.md`. Sections 1
+  and 2 (timestamps in message text, zone labels in plain text) are done;
+  officer input (3) and a permanent timezone (4) are not.
 
 ## Production hosting (Railway)
 

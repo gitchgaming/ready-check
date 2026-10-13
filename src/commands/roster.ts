@@ -9,7 +9,7 @@ import type { RaidTeam } from "../generated/prisma/client.js";
 import { isOfficer } from "../lib/access.js";
 import { prisma } from "../lib/db.js";
 import { asEphemeral, buildRaidRosterCard, buildTeamRosterCard } from "../lib/embeds.js";
-import { MAX_CHOICES, formatRaidLabel, respondFiltered, teamDisplayName, viewableTeams } from "../lib/pickers.js";
+import { MAX_CHOICES, fitChoiceName, formatRaidLabel, respondFiltered, teamDisplayName, viewableTeams } from "../lib/pickers.js";
 import { fetchRosterMembers, rosterMemberIds } from "../lib/roster.js";
 
 export const data = new SlashCommandBuilder()
@@ -75,7 +75,7 @@ async function dateAutocomplete(interaction: AutocompleteInteraction, teams: Rai
           const label = `${formatRaidLabel(raid.startsAt, team.timezone)} · ${rosterIds.size - out}/${rosterIds.size}`;
           return {
             startsAt: raid.startsAt,
-            name: showTeam ? `${label} · ${teamDisplayName(team, interaction.guild)}` : label,
+            name: fitChoiceName(showTeam ? `${label} · ${teamDisplayName(team, interaction.guild)}` : label),
             value: raid.id,
           };
         });
