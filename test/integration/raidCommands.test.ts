@@ -53,7 +53,7 @@ describe("raid add", () => {
     const t = await makeTeam();
     const { run, channel } = setup();
     const reply = onlyReply(await run("raid", "add", { role: ROLE_ID, date: "10/9", time: "20:00" }));
-    expect(reply).toBe("✅ Added a raid on Fri, Oct 9 · 8:00 PM (America/Chicago).");
+    expect(reply).toBe("✅ Added a raid on <t:1791594000:F> (Fri, Oct 9 · 8:00 PM CDT in team time).");
     expect(await raids(t.id)).toEqual([
       expect.objectContaining({ startsAt: new Date("2026-10-10T01:00:00Z"), oneOff: true, cancelled: false }),
     ]);
@@ -107,7 +107,7 @@ describe("raid add", () => {
     const t = await makeTeam();
     const cancelled = await makeRaid(t.id, TUE_8PM, { cancelled: true });
     const { run } = setup();
-    expect(onlyReply(await run("raid", "add", { role: ROLE_ID, date: "10/6", time: "20:00" }))).toMatch(/^✅ Added a raid on Tue, Oct 6/);
+    expect(onlyReply(await run("raid", "add", { role: ROLE_ID, date: "10/6", time: "20:00" }))).toMatch(/^✅ Added a raid on <t:1791334800:F> \(Tue, Oct 6/);
     expect(await raids(t.id)).toEqual([expect.objectContaining({ id: cancelled.id, cancelled: false, oneOff: false })]);
   });
 
@@ -129,13 +129,13 @@ describe("raid cancel / restore", () => {
     const { run, channel } = setup();
 
     expect(onlyReply(await run("raid", "cancel", { role: ROLE_ID, date: raid.id }))).toBe(
-      "🚫 Cancelled the raid on Tue, Oct 6 · 8:00 PM.",
+      "🚫 Cancelled the raid on <t:1791334800:F>.",
     );
     expect((await raids(t.id))[0]!.cancelled).toBe(true);
     expect(payloadText(channel.sent[0]!.payloads[0] as any)).toContain("🚫 **Cancelled**");
 
     expect(onlyReply(await run("raid", "restore", { role: ROLE_ID, date: raid.id }))).toBe(
-      "✅ Restored the raid on Tue, Oct 6 · 8:00 PM.",
+      "✅ Restored the raid on <t:1791334800:F>.",
     );
     expect((await raids(t.id))[0]!.cancelled).toBe(false);
     expect(channel.sent[0]!.payloads).toHaveLength(2);
@@ -175,7 +175,7 @@ describe("raid remove", () => {
     await callOut(raid.id, "u-bob");
     const { run, channel } = setup();
     expect(onlyReply(await run("raid", "remove", { role: ROLE_ID, date: raid.id }))).toBe(
-      "🗑️ Removed the one-off raid on Tue, Oct 6 · 8:00 PM.",
+      "🗑️ Removed the one-off raid on <t:1791334800:F>.",
     );
     expect(await prisma.raidInstance.count()).toBe(0);
     expect(await prisma.attendance.count()).toBe(0);
@@ -206,7 +206,7 @@ describe("nights", () => {
     const t = await makeTeam();
     const { run, channel } = setup();
     expect(onlyReply(await run("nights", "add", { role: ROLE_ID, day: "3", time: "20:00" }))).toBe(
-      "✅ Added Wednesday 8:00 PM (America/Chicago) as a weekly raid night.",
+      "✅ Added Wednesday 8:00 PM Central Time (America/Chicago) as a weekly raid night. Next: <t:1791421200:F>.",
     );
     expect(await prisma.raidSlot.findMany()).toEqual([expect.objectContaining({ raidTeamId: t.id, dayOfWeek: 3, hour: 20, minute: 0 })]);
     expect(await raids(t.id)).toHaveLength(12);
@@ -242,7 +242,7 @@ describe("nights", () => {
     const raid = await makeRaid(t.id, "2026-10-08T01:00:00Z");
     const { run } = setup();
     expect(onlyReply(await run("nights", "remove", { role: ROLE_ID, night: slot.id }))).toBe(
-      "🗑️ Removed Wednesday 8:00 PM as a weekly raid night. Raids already on the schedule stay; cancel them with `/raidlead raid cancel` if needed.",
+      "🗑️ Removed Wednesday 8:00 PM Central Time as a weekly raid night. Raids already on the schedule stay; cancel them with `/raidlead raid cancel` if needed.",
     );
     expect(await prisma.raidSlot.count()).toBe(0);
     expect((await raids(t.id)).map((r) => r.id)).toEqual([raid.id]);
@@ -259,7 +259,7 @@ describe("nights", () => {
     expect(await prisma.raidSlot.count()).toBe(1);
   });
 
-  it("list shows the nights in order with the timezone, or how to add one", async () => {
+  it("list shows the nights in order with each one's next raid and the timezone, or how to add one", async () => {
     const t = await makeTeam();
     const { run } = setup();
     expect(onlyReply(await run("nights", "list", { role: ROLE_ID }))).toBe(
@@ -268,7 +268,7 @@ describe("nights", () => {
     await makeSlot(t.id, 6, 19, 30);
     await makeSlot(t.id, 2, 20, 0);
     expect(onlyReply(await run("nights", "list", { role: ROLE_ID }))).toBe(
-      "• Tuesday 8:00 PM\n• Saturday 7:30 PM\n(America/Chicago)",
+      "• Tuesday 8:00 PM · next <t:1791334800:F>\n• Saturday 7:30 PM · next <t:1791678600:F>\n-# Nights are in team time, Central Time (America/Chicago).",
     );
   });
 });

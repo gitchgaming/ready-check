@@ -5,13 +5,16 @@ import * as raidlead from "../../src/commands/raidlead/index.js";
 import * as roster from "../../src/commands/roster.js";
 import * as schedule from "../../src/commands/schedule.js";
 import { ROLE_ID, callOut, makeRaid, makeSlot, makeTeam, prisma } from "../db.js";
+import { setUserTimezone } from "../../src/lib/userSettings.js";
 import { fakeAutocomplete, fakeChatInput, fakeRole, flattenComponents, payloadText, raider, teamRole } from "../discord.js";
 import { isEphemeral, onlyReply, useDbAndClock, world } from "./world.js";
 
 useDbAndClock();
 
 const TUE_8PM = "2026-10-07T01:00:00Z"; // Tue Oct 6, 8:00 PM in Chicago
-const TUE_LABEL = "Tue, Oct 6 · 8:00 PM";
+const TUE_LABEL = "Tue, Oct 6 · 8:00 PM CDT"; // pickers: team time, with its zone
+const TUE_TIME = "<t:1791334800:F>"; // replies: a timestamp each viewer sees in their own zone
+const TUE_SHORT = "<t:1791334800:s>"; // the same, short, beside a button
 
 const altRole = fakeRole("Alt Raid", "role-alt");
 
@@ -36,7 +39,7 @@ describe("/attendance", () => {
     await attendance.execute(run, client);
     expect(isEphemeral(run.replies[0])).toBe(true);
     const text = payloadText(run.replies[0] as any);
-    expect(text).toContain(`❌ You're out for **${TUE_LABEL}**.`);
+    expect(text).toContain(`❌ You're out for **${TUE_SHORT}**.`);
     expect(text).toContain("You're out of the next raid");
     expect(flattenComponents(run.replies[0] as any).filter((c) => c.label === "Back in")).toHaveLength(1);
     expect(flattenComponents(run.replies[0] as any).find((c) => c.label === "Undo").custom_id).toBe(
@@ -47,7 +50,7 @@ describe("/attendance", () => {
 
     const again = fakeChatInput({ commandName: "attendance", guild, userId: "u-alice", options: { date: raid.id } });
     await attendance.execute(again, client);
-    expect(payloadText(again.replies[0] as any)).toContain(`✅ You're back in for **${TUE_LABEL}**.`);
+    expect(payloadText(again.replies[0] as any)).toContain(`✅ You're back in for **${TUE_SHORT}**.`);
     expect(await prisma.attendance.count({ where: { userId: "u-alice" } })).toBe(0);
   });
 
@@ -81,6 +84,15 @@ describe("/attendance", () => {
     const ac = fakeAutocomplete({ commandName: "attendance", guild, userId: "u-alice", focused: "date" });
     await attendance.autocomplete(ac);
     expect(ac.responses).toEqual([[{ name: `✅ ${TUE_LABEL} — You're in. Pick to call out`, value: raid.id }]]);
+  });
+
+  it("autocompletes dates in your own timezone once you've set one", async () => {
+    const { main, guild } = await twoTeams();
+    const raid = await makeRaid(main.id, TUE_8PM);
+    await setUserTimezone("u-alice", "Europe/Berlin");
+    const ac = fakeAutocomplete({ commandName: "attendance", guild, userId: "u-alice", focused: "date" });
+    await attendance.autocomplete(ac);
+    expect(ac.responses).toEqual([[{ name: "✅ Wed, Oct 7 · 3:00 AM GMT+2 — You're in. Pick to call out", value: raid.id }]]);
   });
 
   it("with team:, shows only that team, and its buttons redraw it narrowed", async () => {
@@ -283,6 +295,11 @@ describe("/roster", () => {
     const ac = fakeAutocomplete({ commandName: "roster", guild, userId: "u-alice", focused: "date" });
     await roster.autocomplete(ac);
     expect(ac.responses).toEqual([[{ name: `${TUE_LABEL} · 1/2`, value: raid.id }]]);
+
+    await setUserTimezone("u-alice", "America/Los_Angeles");
+    const own = fakeAutocomplete({ commandName: "roster", guild, userId: "u-alice", focused: "date" });
+    await roster.autocomplete(own);
+    expect(own.responses).toEqual([[{ name: "Tue, Oct 6 · 6:00 PM PDT · 1/2", value: raid.id }]]);
   });
 
   it("autocomplete names the team when you can view several, and handles no team or no raids", async () => {
@@ -293,7 +310,7 @@ describe("/roster", () => {
     await roster.autocomplete(bob);
     expect(bob.responses[0]).toEqual([
       { name: `${TUE_LABEL} · 1/1 · Alt Raid`, value: a.id },
-      { name: "Wed, Oct 7 · 8:00 PM · 2/2 · Main Raid", value: m.id },
+      { name: "Wed, Oct 7 · 8:00 PM CDT · 2/2 · Main Raid", value: m.id },
     ]);
 
     const altOnly = fakeAutocomplete({
@@ -351,7 +368,7 @@ describe("/raidlead execute", () => {
     await makeSlot(main.id, 3);
     const officer = fakeChatInput({ commandName: "raidlead", group: "nights", subcommand: "list", guild, officer: true, options: { role: ROLE_ID } });
     await raidlead.execute(officer, client);
-    expect(onlyReply(officer)).toBe("• Wednesday 8:00 PM\n(America/Chicago)");
+    expect(onlyReply(officer)).toBe("• Wednesday 8:00 PM · next <t:1791421200:F>\n-# Nights are in team time, Central Time (America/Chicago).");
 
     const owner = fakeChatInput({ commandName: "raidlead", group: "team", subcommand: "delete", guild, userId: "u-owner", options: { role: ROLE_ID } });
     await raidlead.execute(owner, client);
@@ -367,12 +384,12 @@ describe("/raidlead execute", () => {
     const raid = await makeRaid(main.id, TUE_8PM);
     const out = fakeChatInput({ commandName: "raidlead", subcommand: "callout", guild, userId: "u-officer", officer: true, options: { user: "u-bob", date: raid.id } });
     await raidlead.execute(out, client);
-    expect(onlyReply(out)).toBe(`❌ Marked <@u-bob> as called out for ${TUE_LABEL}.`);
+    expect(onlyReply(out)).toBe(`❌ Marked <@u-bob> as called out for ${TUE_TIME}.`);
     expect(await prisma.attendance.count({ where: { userId: "u-bob" } })).toBe(1);
 
     const back = fakeChatInput({ commandName: "raidlead", subcommand: "attend", guild, userId: "u-officer", officer: true, options: { user: "u-bob", date: raid.id } });
     await raidlead.execute(back, client);
-    expect(onlyReply(back)).toBe(`✅ Marked <@u-bob> as attending ${TUE_LABEL}.`);
+    expect(onlyReply(back)).toBe(`✅ Marked <@u-bob> as attending ${TUE_TIME}.`);
     expect(await prisma.attendance.count()).toBe(0);
   });
 
@@ -429,12 +446,12 @@ describe("/raidlead autocomplete", () => {
     // Bob is on two teams, so labels carry the team name.
     expect(await ask("callout", "u-bob")).toEqual([
       { name: `✅ ${TUE_LABEL} · Main Raid`, value: r1.id },
-      { name: "❌ Wed, Oct 7 · 8:00 PM · Main Raid", value: r2.id },
+      { name: "❌ Wed, Oct 7 · 8:00 PM CDT · Main Raid", value: r2.id },
     ]);
-    expect(await ask("attend", "u-bob")).toEqual([{ name: "Wed, Oct 7 · 8:00 PM · Main Raid", value: r2.id }]);
+    expect(await ask("attend", "u-bob")).toEqual([{ name: "Wed, Oct 7 · 8:00 PM CDT · Main Raid", value: r2.id }]);
     expect(await ask("callout", "u-alice")).toEqual([
       { name: `✅ ${TUE_LABEL}`, value: r1.id },
-      { name: "✅ Wed, Oct 7 · 8:00 PM", value: r2.id },
+      { name: "✅ Wed, Oct 7 · 8:00 PM CDT", value: r2.id },
     ]);
     expect(await ask("callout")).toEqual([{ name: "Pick a raider first", value: "none" }]);
   });
@@ -452,7 +469,13 @@ describe("/raidlead autocomplete", () => {
     const slot = await makeSlot(w.main.id, 5, 21, 15);
     const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "nights", subcommand: "remove", focused: "night", options: { role: ROLE_ID } });
     await raidlead.autocomplete(ac);
-    expect(ac.responses).toEqual([[{ name: "Friday 9:15 PM", value: slot.id }]]);
+    expect(ac.responses).toEqual([[{ name: "Friday 9:15 PM Central Time", value: slot.id }]]);
+
+    // An officer elsewhere also sees the next one in their own timezone.
+    await setUserTimezone("user-1", "Europe/Berlin");
+    const own = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "nights", subcommand: "remove", focused: "night", options: { role: ROLE_ID } });
+    await raidlead.autocomplete(own);
+    expect(own.responses).toEqual([[{ name: "Friday 9:15 PM Central Time · Sat 4:15 AM GMT+2 for you", value: slot.id }]]);
 
     await prisma.raidSlot.deleteMany();
     const empty = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "nights", subcommand: "remove", focused: "night", options: { role: ROLE_ID } });

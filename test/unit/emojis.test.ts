@@ -33,8 +33,8 @@ describe("statusMark", () => {
     await loadAppEmojis(fakeClient({ emojis: ["mark_in", "mark_out"] }));
     expect(statusMark(false)).toBe("<:mark_in:9000>");
     expect(statusMark(true)).toBe("<:mark_out:9001>");
-    const notice = confirmation(true, "Wed, Oct 14", "t1", "r1", "s");
-    expect(typeof notice === "string" ? notice : notice.text).toBe("<:mark_out:9001> You're out for **Wed, Oct 14**.");
+    const notice = confirmation(true, new Date("2026-10-15T01:00:00Z"), "t1", "r1", "s");
+    expect(typeof notice === "string" ? notice : notice.text).toBe("<:mark_out:9001> You're out for **<t:1792026000:s>**.");
   });
 });
 

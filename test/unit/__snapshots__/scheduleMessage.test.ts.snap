@@ -11,7 +11,7 @@ exports[`snapshots > personal schedule 1`] = `
       "components": [
         {
           "content": "-# **MAIN RAID · YOUR SCHEDULE**
--# Pick a date below to call out or switch back in.",
+-# Pick a date below to call out or switch back in. Set your timezone with \`/timezone\` to see its times in yours.",
           "type": 10,
         },
         {
@@ -29,7 +29,7 @@ exports[`snapshots > personal schedule 1`] = `
           },
           "components": [
             {
-              "content": "🔴 **Wed, Sep 30** 8:00 PM · 9/25
+              "content": "🔴 **<t:1790816400:s>** · 9/25
 -# ⠀ 🛡️ 1/3 ➕ 3/5 ⚔️ 5/17
 -# ⠀ ❌ You were out",
               "type": 10,
@@ -52,7 +52,7 @@ exports[`snapshots > personal schedule 1`] = `
           },
           "components": [
             {
-              "content": "🔴 **Wed, Oct 7** 8:00 PM · 8/25
+              "content": "🔴 **<t:1791421200:s>** · 8/25
 -# ⠀ 🛡️ 2/3 ➕ 2/5 ⚔️ 4/17
 -# ⠀ ✅ You're in · Called out: \`Lightbringer\` \`Zap\`",
               "type": 10,
@@ -75,7 +75,7 @@ exports[`snapshots > personal schedule 1`] = `
           },
           "components": [
             {
-              "content": "🔴 **Wed, Oct 14** 8:00 PM · 9/25
+              "content": "🔴 **<t:1792026000:s>** · 9/25
 -# ⠀ 🛡️ 1/3 ➕ 3/5 ⚔️ 5/17
 -# ⠀ ❌ You're out",
               "type": 10,
@@ -89,7 +89,7 @@ exports[`snapshots > personal schedule 1`] = `
           "type": 14,
         },
         {
-          "content": "🚫 **Wed, Oct 21** · Cancelled",
+          "content": "🚫 **<t:1792630800:s>** · Cancelled",
           "type": 10,
         },
         {
@@ -109,7 +109,7 @@ exports[`snapshots > personal schedule 1`] = `
                     "id": undefined,
                     "name": "✅",
                   },
-                  "label": "Wed, Oct 7 · 8:00 PM",
+                  "label": "Wed, Oct 7 · 8:00 PM CDT",
                   "value": "c0000000000000000000raid0",
                 },
                 {
@@ -119,7 +119,7 @@ exports[`snapshots > personal schedule 1`] = `
                     "id": undefined,
                     "name": "❌",
                   },
-                  "label": "Wed, Oct 14 · 8:00 PM",
+                  "label": "Wed, Oct 14 · 8:00 PM CDT",
                   "value": "c0000000000000000000raid1",
                 },
                 {
@@ -129,7 +129,7 @@ exports[`snapshots > personal schedule 1`] = `
                     "id": undefined,
                     "name": "✅",
                   },
-                  "label": "Wed, Oct 28 · 8:00 PM",
+                  "label": "Wed, Oct 28 · 8:00 PM CDT",
                   "value": "c0000000000000000000raid3",
                 },
               ],
@@ -182,7 +182,7 @@ exports[`snapshots > public message 1`] = `
       "components": [
         {
           "content": "-# **MAIN RAID · NEXT UP**
-## Wed, Oct 7 · 8:00 PM
+## <t:1791421200:F>
 -# <t:1791421200:R>",
           "type": 10,
         },
@@ -256,7 +256,7 @@ exports[`snapshots > public message 1`] = `
           },
           "components": [
             {
-              "content": "🔴 **Wed, Oct 14** 8:00 PM · 9/25
+              "content": "🔴 **<t:1792026000:s>** · 9/25
 -# ⠀ 🛡️ 1/3 ➕ 3/5 ⚔️ 5/17",
               "type": 10,
             },
@@ -264,7 +264,7 @@ exports[`snapshots > public message 1`] = `
           "type": 9,
         },
         {
-          "content": "🚫 **Wed, Oct 21** · Cancelled",
+          "content": "🚫 **<t:1792630800:s>** · Cancelled",
           "type": 10,
         },
         {
@@ -277,7 +277,7 @@ exports[`snapshots > public message 1`] = `
           },
           "components": [
             {
-              "content": "🔴 **Wed, Oct 28** 8:00 PM · 10/25
+              "content": "🔴 **<t:1793235600:s>** · 10/25
 -# ⠀ 🛡️ 2/3 ➕ 3/5 ⚔️ 5/17",
               "type": 10,
             },
@@ -299,28 +299,8 @@ exports[`snapshots > public message 1`] = `
                   "label": "See more dates",
                   "value": "more",
                 },
-                {
-                  "description": "See who's in and out for this raid",
-                  "emoji": {
-                    "animated": false,
-                    "id": undefined,
-                    "name": "ℹ️",
-                  },
-                  "label": "Roster · Wed, Oct 14 · 8:00 PM",
-                  "value": "roster:c0000000000000000000raid1",
-                },
-                {
-                  "description": "See who's in and out for this raid",
-                  "emoji": {
-                    "animated": false,
-                    "id": undefined,
-                    "name": "ℹ️",
-                  },
-                  "label": "Roster · Wed, Oct 28 · 8:00 PM",
-                  "value": "roster:c0000000000000000000raid3",
-                },
               ],
-              "placeholder": "📅 See more dates or a roster…",
+              "placeholder": "📅 See more dates…",
               "type": 3,
             },
           ],
@@ -347,7 +327,7 @@ exports[`snapshots > raid roster card 1`] = `
       "components": [
         {
           "content": "-# **MAIN RAID · ROSTER**
-## Wed, Oct 7 · 8:00 PM
+## <t:1791421200:F>
 -# <t:1791421200:R>",
           "type": 10,
         },

@@ -128,7 +128,7 @@ describe("slash commands", () => {
   const built = commands.map((c) => c.data.toJSON() as CommandJson);
 
   it("all build, with unique names", () => {
-    expect(built.map((c) => c.name).sort()).toEqual(["attendance", "raidlead", "roster", "schedule"]);
+    expect(built.map((c) => c.name).sort()).toEqual(["attendance", "raidlead", "roster", "schedule", "timezone"]);
   });
 
   it.each(built.map((c) => [c.name, c] as const))("/%s respects Discord's name, description and count limits", (_, json) => {
@@ -349,7 +349,7 @@ describe("/attendance at its worst case", () => {
   const block = (i: number) => ({ team: team({ id: cuid(`team${i}`) }), teamName: "N".repeat(100), instances: allOut, members: roster });
 
   it.each([1, 2, 3, 5])("called out of every raid on %i teams, with a confirmation and Undo, stays within the limits", (teams) => {
-    const p = buildAttendanceMessage(Array.from({ length: teams }, (_, i) => block(i)), viewer, confirmation(true, "Wed, Oct 7 · 8:00 PM", cuid("team0"), allOut[0]!.id, "c-999"));
+    const p = buildAttendanceMessage(Array.from({ length: teams }, (_, i) => block(i)), viewer, confirmation(true, allOut[0]!.startsAt, cuid("team0"), allOut[0]!.id, "c-999"));
     expect(componentCount(p)).toBeLessThanOrEqual(MAX_COMPONENTS);
     expect(textLength(p)).toBeLessThanOrEqual(MAX_TEXT);
     for (const c of flattenComponents(p)) if (c.custom_id) expect(c.custom_id.length).toBeLessThanOrEqual(MAX_CUSTOM_ID);

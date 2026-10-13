@@ -32,15 +32,16 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 
 ## Layout
 
-- `src/commands/` — `attendance` (call-outs; toggles with a date), `schedule`, `roster` (read-only; raider), and
+- `src/commands/` — `attendance` (call-outs; toggles with a date), `schedule`, `roster` (read-only; raider),
+  `timezone` (a raider's own zone, `src/lib/userSettings.ts`), and
   `raidlead/` (officer): `index.ts` builds the command and routes by
   "group sub" key; `team.ts`, `nights.ts`, `raid.ts` hold the handlers.
 - `src/interactions/` — `router.ts` (routes every interaction by command name
   or customId prefix; `index.ts` only sets up the client), then the select and
   button handlers. State lives in the customId:
   `attendance:btn:<teamId>:<raidId>` (public date buttons),
-  `attendance:pub:<teamId>` (public "See more dates" select, value `more`, or
-  `roster:<raidId>` for a Coming Up raid's private roster card),
+  `attendance:pub:<teamId>` (public "See more dates" select, value `more`;
+  `roster:<raidId>` from posts drawn before its roster options were dropped),
   `attendance:cal:<teamId>:<offset>` (personal date select, value is a raid id),
   `attendance:ros:<teamId>:<raidId>` (personal view's per-day Roster button),
   `attendance:in:<teamId>:<raidId>[:t]` (`/attendance`'s Back in button; only
@@ -75,22 +76,23 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - Raider commands take at most a date and a team. The team comes from the
   user's roles; `/schedule` and `/roster` have an optional `team:` for raiders
   on several teams (and officers), while `/attendance` covers all their teams.
-  Every reply to a raider is private.
+  `/timezone` is the one setting a raider keeps. Every reply to a raider is private.
 - Every view labels its team with `teamDisplayName` (the team's name, else its
   role's name), as a small-caps "TEAM · LABEL" line (NEXT UP, SCHEDULE,
   ROSTER, YOUR SCHEDULE, YOUR ATTENDANCE); never a hard-coded "Raid".
   Confirmations use one wording everywhere: "❌ You're out for **<date>**." /
-  "✅ You're back in for **<date>**.", the date as `formatRaidLabel`
+  "✅ You're back in for **<date>**.", the date as `raidTime`
   (`confirmation` in `embeds.ts`). Every change a raider makes gets one
   privately, with an Undo button (the Status reply; a notice on top of
   `/attendance` and `/schedule`), so a misclick is one click to fix.
 - Discord can't personalize a shared message, so the public schedule message
   never pages or shows per-viewer state. Personal views (`/schedule`) are
   ephemeral and carry their state in customIds. The public message has one
-  button per visible date for one-click toggling, plus a select whose first
-  option, **See more dates**, opens the personal view; the rest show each
-  Coming Up raid's roster privately (a section takes only one button, so
-  these can't sit beside Status). The personal select
+  button per visible date for one-click toggling, plus a select whose one
+  option, **See more dates**, opens the personal view, where each day has a
+  Roster button. (It used to list each Coming Up raid's roster too; those
+  options were plain text in team time, so their times didn't match the
+  timestamps beside them for anyone elsewhere.) The personal select
   lists every open raid (cap 25) with the viewer's status. Re-rendering the
   public message after each interaction resets its select.
 - Class and raid-type roles are matched by role name (`classes.ts`), not
@@ -131,8 +133,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   roster. `/roster` is read-only and private for everyone: with a date it's that
   raid's card (`buildRaidRosterCard`, Next Up minus the button); without one it's
   one team's whole roster in Next Up's sections (`buildTeamRosterCard`). Its
-  date picker skips cancelled raids, which have no roster (as Coming Up's
-  select and `/schedule`'s Roster buttons do). The bot sends no embeds; every
+  date picker skips cancelled raids, which have no roster (as
+  `/schedule`'s Roster buttons do). The bot sends no embeds; every
   view is a V2 container.
 - Each team has a raid size, 20 or 25 (`raidSize`, the `size` option on
   `team setup`/`team edit`, default 25), with fixed role targets
@@ -151,8 +153,20 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   UI) and upserted hourly. Never delete a generated raid — the sync recreates
   it. `cancelled` keeps it visible as 🚫 Cancelled; only `oneOff` raids (from
   `/raidlead raid add`) can be hard-deleted with `raid remove`.
-- Dates shown to users must be formatted in the team's timezone (or Discord
-  `<t:...>` timestamps), never the server clock, which is UTC.
+- Every date or time in message text is a Discord timestamp (`raidTime`
+  in `time.ts`), so each viewer sees their own timezone: full (`F`, the only
+  style with a weekday) where it has room, short (`s`, "10/14/26, 8:00 PM")
+  wherever it would wrap on a phone beside a button (Coming Up, `/schedule`
+  days, confirmations). The Next Up heading keeps the full style. Tapping a short one shows
+  the full date. Plain text Discord shows as is (autocomplete choices, select
+  options) can't follow the viewer, and Discord never tells a bot a user's
+  timezone, so it uses the zone the viewer set with `/timezone` (`UserSetting`,
+  `userTimezone`), else team time, always with the zone's short name
+  (`formatRaidLabel`: `Tue, Oct 6 · 8:00 PM CDT`). The public message is
+  shared, so it holds no plain-text times at all. Weekly nights, which are rules, stay in
+  team time with the zone's generic name (`Central Time`), plus their next raid
+  in the viewer's zone if they set one.
+  Never the server clock, which is UTC.
 - Every date input is an autocomplete picker. Only `raid add` accepts free-typed
   dates (`parseTypedDate`); pickers for existing raids list real raids only.
 - Role membership comes from the member cache (warmed once at startup, kept
@@ -209,8 +223,9 @@ testing is for look and feel only.
 - Staging is live and verified (2026-10-09), except one guard path: with
   staging stopped, `check-staging` should report it stopped and let
   `npm run dev` start. Confirm it the first time the user asks to run dev.
-- Fixed team time, clearly labelled: see `docs/timezone-plan.md` (agreed, not
-  started; builds on the test suite).
+- Fixed team time, clearly labelled: see `docs/timezone-plan.md`. Sections 1
+  and 2 (timestamps in message text, zone labels in plain text) are done;
+  officer input (3) and a permanent timezone (4) are not.
 
 ## Production hosting (Railway)
 

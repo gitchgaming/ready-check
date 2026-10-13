@@ -6,8 +6,8 @@ Each raid team is a Discord role. Everyone with the role is assumed to be
 attending every raid unless they call out. The bot keeps one auto-updating
 schedule message per team: the next raid up top with its full roster, then
 the following raids, each with a **Status ⇄** button to toggle your own
-call-out. Its menu opens your full schedule privately, for calling out further
-ahead (**See more dates**), or privately shows any Coming Up raid's roster.
+call-out. Its menu opens your full schedule privately (**See more dates**), for
+calling out further ahead or seeing any raid's roster.
 
 ## Who can do what
 
@@ -59,6 +59,11 @@ All dates are picked from a list of your team's actual raids.
   main's off-spec (a raider with only one of those counts as Damage). On the
   schedule and in `/roster`, a raider with no type role counts as Damage, and one with no class
   role is listed at the end of their section without an icon.
+- `/timezone [zone:]` — only you see it. Sets your timezone, so the raid times
+  in pickers and dropdowns show in it (dates in messages already follow your
+  device). Without a zone it shows your current one; pick **Use each team's
+  timezone** to clear it. The reply says what time it is there now, so a wrong
+  pick is easy to spot. It applies on every server and team.
 
 ## Officer commands (`/raidlead`)
 
@@ -193,3 +198,9 @@ rollbacks. First-time setup:
   few hundred interactions a week at most).
 - Timezones are per raid team (set in `/raidlead team setup`), so a team's raid times
   stay correct across daylight saving changes.
+- Every date and time in a message is a Discord timestamp, so each person sees
+  it in their own timezone. Discord can't do that in pickers and dropdown
+  options, and never tells a bot a user's timezone, so those show the time in
+  the zone set with `/timezone`, or else the team's, with the zone's short name
+  (`Tue, Oct 6 · 8:00 PM CDT`). Weekly nights are labelled with the
+  team zone's name (`Central Time`), plus their next raid in yours if you set one.

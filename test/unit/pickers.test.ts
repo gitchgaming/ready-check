@@ -134,15 +134,15 @@ describe("formatRaidLabel", () => {
   // 8 PM Wed Oct 7 in Chicago = 01:00 Thu Oct 8 UTC.
   const start = new Date("2026-10-08T01:00:00Z");
 
-  it("formats in the team's timezone, not UTC", () => {
-    expect(formatRaidLabel(start, CHICAGO)).toBe("Wed, Oct 7 · 8:00 PM");
-    expect(formatRaidLabel(start, "UTC")).toBe("Thu, Oct 8 · 1:00 AM");
-    expect(formatRaidLabel(start, "Europe/London")).toBe("Thu, Oct 8 · 2:00 AM");
+  it("formats in the team's timezone, not UTC, with the zone's short name", () => {
+    expect(formatRaidLabel(start, CHICAGO)).toBe("Wed, Oct 7 · 8:00 PM CDT");
+    expect(formatRaidLabel(start, "UTC")).toBe("Thu, Oct 8 · 1:00 AM UTC");
+    expect(formatRaidLabel(start, "Europe/London")).toBe("Thu, Oct 8 · 2:00 AM GMT+1");
   });
 
-  it("follows the zone's DST offset", () => {
+  it("follows the zone's DST offset and name", () => {
     // After Nov 1 Chicago is UTC-6, so 8 PM local is 02:00Z.
-    expect(formatRaidLabel(new Date("2026-11-05T02:00:00Z"), CHICAGO)).toBe("Wed, Nov 4 · 8:00 PM");
+    expect(formatRaidLabel(new Date("2026-11-05T02:00:00Z"), CHICAGO)).toBe("Wed, Nov 4 · 8:00 PM CST");
   });
 });
 
@@ -158,6 +158,11 @@ describe("formatNight", () => {
 
   it("names an out-of-range day rather than throwing", () => {
     expect(formatNight(8, 20, 0)).toBe("Day 8 8:00 PM");
+  });
+
+  it("labels the night with its zone's DST-neutral name when given one", () => {
+    expect(formatNight(2, 20, 0, CHICAGO)).toBe("Tuesday 8:00 PM Central Time");
+    expect(formatNight(2, 20, 0, "Europe/Berlin")).toBe("Tuesday 8:00 PM Central European Time");
   });
 });
 

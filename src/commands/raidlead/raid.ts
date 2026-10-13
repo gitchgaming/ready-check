@@ -4,7 +4,7 @@ import { DateTime } from "luxon";
 import { prisma } from "../../lib/db.js";
 import { formatRaidLabel, parseTypedDate } from "../../lib/pickers.js";
 import { renderTeamMessage } from "../../lib/scheduler.js";
-import { parseHourMinute } from "../../lib/time.js";
+import { parseHourMinute, raidTime } from "../../lib/time.js";
 import { requireTeam } from "./shared.js";
 
 async function setCancelled(interaction: ChatInputCommandInteraction, client: Client, cancelled: boolean) {
@@ -32,7 +32,7 @@ async function setCancelled(interaction: ChatInputCommandInteraction, client: Cl
   await prisma.raidInstance.update({ where: { id: instance.id }, data: { cancelled } });
   await renderTeamMessage(client, team.id);
 
-  const label = formatRaidLabel(instance.startsAt, team.timezone);
+  const label = raidTime(instance.startsAt);
   await interaction.reply({
     content: cancelled ? `🚫 Cancelled the raid on ${label}.` : `✅ Restored the raid on ${label}.`,
     flags: MessageFlags.Ephemeral,
@@ -70,7 +70,7 @@ export async function remove(interaction: ChatInputCommandInteraction, client: C
   await renderTeamMessage(client, team.id);
 
   await interaction.reply({
-    content: `🗑️ Removed the one-off raid on ${formatRaidLabel(instance.startsAt, team.timezone)}.`,
+    content: `🗑️ Removed the one-off raid on ${raidTime(instance.startsAt)}.`,
     flags: MessageFlags.Ephemeral,
   });
 }
@@ -123,7 +123,7 @@ export async function add(interaction: ChatInputCommandInteraction, client: Clie
   await renderTeamMessage(client, team.id);
 
   await interaction.reply({
-    content: `✅ Added a raid on ${formatRaidLabel(startsAt.toJSDate(), team.timezone)} (${team.timezone}).`,
+    content: `✅ Added a raid on ${raidTime(startsAt.toJSDate())} (${formatRaidLabel(startsAt.toJSDate(), team.timezone)} in team time).`,
     flags: MessageFlags.Ephemeral,
   });
 }

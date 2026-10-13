@@ -13,7 +13,8 @@ import {
   type UndoView,
 } from "../lib/embeds.js";
 import { attendanceView, setOut } from "../lib/attendance.js";
-import { formatRaidLabel, teamDisplayName } from "../lib/pickers.js";
+import { teamDisplayName } from "../lib/pickers.js";
+import { raidTime } from "../lib/time.js";
 import { fetchRosterMembers } from "../lib/roster.js";
 import { personalCalendar, renderTeamMessage } from "../lib/scheduler.js";
 
@@ -89,6 +90,8 @@ async function applySelection(
     return;
   }
 
+  // The public select no longer offers rosters, but a post drawn before that change
+  // still can until it's next re-rendered.
   if (value.startsWith(ROSTER_VALUE_PREFIX)) {
     await showRoster(interaction, teamId, value.slice(ROSTER_VALUE_PREFIX.length));
     return;
@@ -126,15 +129,14 @@ async function applySelection(
   const nowOut = instance.attendance.length === 0;
   await setOut(instance.id, interaction.user.id, nowOut);
 
-  const dateLabel = formatRaidLabel(instance.startsAt, instance.raidTeam.timezone);
   if (source === "cal") {
-    const notice = confirmation(nowOut, dateLabel, teamId, instance.id, `c${offset}`);
+    const notice = confirmation(nowOut, instance.startsAt, teamId, instance.id, `c${offset}`);
     await interaction.update(await personalCalendar(instance.raidTeam, guild, offset, interaction.user.id, notice));
     await renderTeamMessage(client, instance.raidTeamId);
     return;
   }
 
-  await interaction.reply(asEphemeral(buildNoticeMessage(confirmation(nowOut, dateLabel, teamId, instance.id, "s"))));
+  await interaction.reply(asEphemeral(buildNoticeMessage(confirmation(nowOut, instance.startsAt, teamId, instance.id, "s"))));
 }
 
 /**
@@ -168,7 +170,7 @@ async function undo(
     else await redraw("This raid no longer exists.");
     return;
   }
-  const dateLabel = formatRaidLabel(raid.startsAt, raid.raidTeam.timezone);
+  const dateLabel = raidTime(raid.startsAt);
   if (raid.closed || raid.cancelled) {
     await redraw(`**${dateLabel}** ${raid.closed ? "has already started or passed" : "has been cancelled"}.`);
     return;
@@ -180,7 +182,7 @@ async function undo(
   }
 
   const changed = await setOut(raid.id, userId, out);
-  await redraw(confirmation(out, dateLabel, teamId, raid.id, view));
+  await redraw(confirmation(out, raid.startsAt, teamId, raid.id, view));
   if (changed) await renderTeamMessage(client, teamId);
 }
 
@@ -199,7 +201,7 @@ async function backIn(
     await interaction.update(await attendanceView(guild, interaction.user.id, "This raid no longer exists.", only));
     return;
   }
-  const dateLabel = formatRaidLabel(raid.startsAt, raid.raidTeam.timezone);
+  const dateLabel = raidTime(raid.startsAt);
   if (raid.closed || raid.cancelled) {
     const why = raid.closed ? "has already started or passed" : "has been cancelled";
     await interaction.update(await attendanceView(guild, interaction.user.id, `**${dateLabel}** ${why}.`, only));
@@ -207,7 +209,7 @@ async function backIn(
   }
 
   const changed = await setOut(raid.id, interaction.user.id, false);
-  const notice = confirmation(false, dateLabel, teamId, raid.id, oneTeam ? "t" : "a");
+  const notice = confirmation(false, raid.startsAt, teamId, raid.id, oneTeam ? "t" : "a");
   await interaction.update(await attendanceView(guild, interaction.user.id, notice, only));
   if (changed) await renderTeamMessage(client, teamId);
 }

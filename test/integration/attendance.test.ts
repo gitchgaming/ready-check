@@ -19,7 +19,8 @@ useDbAndClock();
 const now = () => DateTime.fromJSDate(NOW);
 // 8:00 PM Chicago on Tue Oct 6, which is already Wed Oct 7 in UTC.
 const TUE_8PM = "2026-10-07T01:00:00Z";
-const TUE_LABEL = "Tue, Oct 6 · 8:00 PM";
+const TUE_LABEL = "Tue, Oct 6 · 8:00 PM CDT"; // pickers: team time, with its zone
+const TUE_TIME = "<t:1791334800:F>"; // replies: a timestamp each viewer sees in their own zone
 
 const alice = () => raider("Alice", ["Warriors", "Tanks"], "u-alice");
 const bob = () => raider("Bob", ["Mages", "Wizards"], "u-bob");
@@ -43,12 +44,12 @@ describe("setAttendance", () => {
   it("TOGGLE calls you out, then back in, in the team's timezone, re-rendering the schedule", async () => {
     const { raid, channel, run } = await setup();
 
-    expect(onlyReply(await run("TOGGLE"))).toBe(`❌ Marked you as called out for ${TUE_LABEL}.`);
+    expect(onlyReply(await run("TOGGLE"))).toBe(`❌ Marked you as called out for ${TUE_TIME}.`);
     expect(await isOut(raid.id, "u-alice")).toBe(true);
     expect(channel.sent).toHaveLength(1);
     expect(payloadText(channel.sent[0]!.payloads[0] as any)).toContain("**1/25 ready**");
 
-    expect(onlyReply(await run("TOGGLE"))).toBe(`✅ Marked you as attending ${TUE_LABEL}.`);
+    expect(onlyReply(await run("TOGGLE"))).toBe(`✅ Marked you as attending ${TUE_TIME}.`);
     expect(await isOut(raid.id, "u-alice")).toBe(false);
     expect(channel.sent[0]!.payloads).toHaveLength(2);
     expect(payloadText(channel.sent[0]!.payloads[1] as any)).toContain("**2/25 ready**");
@@ -56,29 +57,29 @@ describe("setAttendance", () => {
 
   it("OUT and IN say 'already' and change nothing when there's nothing to change", async () => {
     const { raid, channel, run } = await setup();
-    expect(onlyReply(await run("IN"))).toBe(`You are already attending ${TUE_LABEL}.`);
+    expect(onlyReply(await run("IN"))).toBe(`You are already attending ${TUE_TIME}.`);
     await callOut(raid.id, "u-alice");
-    expect(onlyReply(await run("OUT"))).toBe(`You are already called out for ${TUE_LABEL}.`);
+    expect(onlyReply(await run("OUT"))).toBe(`You are already called out for ${TUE_TIME}.`);
     expect(await prisma.attendance.count()).toBe(1);
     expect(channel.sent).toHaveLength(0);
   });
 
   it("OUT and IN set the status explicitly", async () => {
     const { raid, run } = await setup();
-    expect(onlyReply(await run("OUT"))).toBe(`❌ Marked you as called out for ${TUE_LABEL}.`);
+    expect(onlyReply(await run("OUT"))).toBe(`❌ Marked you as called out for ${TUE_TIME}.`);
     expect(await isOut(raid.id, "u-alice")).toBe(true);
-    expect(onlyReply(await run("IN"))).toBe(`✅ Marked you as attending ${TUE_LABEL}.`);
+    expect(onlyReply(await run("IN"))).toBe(`✅ Marked you as attending ${TUE_TIME}.`);
     expect(await isOut(raid.id, "u-alice")).toBe(false);
   });
 
   it("words replies for someone else when acting on their behalf", async () => {
     const { raid, run } = await setup();
-    expect(onlyReply(await run("OUT", "u-bob"))).toBe(`❌ Marked <@u-bob> as called out for ${TUE_LABEL}.`);
+    expect(onlyReply(await run("OUT", "u-bob"))).toBe(`❌ Marked <@u-bob> as called out for ${TUE_TIME}.`);
     expect(await isOut(raid.id, "u-bob")).toBe(true);
     expect(await isOut(raid.id, "u-alice")).toBe(false);
-    expect(onlyReply(await run("OUT", "u-bob"))).toBe(`<@u-bob> is already called out for ${TUE_LABEL}.`);
-    expect(onlyReply(await run("IN", "u-bob"))).toBe(`✅ Marked <@u-bob> as attending ${TUE_LABEL}.`);
-    expect(onlyReply(await run("IN", "u-bob"))).toBe(`<@u-bob> is already attending ${TUE_LABEL}.`);
+    expect(onlyReply(await run("OUT", "u-bob"))).toBe(`<@u-bob> is already called out for ${TUE_TIME}.`);
+    expect(onlyReply(await run("IN", "u-bob"))).toBe(`✅ Marked <@u-bob> as attending ${TUE_TIME}.`);
+    expect(onlyReply(await run("IN", "u-bob"))).toBe(`<@u-bob> is already attending ${TUE_TIME}.`);
   });
 
   it("rejects an unknown raid and a raid from another server's team", async () => {
@@ -148,7 +149,7 @@ describe("raidDateAutocomplete", () => {
     await callOut(r1.id, "u-bob"); // someone else's call-out doesn't change yours
     expect(await choices("TOGGLE")).toEqual([
       { name: `✅ ${TUE_LABEL} — You're in. Pick to call out`, value: r1.id },
-      { name: "❌ Wed, Oct 7 · 8:00 PM — You're called out. Pick to switch back in", value: r2.id },
+      { name: "❌ Wed, Oct 7 · 8:00 PM CDT — You're called out. Pick to switch back in", value: r2.id },
     ]);
   });
 
@@ -164,7 +165,7 @@ describe("raidDateAutocomplete", () => {
     await makeRaid(team.id, TUE_8PM);
     const r2 = await makeRaid(team.id, "2026-10-08T01:00:00Z");
     await callOut(r2.id, "u-alice");
-    expect(await choices("IN")).toEqual([{ name: "Wed, Oct 7 · 8:00 PM", value: r2.id }]);
+    expect(await choices("IN")).toEqual([{ name: "Wed, Oct 7 · 8:00 PM CDT", value: r2.id }]);
   });
 
   it("says when there are no call-outs to undo or no upcoming raids", async () => {
@@ -254,9 +255,14 @@ describe("DB-backed pickers", () => {
     const cancelled = await makeRaid(team.id, "2026-10-08T01:00:00Z", { cancelled: true });
     expect(await teamRaidChoices(team, false)).toEqual([
       { name: TUE_LABEL, value: first.id },
-      { name: "Tue, Oct 13 · 8:00 PM", value: later.id },
+      { name: "Tue, Oct 13 · 8:00 PM CDT", value: later.id },
     ]);
-    expect(await teamRaidChoices(team, true)).toEqual([{ name: "Wed, Oct 7 · 8:00 PM", value: cancelled.id }]);
+    // Or in the viewer's own timezone, if they set one.
+    expect(await teamRaidChoices(team, false, "Asia/Tokyo")).toEqual([
+      { name: "Wed, Oct 7 · 10:00 AM GMT+9", value: first.id },
+      { name: "Wed, Oct 14 · 10:00 AM GMT+9", value: later.id },
+    ]);
+    expect(await teamRaidChoices(team, true)).toEqual([{ name: "Wed, Oct 7 · 8:00 PM CDT", value: cancelled.id }]);
   });
 
   it("teamRaidChoices caps at 25", async () => {
@@ -273,7 +279,7 @@ describe("DB-backed pickers", () => {
     const b = await makeRaid(team.id, "2026-10-14T01:00:00Z", { oneOff: true, cancelled: true });
     expect(await oneOffRaidChoices(team)).toEqual([
       { name: TUE_LABEL, value: a.id },
-      { name: "Tue, Oct 13 · 8:00 PM (cancelled)", value: b.id },
+      { name: "Tue, Oct 13 · 8:00 PM CDT (cancelled)", value: b.id },
     ]);
   });
 
@@ -285,9 +291,9 @@ describe("DB-backed pickers", () => {
     const wedLate = await makeSlot(team.id, 3, 21, 0);
     const wedEarly = await makeSlot(team.id, 3, 9, 5);
     expect(await nightChoices(team)).toEqual([
-      { name: "Wednesday 9:05 AM", value: wedEarly.id },
-      { name: "Wednesday 9:00 PM", value: wedLate.id },
-      { name: "Saturday 7:30 PM", value: sat.id },
+      { name: "Wednesday 9:05 AM Central Time", value: wedEarly.id },
+      { name: "Wednesday 9:00 PM Central Time", value: wedLate.id },
+      { name: "Saturday 7:30 PM Central Time", value: sat.id },
     ]);
   });
 

@@ -4,7 +4,6 @@ import {
   MAX_PUBLIC_DAYS,
   MAX_SELECT_OPTIONS,
   MORE_DATES_VALUE,
-  ROSTER_VALUE_PREFIX,
   asEphemeral,
   buildAttendanceMessage,
   buildCalendarMessage,
@@ -100,14 +99,12 @@ describe("buildPublicMessage — envelope", () => {
 });
 
 describe("buildPublicMessage — Next Up", () => {
-  it("heads the card with the team name, label and date in the team's timezone", () => {
+  it("heads the card with the team name, label and a timestamp each viewer sees in their own timezone", () => {
     const [first] = weeklyRaids(1);
     const unix = first!.startsAt.getTime() / 1000;
     expect(texts(nextUp(buildPublicMessage(team(), "Main Raid", [first!], ROSTER)))[0]).toBe(
-      `-# **MAIN RAID · NEXT UP**\n## Wed, Oct 7 · 8:00 PM\n-# <t:${unix}:R>`,
+      `-# **MAIN RAID · NEXT UP**\n## <t:${unix}:F>\n-# <t:${unix}:R>`,
     );
-    const berlin = buildPublicMessage(team({ timezone: "Europe/Berlin" }), "Main Raid", [first!], ROSTER);
-    expect(texts(nextUp(berlin))[0]).toContain("## Thu, Oct 8 · 3:00 AM");
   });
 
   it.each([
@@ -308,7 +305,7 @@ describe("buildPublicMessage — Next Up", () => {
     const p = buildPublicMessage(team(), "Main Raid", raids, ROSTER);
     const card = nextUp(p);
     expect(card.accent_color).toBe(0x6b7280);
-    expect(texts(card)).toEqual([expect.stringContaining("## Wed, Oct 7 · 8:00 PM"), "🚫 **Cancelled**"]);
+    expect(texts(card)).toEqual([expect.stringContaining("## <t:1791421200:F>"), "🚫 **Cancelled**"]);
     expect(buttons(p).map((b) => b.custom_id.split(":")[3])).toEqual([raids[1]!.id, raids[2]!.id]);
   });
 
@@ -360,19 +357,19 @@ describe("buildPublicMessage — Coming Up", () => {
     const sections = comingUp.components.filter((c: any) => c.type === ComponentType.Section);
     expect(sections).toHaveLength(2);
     expect(sections[0].components[0].content).toBe(
-      "🟡 **Wed, Oct 14** 8:00 PM · 19/20\n-# \u2800\u2003🛡️ 1/3\u2003➕ 3/5\u2003⚔️ 15/12",
+      "🟡 **<t:1792026000:s>** · 19/20\n-# \u2800\u2003🛡️ 1/3\u2003➕ 3/5\u2003⚔️ 15/12",
     );
-    expect(sections[1].components[0].content).toMatch(/^🟢 \*\*Wed, Oct 21\*\* 8:00 PM · 20\/20\n/);
+    expect(sections[1].components[0].content).toMatch(/^🟢 \*\*<t:1792630800:s>\*\* · 20\/20\n/);
     expect(sections.map((s: any) => s.accessory.custom_id)).toEqual([
       `attendance:btn:${TEAM_ID}:${raids[1]!.id}`,
       `attendance:btn:${TEAM_ID}:${raids[2]!.id}`,
     ]);
   });
 
-  it("formats Coming Up dates in the team's timezone across DST", () => {
-    // weeklyRaids keeps 8 PM Chicago; the Nov 4 raid is after DST ends.
+  it("shows Coming Up dates as timestamps of each raid's moment, across DST", () => {
+    // weeklyRaids keeps 8 PM Chicago; the Nov 4 raid is after DST ends, an hour later in UTC.
     const comingUp = containers(buildPublicMessage(team(), "Main Raid", weeklyRaids(5), ROSTER))[1];
-    expect(texts(comingUp).at(-1)).toMatch(/^🔴 \*\*Wed, Nov 4\*\* 8:00 PM/);
+    expect(texts(comingUp).at(-1)).toMatch(/^🔴 \*\*<t:1793844000:s>\*\* · /);
   });
 
   it("uses the large dot app emojis for each raid's status when uploaded", async () => {
@@ -387,25 +384,20 @@ describe("buildPublicMessage — Coming Up", () => {
     const raids = weeklyRaids(3, (i) => ({ cancelled: i === 1 }));
     const p = buildPublicMessage(team(), "Main Raid", raids, ROSTER);
     const comingUp = containers(p)[1];
-    expect(comingUp.components[1]).toEqual({ type: ComponentType.TextDisplay, content: "🚫 **Wed, Oct 14** · Cancelled" });
+    expect(comingUp.components[1]).toEqual({ type: ComponentType.TextDisplay, content: "🚫 **<t:1792026000:s>** · Cancelled" });
     expect(buttons(p).map((b) => b.custom_id.split(":")[3])).toEqual([raids[0]!.id, raids[2]!.id]);
   });
 
-  it("ends with the select: See more dates, then a roster shortcut per Coming Up raid", () => {
+  it("ends with the select, which only opens your schedule: no roster shortcuts in team time", () => {
     const raids = weeklyRaids(4, (i) => ({ cancelled: i === 2 }));
     const comingUp = containers(buildPublicMessage(team(), "Main Raid", raids, ROSTER))[1];
     const row = comingUp.components.at(-1);
     expect(row.type).toBe(ComponentType.ActionRow);
     const [select] = row.components;
     expect(select.custom_id).toBe(`attendance:pub:${TEAM_ID}`);
-    expect(select.placeholder).toBe("📅 See more dates or a roster…");
+    expect(select.placeholder).toBe("📅 See more dates…");
+    expect(select.options).toHaveLength(1);
     expect(select.options[0]).toMatchObject({ label: "See more dates", value: MORE_DATES_VALUE });
-    // Not Next Up (its roster is already on show) nor the cancelled raid.
-    expect(select.options.slice(1).map((o: any) => o.value)).toEqual([
-      `${ROSTER_VALUE_PREFIX}${raids[1]!.id}`,
-      `${ROSTER_VALUE_PREFIX}${raids[3]!.id}`,
-    ]);
-    expect(select.options[1]).toMatchObject({ label: "Roster · Wed, Oct 14 · 8:00 PM", emoji: { name: "ℹ️" } });
   });
 
   it("with no Coming Up raids, the select only opens the personal view", () => {
@@ -494,8 +486,16 @@ describe("buildCalendarMessage", () => {
   const nav = { canEarlier: true, canLater: true };
   const build = (
     instances: RaidRow[],
-    { offset = 0, open = instances, viewer = "u-tank1", navState = nav, roster = ROSTER, name = "Main Raid" } = {},
-  ) => buildCalendarMessage(team(), name, instances, offset, navState, roster, open, viewer);
+    {
+      offset = 0,
+      open = instances,
+      viewer = "u-tank1",
+      navState = nav,
+      roster = ROSTER,
+      name = "Main Raid",
+      zone = null as string | null,
+    } = {},
+  ) => buildCalendarMessage(team(), name, instances, offset, navState, roster, open, viewer, undefined, zone);
   const days = (p: Payload) => texts(containers(p)[0]).slice(1);
 
   it("is one V2 container that never pings", () => {
@@ -510,9 +510,15 @@ describe("buildCalendarMessage", () => {
     const { TextDisplay: T, Separator: S, Section: X, ActionRow: R } = ComponentType;
     expect(container.components.map((c: any) => c.type)).toEqual([T, S, X, S, X, S, R, R]);
     expect(container.components[0].content).toBe(
-      "-# **MAIN RAID · YOUR SCHEDULE**\n-# Pick a date below to call out or switch back in.",
+      "-# **MAIN RAID · YOUR SCHEDULE**\n-# Pick a date below to call out or switch back in. Set your timezone with `/timezone` to see its times in yours.",
     );
     expect(container.accent_color).toBe(0x5865f2);
+  });
+
+  it("shows the select's times in the viewer's own timezone once they've set one, without the /timezone hint", () => {
+    const p = build(weeklyRaids(1), { zone: "Europe/Berlin" });
+    expect(selects(p)[0].options[0].label).toBe("Thu, Oct 8 · 3:00 AM GMT+2");
+    expect(texts(containers(p)[0])[0]).toBe("-# **MAIN RAID · YOUR SCHEDULE**\n-# Pick a date below to call out or switch back in.");
   });
 
   it("shows each day as Coming Up does, then your own status", () => {
@@ -527,7 +533,7 @@ describe("buildCalendarMessage", () => {
     ["u-mage", ["u-mage"], "❌ You're out"],
   ])("as %s with %j out, ends the day with %j", (viewer, out, expected) => {
     const [day] = days(build([raid("2026-10-08T01:00:00Z", { out })], { viewer }));
-    expect(day!.split("\n")[0]).toMatch(/^.+ \*\*Wed, Oct 7\*\* 8:00 PM · \d+\/25$/);
+    expect(day!.split("\n")[0]).toMatch(/^.+ \*\*<t:1791421200:s>\*\* · \d+\/25$/);
     expect(day!.endsWith(expected)).toBe(true);
   });
 
@@ -570,7 +576,7 @@ describe("buildCalendarMessage", () => {
   });
 
   it("shows a cancelled day as one line, like Coming Up", () => {
-    expect(days(build([raid("2026-10-08T01:00:00Z", { cancelled: true })]))).toEqual(["🚫 **Wed, Oct 7** · Cancelled"]);
+    expect(days(build([raid("2026-10-08T01:00:00Z", { cancelled: true })]))).toEqual(["🚫 **<t:1791421200:s>** · Cancelled"]);
   });
 
   it("uses the team name it's given", () => {
@@ -597,16 +603,16 @@ describe("buildCalendarMessage", () => {
     const [select] = selects(build(open.slice(0, 1), { open, offset: 2 }));
     expect(select.custom_id).toBe(`attendance:cal:${TEAM_ID}:2`);
     expect(select.options.map((o: any) => [o.label, o.value, o.emoji.name, o.description])).toEqual([
-      ["Wed, Oct 7 · 8:00 PM", open[0]!.id, "✅", "You're in. Pick to call out"],
-      ["Wed, Oct 14 · 8:00 PM", open[1]!.id, "❌", "You're called out. Pick to switch back in"],
-      ["Wed, Oct 21 · 8:00 PM", open[2]!.id, "✅", "You're in. Pick to call out"],
+      ["Wed, Oct 7 · 8:00 PM CDT", open[0]!.id, "✅", "You're in. Pick to call out"],
+      ["Wed, Oct 14 · 8:00 PM CDT", open[1]!.id, "❌", "You're called out. Pick to switch back in"],
+      ["Wed, Oct 21 · 8:00 PM CDT", open[2]!.id, "✅", "You're in. Pick to call out"],
     ]);
   });
 
-  it("shows dates and select options in the team's timezone", () => {
+  it("shows days as timestamps, and select options in team time with its zone", () => {
     const p = buildCalendarMessage(team({ timezone: "Asia/Tokyo" }), "Main Raid", weeklyRaids(1), 0, nav, ROSTER, weeklyRaids(1), "u-tank1");
-    expect(selects(p)[0].options[0].label).toBe("Thu, Oct 8 · 10:00 AM");
-    expect(days(p)[0]).toContain("**Thu, Oct 8** 10:00 AM");
+    expect(selects(p)[0].options[0].label).toBe("Thu, Oct 8 · 10:00 AM GMT+9");
+    expect(days(p)[0]).toContain("**<t:1791421200:s>**");
   });
 
   it("leaves cancelled and closed raids out of the select and caps it at 25", () => {
@@ -642,6 +648,28 @@ describe("asEphemeral", () => {
     expect(original.flags).toEqual([MessageFlags.IsComponentsV2]);
     expect(ephemeral.components).toBe(original.components);
     expect(ephemeral.allowedMentions).toEqual({ parse: [] });
+  });
+});
+
+describe("dates in message text", () => {
+  // A weekday-and-month date written out ("Tue, Oct 6") is in one zone; message
+  // text should only carry <t:…> timestamps, which each viewer sees in their own.
+  const PLAIN_DATE = /\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun), [A-Z][a-z]{2} \d/;
+
+  it("are all timestamps, never plain dates, in every view", () => {
+    const raids = weeklyRaids(5, (i) => ({ cancelled: i === 2, out: i === 3 ? ["u-mage"] : [] }));
+    const views = [
+      buildPublicMessage(team(), "Main Raid", raids, ROSTER),
+      buildPublicMessage(team(), "Main Raid", weeklyRaids(2, (i) => ({ cancelled: i === 0 })), ROSTER),
+      buildRaidRosterCard(team(), "Main Raid", raids[0]!, ROSTER),
+      buildCalendarMessage(team(), "Main Raid", raids, 0, { canEarlier: true, canLater: true }, ROSTER, raids, "u-mage"),
+      buildAttendanceMessage([{ team: team(), teamName: "Main Raid", instances: raids, members: ROSTER }], "u-mage"),
+    ];
+    for (const view of views) {
+      const text = payloadText(view);
+      expect(text).toMatch(/<t:\d+:[Fs]>/);
+      expect(text).not.toMatch(PLAIN_DATE);
+    }
   });
 });
 

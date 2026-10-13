@@ -24,6 +24,7 @@ import {
   upcomingDateChoices,
 } from "../../lib/pickers.js";
 import { WEEKDAY_CHOICES } from "../../lib/weekdays.js";
+import { userTimezone } from "../../lib/userSettings.js";
 import * as nights from "./nights.js";
 import * as raid from "./raid.js";
 import * as team from "./team.js";
@@ -271,14 +272,16 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
     return;
   }
 
+  const viewerZone = await userTimezone(interaction.user.id);
+  const zone = viewerZone ?? raidTeam.timezone;
   if (focused === "night") {
-    await respondFiltered(interaction, await nightChoices(raidTeam), "No weekly raid nights yet");
+    await respondFiltered(interaction, await nightChoices(raidTeam, viewerZone), "No weekly raid nights yet");
   } else if (key === "raid cancel") {
-    await respondFiltered(interaction, await teamRaidChoices(raidTeam, false), "No upcoming raids to cancel");
+    await respondFiltered(interaction, await teamRaidChoices(raidTeam, false, zone), "No upcoming raids to cancel");
   } else if (key === "raid restore") {
-    await respondFiltered(interaction, await teamRaidChoices(raidTeam, true), "No cancelled raids to restore");
+    await respondFiltered(interaction, await teamRaidChoices(raidTeam, true, zone), "No cancelled raids to restore");
   } else if (key === "raid remove") {
-    await respondFiltered(interaction, await oneOffRaidChoices(raidTeam), "No upcoming one-off raids");
+    await respondFiltered(interaction, await oneOffRaidChoices(raidTeam, zone), "No upcoming one-off raids");
   } else if (key === "raid add") {
     const typed = interaction.options.getFocused();
     const parsed = parseTypedDate(typed, raidTeam.timezone);

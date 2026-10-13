@@ -3,6 +3,7 @@ import * as attendance from "./attendance.js";
 import * as raidlead from "./raidlead/index.js";
 import * as roster from "./roster.js";
 import * as schedule from "./schedule.js";
+import * as timezone from "./timezone.js";
 
 export interface Command {
   data: { name: string; toJSON: () => unknown };
@@ -10,4 +11,4 @@ export interface Command {
   autocomplete?: (interaction: AutocompleteInteraction) => Promise<void>;
 }
 
-export const commands: Command[] = [attendance, schedule, roster, raidlead];
+export const commands: Command[] = [attendance, schedule, roster, timezone, raidlead];

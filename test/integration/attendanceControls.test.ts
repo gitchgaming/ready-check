@@ -48,7 +48,7 @@ describe("public date button", () => {
 
     const first = fakeButton(id, base);
     await handleAttendanceControl(first, client);
-    expect(onlyReply(first)).toBe("❌ You're out for **Tue, Oct 6 · 8:00 PM**.");
+    expect(onlyReply(first)).toBe("❌ You're out for **<t:1791334800:s>**.");
     expect(buttonIds(first.replies[0])).toEqual([`attendance:undo:${team.id}:${raid.id}:in:s`]);
     expect(await isOut(raid.id)).toBe(true);
     expect(renders()).toBe(1);
@@ -56,7 +56,7 @@ describe("public date button", () => {
 
     const second = fakeButton(id, base);
     await handleAttendanceControl(second, client);
-    expect(onlyReply(second)).toBe("✅ You're back in for **Tue, Oct 6 · 8:00 PM**.");
+    expect(onlyReply(second)).toBe("✅ You're back in for **<t:1791334800:s>**.");
     expect(buttonIds(second.replies[0])).toEqual([`attendance:undo:${team.id}:${raid.id}:out:s`]);
     expect(await isOut(raid.id)).toBe(false);
     expect(renders()).toBe(2);
@@ -218,7 +218,7 @@ describe("personal schedule select", () => {
     expect(pick.updates).toHaveLength(1);
     const options = flattenComponents(pick.updates[0]).find((c) => c.custom_id === `attendance:cal:${team.id}:-3`).options;
     expect(options[0]).toMatchObject({ value: raid.id, emoji: { name: "❌" } });
-    expect(payloadText(pick.updates[0] as any).startsWith("❌ You're out for **Tue, Oct 6 · 8:00 PM**.\n")).toBe(true);
+    expect(payloadText(pick.updates[0] as any).startsWith("❌ You're out for **<t:1791334800:s>**.\n")).toBe(true);
     expect(buttonIds(pick.updates[0])).toContain(`attendance:undo:${team.id}:${raid.id}:in:c-3`);
     expect(await isOut(raid.id)).toBe(true);
     // The public counts change too.
@@ -227,7 +227,7 @@ describe("personal schedule select", () => {
     const back = fakeSelect(`attendance:cal:${team.id}:-3`, [raid.id], base);
     await handleAttendanceControl(back, client);
     expect(await isOut(raid.id)).toBe(false);
-    expect(payloadText(back.updates[0] as any).startsWith("✅ You're back in for **Tue, Oct 6 · 8:00 PM**.\n")).toBe(true);
+    expect(payloadText(back.updates[0] as any).startsWith("✅ You're back in for **<t:1791334800:s>**.\n")).toBe(true);
     expect(flattenComponents(back.updates[0]).find((c) => c.custom_id?.startsWith("attendance:cal:")).options[0].emoji.name).toBe("✅");
   });
 
@@ -251,7 +251,7 @@ describe("/attendance Back in button", () => {
     expect(click.updates).toHaveLength(1);
     expect(isEphemeral(click.updates[0])).toBe(false);
     const text = payloadText(click.updates[0]);
-    expect(text).toContain("✅ You're back in for **Tue, Oct 6 · 8:00 PM**.");
+    expect(text).toContain("✅ You're back in for **<t:1791334800:s>**.");
     expect(text).toContain("✅ You're in for the next raid");
     expect(buttonIds(click.updates[0])).toContain(`attendance:undo:${team.id}:${raid.id}:out:a`);
     expect(renders()).toBe(1);
@@ -309,14 +309,14 @@ describe("Undo button", () => {
     await handleAttendanceControl(click, client);
     expect(await isOut(raid.id)).toBe(false);
     expect(click.replies).toEqual([]);
-    expect(payloadText(click.updates[0])).toBe("✅ You're back in for **Tue, Oct 6 · 8:00 PM**.");
+    expect(payloadText(click.updates[0])).toBe("✅ You're back in for **<t:1791334800:s>**.");
     expect(buttonIds(click.updates[0])).toEqual([undoId(team.id, raid.id, "out", "s")]);
     expect(renders()).toBe(2);
 
     const again = fakeButton(undoId(team.id, raid.id, "out", "s"), base);
     await handleAttendanceControl(again, client);
     expect(await isOut(raid.id)).toBe(true);
-    expect(payloadText(again.updates[0])).toBe("❌ You're out for **Tue, Oct 6 · 8:00 PM**.");
+    expect(payloadText(again.updates[0])).toBe("❌ You're out for **<t:1791334800:s>**.");
   });
 
   it("redraws /schedule at its offset and /attendance in place", async () => {
@@ -332,7 +332,7 @@ describe("Undo button", () => {
     await handleAttendanceControl(att, client);
     expect(await isOut(raid.id)).toBe(true);
     expect(payloadText(att.updates[0])).toContain("YOUR ATTENDANCE");
-    expect(payloadText(att.updates[0])).toContain("❌ You're out for **Tue, Oct 6 · 8:00 PM**.");
+    expect(payloadText(att.updates[0])).toContain("❌ You're out for **<t:1791334800:s>**.");
   });
 
   it("sets the state it names, so a stale Undo never flips the wrong way, and skips the re-render then", async () => {
@@ -340,7 +340,7 @@ describe("Undo button", () => {
     const click = fakeButton(undoId(team.id, raid.id, "in", "s"), base);
     await handleAttendanceControl(click, client);
     expect(await isOut(raid.id)).toBe(false);
-    expect(payloadText(click.updates[0])).toBe("✅ You're back in for **Tue, Oct 6 · 8:00 PM**.");
+    expect(payloadText(click.updates[0])).toBe("✅ You're back in for **<t:1791334800:s>**.");
     expect(renders()).toBe(0);
   });
 

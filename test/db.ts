@@ -11,6 +11,7 @@ export const CHANNEL_ID = "channel-1";
 /** Empties every table, children first. Call in `beforeEach` of any DB test. */
 export async function resetDb(): Promise<void> {
   await prisma.attendance.deleteMany();
+  await prisma.userSetting.deleteMany();
   await prisma.raidInstance.deleteMany();
   await prisma.raidSlot.deleteMany();
   await prisma.raidTeam.deleteMany();

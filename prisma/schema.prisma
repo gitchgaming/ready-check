@@ -88,3 +88,11 @@ model Attendance {
 
   @@unique([raidInstanceId, userId])
 }
+
+// A raider's own settings, across every server and team. Discord never tells a
+// bot a user's timezone, so they set it with /timezone.
+model UserSetting {
+  userId    String   @id
+  timezone  String
+  updatedAt DateTime @updatedAt
+}
