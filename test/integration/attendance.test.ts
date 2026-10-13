@@ -257,6 +257,11 @@ describe("DB-backed pickers", () => {
       { name: TUE_LABEL, value: first.id },
       { name: "Tue, Oct 13 · 8:00 PM CDT", value: later.id },
     ]);
+    // Or in the viewer's own timezone, if they set one.
+    expect(await teamRaidChoices(team, false, "Asia/Tokyo")).toEqual([
+      { name: "Wed, Oct 7 · 10:00 AM GMT+9", value: first.id },
+      { name: "Wed, Oct 14 · 10:00 AM GMT+9", value: later.id },
+    ]);
     expect(await teamRaidChoices(team, true)).toEqual([{ name: "Wed, Oct 7 · 8:00 PM CDT", value: cancelled.id }]);
   });
 

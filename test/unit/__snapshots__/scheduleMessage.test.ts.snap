@@ -11,7 +11,7 @@ exports[`snapshots > personal schedule 1`] = `
       "components": [
         {
           "content": "-# **MAIN RAID · YOUR SCHEDULE**
--# Pick a date below to call out or switch back in.",
+-# Pick a date below to call out or switch back in. Set your timezone with \`/timezone\` to see its times in yours.",
           "type": 10,
         },
         {

@@ -12,6 +12,7 @@ import {
 } from "./embeds.js";
 import { MAX_CHOICES, NO_CHOICE, fitChoiceName, formatRaidLabel, respondFiltered, teamDisplayName, teamsForMember } from "./pickers.js";
 import { raidTime } from "./time.js";
+import { userTimezone } from "./userSettings.js";
 import { fetchRosterMembers } from "./roster.js";
 import { renderTeamMessage } from "./scheduler.js";
 
@@ -63,13 +64,14 @@ export async function raidDateAutocomplete(
   );
 
   const teamById = new Map(teams.map((t) => [t.id, t]));
+  const viewerZone = await userTimezone(interaction.user.id);
   const showTeam = teams.length > 1;
   const choices = perTeamInstances
     .flat()
     .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
     .map((instance) => {
       const team = teamById.get(instance.raidTeamId)!;
-      const date = formatRaidLabel(instance.startsAt, team.timezone);
+      const date = formatRaidLabel(instance.startsAt, viewerZone ?? team.timezone);
       const out = instance.attendance.length > 0;
       const label =
         status === "IN"

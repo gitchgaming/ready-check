@@ -2,7 +2,7 @@ import type { AutocompleteInteraction, Guild } from "discord.js";
 import type { RaidTeam } from "../generated/prisma/client.js";
 import { DateTime } from "luxon";
 import { prisma } from "./db.js";
-import { zoneAbbrev, zoneGenericName } from "./time.js";
+import { nextOccurrence, zoneAbbrev, zoneGenericName } from "./time.js";
 import { weekdayName } from "./weekdays.js";
 
 export const MAX_CHOICES = 25; // Discord's limit on autocomplete results
@@ -73,34 +73,46 @@ export async function teamFromRoleOption(interaction: AutocompleteInteraction): 
 }
 
 /** Upcoming raids for one team, filtered by cancelled state. */
-export async function teamRaidChoices(team: RaidTeam, cancelled: boolean): Promise<Choice[]> {
+/** `zone` is the viewer's own timezone if they set one (`userTimezone`), else the team's. */
+export async function teamRaidChoices(team: RaidTeam, cancelled: boolean, zone = team.timezone): Promise<Choice[]> {
   const instances = await prisma.raidInstance.findMany({
     where: { raidTeamId: team.id, closed: false, cancelled },
     orderBy: { startsAt: "asc" },
     take: MAX_CHOICES,
   });
-  return instances.map((i) => ({ name: formatRaidLabel(i.startsAt, team.timezone), value: i.id }));
+  return instances.map((i) => ({ name: formatRaidLabel(i.startsAt, zone), value: i.id }));
 }
 
 /** Upcoming one-off raids for a team, including cancelled ones. */
-export async function oneOffRaidChoices(team: RaidTeam): Promise<Choice[]> {
+export async function oneOffRaidChoices(team: RaidTeam, zone = team.timezone): Promise<Choice[]> {
   const instances = await prisma.raidInstance.findMany({
     where: { raidTeamId: team.id, closed: false, oneOff: true },
     orderBy: { startsAt: "asc" },
     take: MAX_CHOICES,
   });
   return instances.map((i) => ({
-    name: formatRaidLabel(i.startsAt, team.timezone) + (i.cancelled ? " (cancelled)" : ""),
+    name: formatRaidLabel(i.startsAt, zone) + (i.cancelled ? " (cancelled)" : ""),
     value: i.id,
   }));
 }
 
-export async function nightChoices(team: RaidTeam): Promise<Choice[]> {
+/**
+ * A team's weekly nights, in team time (a night is a rule there). For a viewer who
+ * set a different timezone, each also shows its next raid in theirs:
+ * `Tuesday 8:00 PM Central Time · Wed 3:00 AM GMT+2 for you`.
+ */
+export async function nightChoices(team: RaidTeam, viewerZone: string | null = null): Promise<Choice[]> {
   const nights = await prisma.raidSlot.findMany({
     where: { raidTeamId: team.id },
     orderBy: [{ dayOfWeek: "asc" }, { hour: "asc" }, { minute: "asc" }],
   });
-  return nights.map((n) => ({ name: formatNight(n.dayOfWeek, n.hour, n.minute, team.timezone), value: n.id }));
+  const forViewer = viewerZone && zoneGenericName(viewerZone) !== zoneGenericName(team.timezone);
+  return nights.map((n) => {
+    const night = formatNight(n.dayOfWeek, n.hour, n.minute, team.timezone);
+    if (!forViewer) return { name: night, value: n.id };
+    const next = nextOccurrence(n.dayOfWeek, n.hour, n.minute, team.timezone, DateTime.now()).setZone(viewerZone);
+    return { name: `${night} · ${next.toFormat("ccc h:mm a")} ${zoneAbbrev(next.toJSDate(), viewerZone)} for you`, value: n.id };
+  });
 }
 
 const FULL_DATE_FORMATS = ["yyyy-MM-dd", "M/d/yyyy", "M/d/yy", "MMM d yyyy", "MMM d, yyyy", "MMMM d yyyy", "MMMM d, yyyy"];

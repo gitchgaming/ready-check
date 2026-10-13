@@ -5,6 +5,7 @@ import * as raidlead from "../../src/commands/raidlead/index.js";
 import * as roster from "../../src/commands/roster.js";
 import * as schedule from "../../src/commands/schedule.js";
 import { ROLE_ID, callOut, makeRaid, makeSlot, makeTeam, prisma } from "../db.js";
+import { setUserTimezone } from "../../src/lib/userSettings.js";
 import { fakeAutocomplete, fakeChatInput, fakeRole, flattenComponents, payloadText, raider, teamRole } from "../discord.js";
 import { isEphemeral, onlyReply, useDbAndClock, world } from "./world.js";
 
@@ -83,6 +84,15 @@ describe("/attendance", () => {
     const ac = fakeAutocomplete({ commandName: "attendance", guild, userId: "u-alice", focused: "date" });
     await attendance.autocomplete(ac);
     expect(ac.responses).toEqual([[{ name: `✅ ${TUE_LABEL} — You're in. Pick to call out`, value: raid.id }]]);
+  });
+
+  it("autocompletes dates in your own timezone once you've set one", async () => {
+    const { main, guild } = await twoTeams();
+    const raid = await makeRaid(main.id, TUE_8PM);
+    await setUserTimezone("u-alice", "Europe/Berlin");
+    const ac = fakeAutocomplete({ commandName: "attendance", guild, userId: "u-alice", focused: "date" });
+    await attendance.autocomplete(ac);
+    expect(ac.responses).toEqual([[{ name: "✅ Wed, Oct 7 · 3:00 AM GMT+2 — You're in. Pick to call out", value: raid.id }]]);
   });
 
   it("with team:, shows only that team, and its buttons redraw it narrowed", async () => {
@@ -285,6 +295,11 @@ describe("/roster", () => {
     const ac = fakeAutocomplete({ commandName: "roster", guild, userId: "u-alice", focused: "date" });
     await roster.autocomplete(ac);
     expect(ac.responses).toEqual([[{ name: `${TUE_LABEL} · 1/2`, value: raid.id }]]);
+
+    await setUserTimezone("u-alice", "America/Los_Angeles");
+    const own = fakeAutocomplete({ commandName: "roster", guild, userId: "u-alice", focused: "date" });
+    await roster.autocomplete(own);
+    expect(own.responses).toEqual([[{ name: "Tue, Oct 6 · 6:00 PM PDT · 1/2", value: raid.id }]]);
   });
 
   it("autocomplete names the team when you can view several, and handles no team or no raids", async () => {
@@ -455,6 +470,12 @@ describe("/raidlead autocomplete", () => {
     const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "nights", subcommand: "remove", focused: "night", options: { role: ROLE_ID } });
     await raidlead.autocomplete(ac);
     expect(ac.responses).toEqual([[{ name: "Friday 9:15 PM Central Time", value: slot.id }]]);
+
+    // An officer elsewhere also sees the next one in their own timezone.
+    await setUserTimezone("user-1", "Europe/Berlin");
+    const own = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "nights", subcommand: "remove", focused: "night", options: { role: ROLE_ID } });
+    await raidlead.autocomplete(own);
+    expect(own.responses).toEqual([[{ name: "Friday 9:15 PM Central Time · Sat 4:15 AM GMT+2 for you", value: slot.id }]]);
 
     await prisma.raidSlot.deleteMany();
     const empty = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "nights", subcommand: "remove", focused: "night", options: { role: ROLE_ID } });

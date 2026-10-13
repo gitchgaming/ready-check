@@ -32,7 +32,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 
 ## Layout
 
-- `src/commands/` — `attendance` (call-outs; toggles with a date), `schedule`, `roster` (read-only; raider), and
+- `src/commands/` — `attendance` (call-outs; toggles with a date), `schedule`, `roster` (read-only; raider),
+  `timezone` (a raider's own zone, `src/lib/userSettings.ts`), and
   `raidlead/` (officer): `index.ts` builds the command and routes by
   "group sub" key; `team.ts`, `nights.ts`, `raid.ts` hold the handlers.
 - `src/interactions/` — `router.ts` (routes every interaction by command name
@@ -75,7 +76,7 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - Raider commands take at most a date and a team. The team comes from the
   user's roles; `/schedule` and `/roster` have an optional `team:` for raiders
   on several teams (and officers), while `/attendance` covers all their teams.
-  Every reply to a raider is private.
+  `/timezone` is the one setting a raider keeps. Every reply to a raider is private.
 - Every view labels its team with `teamDisplayName` (the team's name, else its
   role's name), as a small-caps "TEAM · LABEL" line (NEXT UP, SCHEDULE,
   ROSTER, YOUR SCHEDULE, YOUR ATTENDANCE); never a hard-coded "Raid".
@@ -156,9 +157,14 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   style with a weekday) where it has room, short (`s`, "10/14/26, 8:00 PM")
   wherever it would wrap on a phone beside a button (Coming Up, `/schedule`
   days, confirmations). The Next Up heading keeps the full style. Tapping a short one shows
-  the full date. Plain text Discord shows as is (autocomplete choices, select options) uses team
-  time with its zone (`formatRaidLabel`: `Tue, Oct 6 · 8:00 PM CDT`); weekly
-  nights, which are rules, carry the zone's generic name (`Central Time`).
+  the full date. Plain text Discord shows as is (autocomplete choices, select
+  options) can't follow the viewer, and Discord never tells a bot a user's
+  timezone, so it uses the zone the viewer set with `/timezone` (`UserSetting`,
+  `userTimezone`), else team time, always with the zone's short name
+  (`formatRaidLabel`: `Tue, Oct 6 · 8:00 PM CDT`). The public message's select
+  is shared, so it's always team time. Weekly nights, which are rules, stay in
+  team time with the zone's generic name (`Central Time`), plus their next raid
+  in the viewer's zone if they set one.
   Never the server clock, which is UTC.
 - Every date input is an autocomplete picker. Only `raid add` accepts free-typed
   dates (`parseTypedDate`); pickers for existing raids list real raids only.

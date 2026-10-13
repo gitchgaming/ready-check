@@ -11,6 +11,7 @@ import { prisma } from "../lib/db.js";
 import { asEphemeral, buildRaidRosterCard, buildTeamRosterCard } from "../lib/embeds.js";
 import { MAX_CHOICES, fitChoiceName, formatRaidLabel, respondFiltered, teamDisplayName, viewableTeams } from "../lib/pickers.js";
 import { fetchRosterMembers, rosterMemberIds } from "../lib/roster.js";
+import { userTimezone } from "../lib/userSettings.js";
 
 export const data = new SlashCommandBuilder()
   .setName("roster")
@@ -57,6 +58,7 @@ async function dateAutocomplete(interaction: AutocompleteInteraction, teams: Rai
   // Split the choice budget evenly so one busy team can't push the others off the list.
   const perTeam = Math.max(1, Math.floor(MAX_CHOICES / teams.length));
   const showTeam = teams.length > 1;
+  const viewerZone = await userTimezone(interaction.user.id);
   const choices = (
     await Promise.all(
       teams.map(async (team) => {
@@ -72,7 +74,7 @@ async function dateAutocomplete(interaction: AutocompleteInteraction, teams: Rai
         return raids.map((raid) => {
           // Only current role holders count, as on the schedule post.
           const out = raid.attendance.filter((a) => rosterIds.has(a.userId)).length;
-          const label = `${formatRaidLabel(raid.startsAt, team.timezone)} · ${rosterIds.size - out}/${rosterIds.size}`;
+          const label = `${formatRaidLabel(raid.startsAt, viewerZone ?? team.timezone)} · ${rosterIds.size - out}/${rosterIds.size}`;
           return {
             startsAt: raid.startsAt,
             name: fitChoiceName(showTeam ? `${label} · ${teamDisplayName(team, interaction.guild)}` : label),

@@ -47,3 +47,18 @@ export function zoneGenericName(timezone: string): string {
     return timezone; // not a zone Intl knows
   }
 }
+
+/** A weekly night's next start after `from`, in team time (a night is a wall-clock rule there). */
+export function nextOccurrence(
+  dayOfWeek: number,
+  hour: number,
+  minute: number,
+  timezone: string,
+  from: DateTime,
+): DateTime {
+  let candidate = from.setZone(timezone).set({ hour, minute, second: 0, millisecond: 0 });
+  const diff = (dayOfWeek - candidate.weekday + 7) % 7;
+  candidate = candidate.plus({ days: diff });
+  if (candidate <= from) candidate = candidate.plus({ weeks: 1 });
+  return candidate;
+}

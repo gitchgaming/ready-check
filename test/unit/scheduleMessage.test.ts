@@ -492,8 +492,16 @@ describe("buildCalendarMessage", () => {
   const nav = { canEarlier: true, canLater: true };
   const build = (
     instances: RaidRow[],
-    { offset = 0, open = instances, viewer = "u-tank1", navState = nav, roster = ROSTER, name = "Main Raid" } = {},
-  ) => buildCalendarMessage(team(), name, instances, offset, navState, roster, open, viewer);
+    {
+      offset = 0,
+      open = instances,
+      viewer = "u-tank1",
+      navState = nav,
+      roster = ROSTER,
+      name = "Main Raid",
+      zone = null as string | null,
+    } = {},
+  ) => buildCalendarMessage(team(), name, instances, offset, navState, roster, open, viewer, undefined, zone);
   const days = (p: Payload) => texts(containers(p)[0]).slice(1);
 
   it("is one V2 container that never pings", () => {
@@ -508,9 +516,15 @@ describe("buildCalendarMessage", () => {
     const { TextDisplay: T, Separator: S, Section: X, ActionRow: R } = ComponentType;
     expect(container.components.map((c: any) => c.type)).toEqual([T, S, X, S, X, S, R, R]);
     expect(container.components[0].content).toBe(
-      "-# **MAIN RAID · YOUR SCHEDULE**\n-# Pick a date below to call out or switch back in.",
+      "-# **MAIN RAID · YOUR SCHEDULE**\n-# Pick a date below to call out or switch back in. Set your timezone with `/timezone` to see its times in yours.",
     );
     expect(container.accent_color).toBe(0x5865f2);
+  });
+
+  it("shows the select's times in the viewer's own timezone once they've set one, without the /timezone hint", () => {
+    const p = build(weeklyRaids(1), { zone: "Europe/Berlin" });
+    expect(selects(p)[0].options[0].label).toBe("Thu, Oct 8 · 3:00 AM GMT+2");
+    expect(texts(containers(p)[0])[0]).toBe("-# **MAIN RAID · YOUR SCHEDULE**\n-# Pick a date below to call out or switch back in.");
   });
 
   it("shows each day as Coming Up does, then your own status", () => {

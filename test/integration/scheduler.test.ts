@@ -12,6 +12,7 @@ import {
   syncRaidTeam,
 } from "../../src/lib/scheduler.js";
 import { CHANNEL_ID, callOut, makeRaid, makeSlot, makeTeam, prisma } from "../db.js";
+import { setUserTimezone } from "../../src/lib/userSettings.js";
 import { fakeChannel, fakeClient, fakeGuild, fakeMember, flattenComponents, payloadText, raider, teamRole } from "../discord.js";
 import { NOW, useDbAndClock, world } from "./world.js";
 
@@ -303,6 +304,18 @@ describe("personalCalendar", () => {
     expect(text).not.toContain("u-gone");
     expect(text).toContain("🚫 **<t:1791507600:s>** · Cancelled");
     expect(select.options.map((o: any) => o.value)).not.toContain(cancelled.id);
+  });
+
+  it("labels the select in the viewer's saved timezone", async () => {
+    const team = await makeTeam();
+    const r1 = await makeRaid(team.id, "2026-10-07T01:00:00Z"); // Tue Oct 6, 8 PM CDT
+    const alice = raider("Alice", [], "u-alice");
+    const { guild } = world({ members: [alice] });
+    await setUserTimezone(alice.id, "America/New_York");
+    const select = flattenComponents(await personalCalendar(team, guild, 0, alice.id)).find(
+      (c) => c.custom_id === `attendance:cal:${team.id}:0`,
+    );
+    expect(select.options.map((o: any) => [o.value, o.label])).toEqual([[r1.id, "Tue, Oct 6 · 9:00 PM EDT"]]);
   });
 
   it("carries a negative offset into its customIds and shows the past page", async () => {

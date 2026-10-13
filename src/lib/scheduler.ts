@@ -5,6 +5,10 @@ import type { RaidTeam } from "../generated/prisma/client.js";
 import { MAX_SELECT_OPTIONS, buildCalendarMessage, buildPublicMessage, type Notice } from "./embeds.js";
 import { fetchRosterMembers } from "./roster.js";
 import { teamDisplayName } from "./pickers.js";
+import { nextOccurrence } from "./time.js";
+import { userTimezone } from "./userSettings.js";
+
+export { nextOccurrence };
 
 /** How many raids /schedule pages through at a time. */
 export const PAGE_SIZE = 3;
@@ -15,19 +19,6 @@ const MIN_FUTURE_GENERATE_COUNT = 12;
 /** How long after a raid's start time before it moves into history. */
 const CLOSE_GRACE_HOURS = 3;
 
-export function nextOccurrence(
-  dayOfWeek: number,
-  hour: number,
-  minute: number,
-  timezone: string,
-  from: DateTime,
-): DateTime {
-  let candidate = from.setZone(timezone).set({ hour, minute, second: 0, millisecond: 0 });
-  const diff = (dayOfWeek - candidate.weekday + 7) % 7;
-  candidate = candidate.plus({ days: diff });
-  if (candidate <= from) candidate = candidate.plus({ weeks: 1 });
-  return candidate;
-}
 
 export function nextOccurrences(
   dayOfWeek: number,
@@ -144,10 +135,11 @@ export async function instancesForWindow(teamId: string, offset: number): Promis
  * the select. `notice` goes on top.
  */
 export async function personalCalendar(team: RaidTeam, guild: Guild, offset: number, viewerId: string, notice?: Notice) {
-  const [{ instances, canEarlier, canLater }, openInstances, members] = await Promise.all([
+  const [{ instances, canEarlier, canLater }, openInstances, members, viewerZone] = await Promise.all([
     instancesForWindow(team.id, offset),
     nextOpenInstances(team.id, MAX_SELECT_OPTIONS),
     fetchRosterMembers(guild, team.roleId),
+    userTimezone(viewerId),
   ]);
   return buildCalendarMessage(
     team,
@@ -159,6 +151,7 @@ export async function personalCalendar(team: RaidTeam, guild: Guild, offset: num
     openInstances,
     viewerId,
     notice,
+    viewerZone,
   );
 }
 

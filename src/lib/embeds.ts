@@ -645,9 +645,12 @@ export function buildCalendarMessage(
   openInstances: InstanceWithAttendance[],
   viewerId: string,
   notice?: Notice,
+  viewerZone: string | null = null,
 ) {
   const viewer = members.find((m) => m.id === viewerId);
   const dates = viewer ? selectableInstances(openInstances) : [];
+  // The select's labels are plain text: the viewer's own timezone if they set one.
+  const zone = viewerZone ?? team.timezone;
   const anyOpen = instances.some((i) => !i.closed);
   const intro =
     instances.length === 0
@@ -655,7 +658,7 @@ export function buildCalendarMessage(
       : !anyOpen
         ? "These raids already happened, so attendance is locked."
         : dates.length > 0
-          ? "Pick a date below to call out or switch back in."
+          ? `Pick a date below to call out or switch back in.${viewerZone ? "" : " Set your timezone with `/timezone` to see its times in yours."}`
           : viewer
             ? "Nothing to call out of right now."
             : "You're not on this team's roster, so this is view-only.";
@@ -688,7 +691,7 @@ export function buildCalendarMessage(
         dates.map((instance) => {
           const out = instance.attendance.some((a) => a.userId === viewerId && a.status === "OUT");
           return {
-            label: formatRaidLabel(instance.startsAt, team.timezone),
+            label: formatRaidLabel(instance.startsAt, zone),
             description: out ? PICK_TO_COME_BACK : PICK_TO_CALL_OUT,
             value: instance.id,
             emoji: out ? "❌" : "✅",

@@ -59,6 +59,11 @@ All dates are picked from a list of your team's actual raids.
   main's off-spec (a raider with only one of those counts as Damage). On the
   schedule and in `/roster`, a raider with no type role counts as Damage, and one with no class
   role is listed at the end of their section without an icon.
+- `/timezone [zone:]` — only you see it. Sets your timezone, so the raid times
+  in pickers and dropdowns show in it (dates in messages already follow your
+  device). Without a zone it shows your current one; pick **Use each team's
+  timezone** to clear it. The reply says what time it is there now, so a wrong
+  pick is easy to spot. It applies on every server and team.
 
 ## Officer commands (`/raidlead`)
 
@@ -195,5 +200,8 @@ rollbacks. First-time setup:
   stay correct across daylight saving changes.
 - Every date and time in a message is a Discord timestamp, so each person sees
   it in their own timezone. Discord can't do that in pickers and dropdown
-  options, so those show the team's time with its zone (`Tue, Oct 6 · 8:00 PM
-  CDT`), and weekly nights are labelled with the zone's name (`Central Time`).
+  options, and never tells a bot a user's timezone, so those show the time in
+  the zone set with `/timezone`, or else the team's, with the zone's short name
+  (`Tue, Oct 6 · 8:00 PM CDT`). The public schedule message's dropdown is shared
+  by everyone, so it always uses team time. Weekly nights are labelled with the
+  team zone's name (`Central Time`), plus their next raid in yours if you set one.

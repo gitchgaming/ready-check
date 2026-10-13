@@ -128,7 +128,7 @@ describe("slash commands", () => {
   const built = commands.map((c) => c.data.toJSON() as CommandJson);
 
   it("all build, with unique names", () => {
-    expect(built.map((c) => c.name).sort()).toEqual(["attendance", "raidlead", "roster", "schedule"]);
+    expect(built.map((c) => c.name).sort()).toEqual(["attendance", "raidlead", "roster", "schedule", "timezone"]);
   });
 
   it.each(built.map((c) => [c.name, c] as const))("/%s respects Discord's name, description and count limits", (_, json) => {
