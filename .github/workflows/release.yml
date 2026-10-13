@@ -68,6 +68,7 @@ jobs:
             echo "::error::Nothing to release: main has no commits since $latest"; exit 1
           fi
           echo "tag=v$next" >> "$GITHUB_OUTPUT"
+          echo "previous=$latest" >> "$GITHUB_OUTPUT"
           echo "Releasing v$next (previous: ${latest:-none})"
 
       # production must only ever move forward along main, plus the release
@@ -125,4 +126,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
-        run: gh release create "$TAG" --verify-tag --title "$TAG" --generate-notes
+          PREVIOUS: ${{ steps.version.outputs.previous }}
+        # GitHub picks its own start tag otherwise, and since release tags
+        # moved onto release commits it has reached back to v0.4.0.
+        run: |
+          gh release create "$TAG" --verify-tag --title "$TAG" --generate-notes \
+            ${PREVIOUS:+--notes-start-tag "$PREVIOUS"}
