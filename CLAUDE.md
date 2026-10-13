@@ -226,6 +226,12 @@ testing is for look and feel only.
 - Commit messages never carry claude.ai links (no `Claude-Session:` trailer,
   session, project or artifact URLs), even when an attribution template asks
   for one; `Co-Authored-By` is fine. PR descriptions may link them.
+- Never put the owner's name in anything on GitHub (PR titles, bodies,
+  comments, reviews, commits), even when an attribution template supplies
+  it. The PR attribution line credits the login only:
+  `_Requested by @gitchgaming · [project thread](...)_`, under the marker
+  comment line. `.claude/hooks/pr-attribution-guard.sh` blocks GitHub tool
+  calls whose text has a bolded "Requested by" name.
 - Railway deploys the `production` branch, which only the **Release** workflow
   (`.github/workflows/release.yml`: CI, tag `vX.Y.Z`, fast-forward
   `production`, GitHub Release) and **Rollback** workflow move. Never push to
