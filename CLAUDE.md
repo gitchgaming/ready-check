@@ -109,17 +109,15 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   roster in Tanks/Healers/Damage sections (small-text headings, then one
   normal-size line per class with names as inline-code chips), Called Out block, one Status ⇄ button on its own line;
   accent = raid status) and
-  **Coming Up** (per later raid: a full-width date line, then a section of
-  its role counts and a blank line beside its own button; then the
+  **Coming Up** (one section per later raid with its own button, then the
   "See more dates" select). The personal view (`buildCalendarMessage`) is one
   container under a small-caps "TEAM · YOUR SCHEDULE" label, days between
   dividers: each day is Coming Up's line (`raidLine`) plus the viewer's own
   status and called-out chips, with a Roster button beside it (cancelled days
   are text only). Someone not on the roster gets it view-only, without the
   select. V2 caps a message at 40 components and 4,000 text characters, so
-  at most `MAX_PUBLIC_DAYS` = 7 raids show: Next Up plus `displayCount` (the
-  `coming-up` option, default 3, max `MAX_COMING_UP` = 6; a stored higher
-  value just shows 6) — and class lines
+  at most `MAX_PUBLIC_DAYS` = 9 raids show: Next Up plus `displayCount` (the
+  `coming-up` option, default 3, max `MAX_COMING_UP` = 8) — and class lines
   truncate with "…and N more". V2 text pings mentions, so these messages always
   send `allowedMentions: { parse: [] }`.
 - `/attendance` (was `/callout`) is private. Without a date it's one container
@@ -158,9 +156,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - Every date or time in message text is a Discord timestamp (`raidTime`
   in `time.ts`), so each viewer sees their own timezone: full (`F`, the only
   style with a weekday) where it has room, short (`s`, "10/14/26, 8:00 PM")
-  wherever it would wrap on a phone beside a button (`/schedule` days,
-  `/attendance` lines, confirmations). The Next Up heading and Coming Up's
-  own date lines keep the full style. Tapping a short one shows
+  wherever it would wrap on a phone beside a button (Coming Up, `/schedule`
+  days, confirmations). The Next Up heading keeps the full style. Tapping a short one shows
   the full date. Plain text Discord shows as is (autocomplete choices, select
   options) can't follow the viewer, and Discord never tells a bot a user's
   timezone, so it uses the zone the viewer set with `/timezone` (`UserSetting`,
