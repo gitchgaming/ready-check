@@ -326,7 +326,7 @@ export function undoCustomId(teamId: string, raidId: string, target: "in" | "out
 /** The one wording for an attendance change, with an Undo button that switches it back. */
 export function confirmation(out: boolean, startsAt: Date, teamId: string, raidId: string, view: UndoView): Notice {
   return {
-    text: `${statusMark(out)} ${out ? "You're out" : "You're back in"} for **${raidTime(startsAt)}**.`,
+    text: `${statusMark(out)} ${out ? "You're out" : "You're back in"} for **${raidTime(startsAt, "short")}**.`, // beside its Undo button
     undoId: undoCustomId(teamId, raidId, out ? "in" : "out", view),
   };
 }
@@ -387,7 +387,7 @@ function raidCard(
   { label, withButton }: RaidCardOptions,
 ) {
   const header = text(
-    `-# **${teamName.toUpperCase()} · ${label}**\n## ${raidTime(instance.startsAt)}\n-# ${discordTime(instance.startsAt, "R")}`,
+    `-# **${teamName.toUpperCase()} · ${label}**\n## ${raidTime(instance.startsAt, "short")}\n-# ${discordTime(instance.startsAt, "R")}`,
   );
 
   if (instance.cancelled) {
@@ -431,9 +431,7 @@ function raidCard(
  * role counts, indented to line up under the date. A cancelled raid is one line.
  */
 function raidLine(team: RaidTeam, instance: InstanceWithAttendance, members: GuildMember[]): string {
-  // The short style ("10/14/2026, 8:00 PM") fits one line beside the button on a
-  // phone; the full style, the only one with a weekday, wraps to two.
-  const when = `**${discordTime(instance.startsAt, "s")}**`;
+  const when = `**${raidTime(instance.startsAt, "short")}**`; // beside a button
   if (instance.cancelled) return `🚫 ${when} · Cancelled`;
   const raid = raidAttendance(team, instance, members);
   return `${dot(raid.status, true)} ${when} · ${raid.attending.length}/${raid.size}\n-# ${INDENT}${roleCounts(raid.roles)}`;

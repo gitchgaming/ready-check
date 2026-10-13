@@ -151,11 +151,12 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   UI) and upserted hourly. Never delete a generated raid — the sync recreates
   it. `cancelled` keeps it visible as 🚫 Cancelled; only `oneOff` raids (from
   `/raidlead raid add`) can be hard-deleted with `raid remove`.
-- Every date or time in message text is a Discord timestamp (`raidTime`, a
-  `<t:unix:F>`, in `time.ts`), so each viewer sees their own timezone; Coming
-  Up and `/schedule` days use the short `s` style so they fit one line beside
-  their button on a phone (no style abbreviates the weekday). Plain
-  text Discord shows as is (autocomplete choices, select options) uses team
+- Every date or time in message text is a Discord timestamp (`raidTime`
+  in `time.ts`), so each viewer sees their own timezone: full (`F`, the only
+  style with a weekday) where it has room, short (`s`, "10/14/26, 8:00 PM")
+  wherever it would wrap on a phone: headings and lines beside a button
+  (Next Up, Coming Up, `/schedule` days, confirmations). Tapping one shows
+  the full date. Plain text Discord shows as is (autocomplete choices, select options) uses team
   time with its zone (`formatRaidLabel`: `Tue, Oct 6 · 8:00 PM CDT`); weekly
   nights, which are rules, carry the zone's generic name (`Central Time`).
   Never the server clock, which is UTC.

@@ -13,6 +13,7 @@ useDbAndClock();
 const TUE_8PM = "2026-10-07T01:00:00Z"; // Tue Oct 6, 8:00 PM in Chicago
 const TUE_LABEL = "Tue, Oct 6 · 8:00 PM CDT"; // pickers: team time, with its zone
 const TUE_TIME = "<t:1791334800:F>"; // replies: a timestamp each viewer sees in their own zone
+const TUE_SHORT = "<t:1791334800:s>"; // the same, short, beside a button
 
 const altRole = fakeRole("Alt Raid", "role-alt");
 
@@ -37,7 +38,7 @@ describe("/attendance", () => {
     await attendance.execute(run, client);
     expect(isEphemeral(run.replies[0])).toBe(true);
     const text = payloadText(run.replies[0] as any);
-    expect(text).toContain(`❌ You're out for **${TUE_TIME}**.`);
+    expect(text).toContain(`❌ You're out for **${TUE_SHORT}**.`);
     expect(text).toContain("You're out of the next raid");
     expect(flattenComponents(run.replies[0] as any).filter((c) => c.label === "Back in")).toHaveLength(1);
     expect(flattenComponents(run.replies[0] as any).find((c) => c.label === "Undo").custom_id).toBe(
@@ -48,7 +49,7 @@ describe("/attendance", () => {
 
     const again = fakeChatInput({ commandName: "attendance", guild, userId: "u-alice", options: { date: raid.id } });
     await attendance.execute(again, client);
-    expect(payloadText(again.replies[0] as any)).toContain(`✅ You're back in for **${TUE_TIME}**.`);
+    expect(payloadText(again.replies[0] as any)).toContain(`✅ You're back in for **${TUE_SHORT}**.`);
     expect(await prisma.attendance.count({ where: { userId: "u-alice" } })).toBe(0);
   });
 

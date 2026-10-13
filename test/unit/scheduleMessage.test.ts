@@ -104,7 +104,7 @@ describe("buildPublicMessage — Next Up", () => {
     const [first] = weeklyRaids(1);
     const unix = first!.startsAt.getTime() / 1000;
     expect(texts(nextUp(buildPublicMessage(team(), "Main Raid", [first!], ROSTER)))[0]).toBe(
-      `-# **MAIN RAID · NEXT UP**\n## <t:${unix}:F>\n-# <t:${unix}:R>`,
+      `-# **MAIN RAID · NEXT UP**\n## <t:${unix}:s>\n-# <t:${unix}:R>`,
     );
   });
 
@@ -306,7 +306,7 @@ describe("buildPublicMessage — Next Up", () => {
     const p = buildPublicMessage(team(), "Main Raid", raids, ROSTER);
     const card = nextUp(p);
     expect(card.accent_color).toBe(0x6b7280);
-    expect(texts(card)).toEqual([expect.stringContaining("## <t:1791421200:F>"), "🚫 **Cancelled**"]);
+    expect(texts(card)).toEqual([expect.stringContaining("## <t:1791421200:s>"), "🚫 **Cancelled**"]);
     expect(buttons(p).map((b) => b.custom_id.split(":")[3])).toEqual([raids[1]!.id, raids[2]!.id]);
   });
 
