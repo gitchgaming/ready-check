@@ -244,7 +244,8 @@ function calledOutSection(out: GuildMember[]): RosterSection {
 
 /**
  * Sections as lines: a small-text heading, then one normal-size line per class
- * (small chips were too hard to read on desktop); a heading alone gets " —".
+ * (small chips were too hard to read on desktop), its chips separated by
+ * " · "; a heading alone gets " —".
  * A blank line separates sections. Stops with "…and N more" before passing
  * `budget` characters.
  */
@@ -270,7 +271,7 @@ function fitSections(sections: RosterSection[], budget: number): string[] {
     for (const { prefix, entries } of section.lines) {
       let line = prefix;
       for (const [i, entry] of entries.entries()) {
-        const piece = `${i === 0 && !prefix ? "" : " "}${entry}`;
+        const piece = `${i === 0 ? (prefix ? " " : "") : " · "}${entry}`;
         shown++;
         if (!fits(line.length + piece.length + 1)) {
           shown--;
