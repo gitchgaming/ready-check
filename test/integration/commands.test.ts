@@ -524,4 +524,25 @@ describe("/raidlead autocomplete", () => {
     expect(await ask("Friday")).toEqual(expect.arrayContaining([{ name: "Friday, Oct 9, 2026", value: "2026-10-09" }]));
   });
 
+  it("team final-raid offers the days of upcoming raids in team time, else any date", async () => {
+    const w = await twoTeams();
+    const ask = async (date: string) => {
+      const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "team", subcommand: "final-raid", focused: "date", options: { role: ROLE_ID, date } });
+      await raidlead.autocomplete(ac);
+      return ac.responses[0]!;
+    };
+    // No raids yet: the upcoming days, as for raid add.
+    expect((await ask(""))[0]).toEqual({ name: "Tuesday, Oct 6, 2026", value: "2026-10-06" });
+
+    await makeRaid(w.main.id, TUE_8PM); // Tue 8 PM Chicago, Wed in UTC
+    await makeRaid(w.main.id, "2026-10-07T02:30:00Z"); // later the same day
+    await makeRaid(w.main.id, "2026-10-09T01:00:00Z", { cancelled: true });
+    await makeRaid(w.main.id, "2026-09-30T01:00:00Z", { closed: true });
+    expect(await ask("")).toEqual([
+      { name: "Tuesday, Oct 6, 2026", value: "2026-10-06" },
+      { name: "Thursday, Oct 8, 2026", value: "2026-10-08" },
+    ]);
+    expect(await ask("3/15/2027")).toEqual([{ name: "Monday, Mar 15, 2027", value: "2027-03-15" }]);
+  });
+
 });

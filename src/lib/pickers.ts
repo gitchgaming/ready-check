@@ -83,6 +83,23 @@ export async function teamRaidChoices(team: RaidTeam, cancelled: boolean, zone =
   return instances.map((i) => ({ name: formatRaidLabel(i.startsAt, zone), value: i.id }));
 }
 
+/**
+ * The days of a team's upcoming raids, in team time, as date choices (a final raid
+ * date is a day, not a raid). Cancelled raids count, so the last one can be one.
+ */
+export async function raidDayChoices(team: RaidTeam): Promise<Choice[]> {
+  const instances = await prisma.raidInstance.findMany({
+    where: { raidTeamId: team.id, closed: false },
+    orderBy: { startsAt: "asc" },
+  });
+  const days = new Map<string, Choice>();
+  for (const i of instances) {
+    const choice = dateChoice(DateTime.fromJSDate(i.startsAt, { zone: team.timezone }));
+    days.set(choice.value, choice);
+  }
+  return [...days.values()].slice(0, MAX_CHOICES);
+}
+
 /** Upcoming one-off raids for a team, including cancelled ones. */
 export async function oneOffRaidChoices(team: RaidTeam, zone = team.timezone): Promise<Choice[]> {
   const instances = await prisma.raidInstance.findMany({

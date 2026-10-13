@@ -8,7 +8,8 @@ import {
 } from "discord.js";
 import { DateTime } from "luxon";
 import { prisma } from "../../lib/db.js";
-import { renderTeamMessage, syncRaidTeam } from "../../lib/scheduler.js";
+import { parseTypedDate } from "../../lib/pickers.js";
+import { formatFinalRaidDate, renderTeamMessage, scheduleCutoff, syncRaidTeam } from "../../lib/scheduler.js";
 import { deleteMessage, requireTeam } from "./shared.js";
 
 function invalidTimezone(timezone: string): boolean {
@@ -109,7 +110,8 @@ export async function edit(interaction: ChatInputCommandInteraction, client: Cli
       `• Channel: <#${updated.channelId}>\n` +
       `• Timezone: ${updated.timezone}\n` +
       `• Raid size: ${updated.raidSize}-player\n` +
-      `• Coming Up raids: ${updated.displayCount}`,
+      `• Coming Up raids: ${updated.displayCount}` +
+      (updated.finalRaidDate ? `\n• Final raid date: ${formatFinalRaidDate(updated)}` : ""),
     flags: MessageFlags.Ephemeral,
   });
 
@@ -149,4 +151,78 @@ export async function publish(interaction: ChatInputCommandInteraction, client: 
   await renderTeamMessage(client, team.id);
 
   await interaction.reply({ content: `✅ Schedule posted in <#${channel.id}>.`, flags: MessageFlags.Ephemeral });
+}
+
+/**
+ * Sets the team's last raid day. Open raids after it are removed with their
+ * call-outs, and the sync schedules nothing past it; closed raids stay as history.
+ */
+export async function finalRaid(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
+  const team = await requireTeam(interaction);
+  if (!team) return;
+
+  const dateInput = interaction.options.getString("date", true);
+  const day = parseTypedDate(dateInput, team.timezone);
+  if (!day) {
+    await interaction.reply({
+      content: `Couldn't read "${dateInput}" as an upcoming date. Pick one from the suggestions, or type it like \`3/15/2027\`.`,
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  const updated = { ...team, finalRaidDate: day.toFormat("yyyy-MM-dd") };
+  const cutoff = scheduleCutoff(updated)!.toJSDate();
+  const later = { raidTeamId: team.id, closed: false, startsAt: { gte: cutoff } };
+  const [removedRaids, removedCallOuts] = await Promise.all([
+    prisma.raidInstance.count({ where: later }),
+    prisma.attendance.count({ where: { raidInstance: later } }),
+  ]);
+
+  await prisma.raidTeam.update({ where: { id: team.id }, data: { finalRaidDate: updated.finalRaidDate } });
+  await prisma.raidInstance.deleteMany({ where: later });
+
+  const removed =
+    removedRaids === 0
+      ? "There were no raids after it."
+      : `Removed ${plural(removedRaids, "raid")} after it` +
+        (removedCallOuts > 0 ? `, with ${plural(removedCallOuts, "call-out")}.` : ".");
+  await interaction.reply({
+    content:
+      `🏁 **${team.name ?? "This team"}**'s final raid date is ${formatFinalRaidDate(updated)} (team time). ${removed}\n` +
+      "No new raids will be scheduled after it; past raids and their attendance stay. " +
+      "To schedule the weekly nights again, use `/raidlead team resume`.",
+    flags: MessageFlags.Ephemeral,
+  });
+
+  await syncRaidTeam(client, team.id).catch((err) => console.error(`Failed to sync raid team ${team.id}:`, err));
+}
+
+/** Clears the final raid date, so the weekly nights generate raids again. */
+export async function resume(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
+  const team = await requireTeam(interaction);
+  if (!team) return;
+
+  if (!team.finalRaidDate) {
+    await interaction.reply({
+      content: `**${team.name ?? "This team"}** has no final raid date, so its weekly nights are already scheduling raids.`,
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  await prisma.raidTeam.update({ where: { id: team.id }, data: { finalRaidDate: null } });
+
+  await interaction.reply({
+    content:
+      `✅ Cleared **${team.name ?? "this team"}**'s final raid date (${formatFinalRaidDate(team)}). ` +
+      "Its weekly nights are scheduling raids again; call-outs on removed raids don't come back.",
+    flags: MessageFlags.Ephemeral,
+  });
+
+  await syncRaidTeam(client, team.id).catch((err) => console.error(`Failed to sync raid team ${team.id}:`, err));
+}
+
+function plural(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }

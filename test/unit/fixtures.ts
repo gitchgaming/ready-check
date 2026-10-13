@@ -29,6 +29,7 @@ export function team(overrides: Partial<RaidTeam> = {}): RaidTeam {
     messageId: null,
     displayCount: 3,
     raidSize: 25,
+    finalRaidDate: null,
     ...overrides,
   };
 }

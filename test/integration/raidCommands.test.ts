@@ -4,6 +4,7 @@ import * as raidlead from "../../src/commands/raidlead/index.js";
 import { CHANNEL_ID, GUILD_ID, ROLE_ID, callOut, makeRaid, makeSlot, makeTeam, prisma } from "../db.js";
 import { fakeChannel, fakeChatInput, fakeClient, fakeGuild, payloadText, teamRole, type FakeChannel } from "../discord.js";
 import { onlyReply, useDbAndClock } from "./world.js";
+import { syncRaidTeam } from "../../src/lib/scheduler.js";
 
 useDbAndClock(); // Tue Oct 6 2026, 7:00 AM in Chicago
 
@@ -37,6 +38,8 @@ describe("role option that isn't a raid team", () => {
     ["team", "edit", { name: "New" }],
     ["team", "delete", {}],
     ["team", "publish", {}],
+    ["team", "final-raid", { date: "2026-10-20" }],
+    ["team", "resume", {}],
   ])("%s %s says how to create the team and changes nothing", async (group, sub, options) => {
     const t = await makeTeam();
     const { run, channel } = setup();
@@ -435,5 +438,124 @@ describe("team publish", () => {
     expect(onlyReply(await run("team", "publish", { role: ROLE_ID }, { channel: voice }))).toBe("Run this in a text channel.");
     expect(onlyReply(await run("team", "publish", { role: ROLE_ID }, { channel: null }))).toBe("Run this in a text channel.");
     expect((await team(t.id)).channelId).toBe(CHANNEL_ID);
+  });
+});
+
+describe("team final-raid / resume", () => {
+  const day = (r: { startsAt: Date }) => DateTime.fromJSDate(r.startsAt).setZone(TZ).toISODate();
+
+  /** A Tuesday 8 PM team with its 12 weekly raids generated: Oct 6 through Dec 22. */
+  async function weeklyTeam() {
+    const t = await makeTeam();
+    await makeSlot(t.id, 2);
+    const w = setup();
+    await w.run("nights", "add", { role: ROLE_ID, day: "2", time: "20:00" });
+    return { t, ...w };
+  }
+
+  it("removes later raids with their call-outs, keeps earlier and past ones, and stops generating", async () => {
+    const { t, run, channel } = await weeklyTeam();
+    const past = await makeRaid(t.id, "2026-09-30T01:00:00Z", { closed: true });
+    await callOut(past.id, "u-alice");
+    const all = await raids(t.id);
+    expect(all).toHaveLength(13);
+    await callOut(all.find((r) => day(r) === "2026-10-13")!.id, "u-alice");
+    await callOut(all.find((r) => day(r) === "2026-10-27")!.id, "u-alice");
+    await callOut(all.find((r) => day(r) === "2026-11-03")!.id, "u-bob");
+
+    expect(onlyReply(await run("team", "final-raid", { role: ROLE_ID, date: "2026-10-20" }))).toBe(
+      "🏁 **Main Raid**'s final raid date is Tuesday, Oct 20, 2026 (team time). Removed 9 raids after it, with 2 call-outs.\n" +
+        "No new raids will be scheduled after it; past raids and their attendance stay. " +
+        "To schedule the weekly nights again, use `/raidlead team resume`.",
+    );
+    expect((await team(t.id)).finalRaidDate).toBe("2026-10-20");
+    expect((await raids(t.id)).map(day)).toEqual(["2026-09-29", "2026-10-06", "2026-10-13", "2026-10-20"]);
+    expect(await prisma.attendance.count()).toBe(2);
+    expect(payloadText(channel.sent.at(-1)!.payloads.at(-1) as any)).toContain("COMING UP");
+
+    // The hourly sync keeps to it, a week on as well.
+    await syncRaidTeam(fakeClient(), t.id);
+    vi.setSystemTime(new Date("2026-10-14T12:00:00Z"));
+    await syncRaidTeam(fakeClient(), t.id);
+    expect((await raids(t.id)).map(day)).toEqual(["2026-09-29", "2026-10-06", "2026-10-13", "2026-10-20"]);
+  });
+
+  it("takes a typed date, and moving it later only stops what's past the new date", async () => {
+    const { t, run } = await weeklyTeam();
+    onlyReply(await run("team", "final-raid", { role: ROLE_ID, date: "10/13" }));
+    expect(await raids(t.id)).toHaveLength(2);
+
+    // Moving it later lets the sync fill in up to the new date.
+    expect(onlyReply(await run("team", "final-raid", { role: ROLE_ID, date: "11/3" }))).toMatch(
+      /^🏁 \*\*Main Raid\*\*'s final raid date is Tuesday, Nov 3, 2026 \(team time\)\. There were no raids after it\.\n/,
+    );
+    expect((await raids(t.id)).map(day).at(-1)).toBe("2026-11-03");
+    expect(await raids(t.id)).toHaveLength(5);
+  });
+
+  it("rejects dates it can't read or that have passed", async () => {
+    const { t, run } = await weeklyTeam();
+    for (const date of ["someday", "1/1/2020", "none"]) {
+      expect(onlyReply(await run("team", "final-raid", { role: ROLE_ID, date }))).toBe(
+        `Couldn't read "${date}" as an upcoming date. Pick one from the suggestions, or type it like \`3/15/2027\`.`,
+      );
+    }
+    expect((await team(t.id)).finalRaidDate).toBeNull();
+    expect(await raids(t.id)).toHaveLength(12);
+  });
+
+  it("today ends the team after today's raid; with none left the schedule says so", async () => {
+    const t = await makeTeam();
+    const { run, channel } = setup();
+    expect(onlyReply(await run("team", "final-raid", { role: ROLE_ID, date: "2026-10-06" }))).toMatch(/There were no raids after it\./);
+    await run("nights", "add", { role: ROLE_ID, day: "3", time: "20:00" });
+    expect(await raids(t.id)).toHaveLength(0);
+    const text = payloadText(channel.sent.at(-1)!.payloads.at(-1) as any);
+    expect(text).toContain("## No more raids");
+    expect(text).toContain("final raid date has passed");
+  });
+
+  it("raid add refuses a raid after the final raid date, but not one on it", async () => {
+    const t = await makeTeam({ finalRaidDate: "2026-10-09" });
+    const { run } = setup();
+    expect(onlyReply(await run("raid", "add", { role: ROLE_ID, date: "10/10", time: "00:30" }))).toBe(
+      "That's after the team's final raid date, Friday, Oct 9, 2026. Move it with `/raidlead team final-raid`, or clear it with `/raidlead team resume`.",
+    );
+    onlyReply(await run("raid", "add", { role: ROLE_ID, date: "10/9", time: "23:30" }));
+    expect(await raids(t.id)).toHaveLength(1);
+  });
+
+  it("nights list and add note the final raid date", async () => {
+    const t = await makeTeam({ finalRaidDate: "2026-10-06" });
+    await makeSlot(t.id, 2);
+    const { run } = setup();
+    const note = "\n-# Final raid date: Tuesday, Oct 6, 2026. No raids are scheduled after it; clear it with `/raidlead team resume`.";
+    expect(onlyReply(await run("nights", "list", { role: ROLE_ID }))).toBe(
+      "• Tuesday 8:00 PM · next <t:1791334800:F>\n-# Nights are in team time, Central Time (America/Chicago)." + note,
+    );
+    expect(onlyReply(await run("nights", "add", { role: ROLE_ID, day: "3", time: "20:00" }))).toBe(
+      "✅ Added Wednesday 8:00 PM Central Time (America/Chicago) as a weekly raid night. Next: none before the final raid date." + note,
+    );
+  });
+
+  it("resume clears the date and the weekly nights schedule again", async () => {
+    const { t, run } = await weeklyTeam();
+    expect(onlyReply(await run("team", "resume", { role: ROLE_ID }))).toBe(
+      "**Main Raid** has no final raid date, so its weekly nights are already scheduling raids.",
+    );
+    await run("team", "final-raid", { role: ROLE_ID, date: "2026-10-06" });
+    expect(await raids(t.id)).toHaveLength(1);
+
+    expect(onlyReply(await run("team", "resume", { role: ROLE_ID }))).toBe(
+      "✅ Cleared **Main Raid**'s final raid date (Tuesday, Oct 6, 2026). Its weekly nights are scheduling raids again; call-outs on removed raids don't come back.",
+    );
+    expect((await team(t.id)).finalRaidDate).toBeNull();
+    expect(await raids(t.id)).toHaveLength(12);
+  });
+
+  it("team edit lists the final raid date", async () => {
+    await makeTeam({ finalRaidDate: "2026-12-01" });
+    const { run } = setup();
+    expect(onlyReply(await run("team", "edit", { role: ROLE_ID, name: "Mythic" }))).toMatch(/\n• Final raid date: Tuesday, Dec 1, 2026$/);
   });
 });

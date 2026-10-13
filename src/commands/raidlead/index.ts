@@ -17,6 +17,7 @@ import {
   nightChoices,
   parseTypedDate,
   oneOffRaidChoices,
+  raidDayChoices,
   respondFiltered,
   teamFromRoleOption,
   teamRaidChoices,
@@ -102,6 +103,25 @@ export const data = new SlashCommandBuilder()
         sub
           .setName("publish")
           .setDescription("Post the team's schedule message in this channel")
+          .addRoleOption(roleOption),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("final-raid")
+          .setDescription("Set the team's last raid day: later raids are removed and no more are scheduled")
+          .addRoleOption(roleOption)
+          .addStringOption((opt) =>
+            opt
+              .setName("date")
+              .setDescription("Pick a raid day, or type a date like 3/15/2027")
+              .setRequired(true)
+              .setAutocomplete(true),
+          ),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("resume")
+          .setDescription("Clear the team's final raid date and schedule its weekly nights again")
           .addRoleOption(roleOption),
       )
       .addSubcommand((sub) =>
@@ -213,6 +233,8 @@ const handlers: Record<string, Handler> = {
   "team setup": team.setup,
   "team edit": team.edit,
   "team publish": team.publish,
+  "team final-raid": team.finalRaid,
+  "team resume": team.resume,
   "team delete": team.remove,
   "nights add": nights.add,
   "nights remove": nights.remove,
@@ -282,13 +304,16 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
     await respondFiltered(interaction, await teamRaidChoices(raidTeam, true, zone), "No cancelled raids to restore");
   } else if (key === "raid remove") {
     await respondFiltered(interaction, await oneOffRaidChoices(raidTeam, zone), "No upcoming one-off raids");
-  } else if (key === "raid add") {
+  } else if (key === "raid add" || key === "team final-raid") {
     const typed = interaction.options.getFocused();
     const parsed = parseTypedDate(typed, raidTeam.timezone);
     if (parsed) {
       await interaction.respond([dateChoice(parsed)]);
       return;
     }
-    await respondFiltered(interaction, upcomingDateChoices(raidTeam.timezone, typed), "No dates available");
+    // A final raid date is usually a raid's day, so those come first.
+    const raidDays = key === "team final-raid" && !typed ? await raidDayChoices(raidTeam) : [];
+    const choices = raidDays.length > 0 ? raidDays : upcomingDateChoices(raidTeam.timezone, typed);
+    await respondFiltered(interaction, choices, "No dates available");
   }
 }

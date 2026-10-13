@@ -355,6 +355,8 @@ export function buildNoticeMessage(notice: Notice) {
 
 /** What the schedule post and /schedule say before a team has any raids. */
 const NO_RAIDS_YET = "No raids to show here yet. Officers can add weekly raid nights with `/raidlead nights add`.";
+/** After a team's final raid date, nothing more is scheduled. */
+const NO_MORE_RAIDS = "This team's final raid date has passed, so no more raids are scheduled.";
 
 /** The text beside the Next Up Status button. */
 const STATUS_NOTE = "-# Can't make it, or back in? **Status** toggles your attendance.";
@@ -498,7 +500,10 @@ export function buildPublicMessage(
         new ContainerBuilder()
           .setAccentColor(0x5865f2)
           .addTextDisplayComponents(
-            text(`-# **${teamName.toUpperCase()} · SCHEDULE**\n## No raids yet\n-# ${NO_RAIDS_YET}`),
+            text(
+              `-# **${teamName.toUpperCase()} · SCHEDULE**\n` +
+                (team.finalRaidDate ? `## No more raids\n-# ${NO_MORE_RAIDS}` : `## No raids yet\n-# ${NO_RAIDS_YET}`),
+            ),
           ),
       ];
 
@@ -643,7 +648,9 @@ export function buildCalendarMessage(
   const anyOpen = instances.some((i) => !i.closed);
   const intro =
     instances.length === 0
-      ? NO_RAIDS_YET
+      ? team.finalRaidDate
+        ? NO_MORE_RAIDS
+        : NO_RAIDS_YET
       : !anyOpen
         ? "These raids already happened, so attendance is locked."
         : dates.length > 0
