@@ -90,6 +90,8 @@ async function applySelection(
     return;
   }
 
+  // The public select no longer offers rosters, but a post drawn before that change
+  // still can until it's next re-rendered.
   if (value.startsWith(ROSTER_VALUE_PREFIX)) {
     await showRoster(interaction, teamId, value.slice(ROSTER_VALUE_PREFIX.length));
     return;

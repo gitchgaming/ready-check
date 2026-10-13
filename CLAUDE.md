@@ -40,8 +40,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   or customId prefix; `index.ts` only sets up the client), then the select and
   button handlers. State lives in the customId:
   `attendance:btn:<teamId>:<raidId>` (public date buttons),
-  `attendance:pub:<teamId>` (public "See more dates" select, value `more`, or
-  `roster:<raidId>` for a Coming Up raid's private roster card),
+  `attendance:pub:<teamId>` (public "See more dates" select, value `more`;
+  `roster:<raidId>` from posts drawn before its roster options were dropped),
   `attendance:cal:<teamId>:<offset>` (personal date select, value is a raid id),
   `attendance:ros:<teamId>:<raidId>` (personal view's per-day Roster button),
   `attendance:in:<teamId>:<raidId>[:t]` (`/attendance`'s Back in button; only
@@ -88,10 +88,11 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - Discord can't personalize a shared message, so the public schedule message
   never pages or shows per-viewer state. Personal views (`/schedule`) are
   ephemeral and carry their state in customIds. The public message has one
-  button per visible date for one-click toggling, plus a select whose first
-  option, **See more dates**, opens the personal view; the rest show each
-  Coming Up raid's roster privately (a section takes only one button, so
-  these can't sit beside Status). The personal select
+  button per visible date for one-click toggling, plus a select whose one
+  option, **See more dates**, opens the personal view, where each day has a
+  Roster button. (It used to list each Coming Up raid's roster too; those
+  options were plain text in team time, so their times didn't match the
+  timestamps beside them for anyone elsewhere.) The personal select
   lists every open raid (cap 25) with the viewer's status. Re-rendering the
   public message after each interaction resets its select.
 - Class and raid-type roles are matched by role name (`classes.ts`), not
@@ -132,8 +133,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   roster. `/roster` is read-only and private for everyone: with a date it's that
   raid's card (`buildRaidRosterCard`, Next Up minus the button); without one it's
   one team's whole roster in Next Up's sections (`buildTeamRosterCard`). Its
-  date picker skips cancelled raids, which have no roster (as Coming Up's
-  select and `/schedule`'s Roster buttons do). The bot sends no embeds; every
+  date picker skips cancelled raids, which have no roster (as
+  `/schedule`'s Roster buttons do). The bot sends no embeds; every
   view is a V2 container.
 - Each team has a raid size, 20 or 25 (`raidSize`, the `size` option on
   `team setup`/`team edit`, default 25), with fixed role targets
@@ -161,8 +162,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   options) can't follow the viewer, and Discord never tells a bot a user's
   timezone, so it uses the zone the viewer set with `/timezone` (`UserSetting`,
   `userTimezone`), else team time, always with the zone's short name
-  (`formatRaidLabel`: `Tue, Oct 6 · 8:00 PM CDT`). The public message's select
-  is shared, so it's always team time. Weekly nights, which are rules, stay in
+  (`formatRaidLabel`: `Tue, Oct 6 · 8:00 PM CDT`). The public message is
+  shared, so it holds no plain-text times at all. Weekly nights, which are rules, stay in
   team time with the zone's generic name (`Central Time`), plus their next raid
   in the viewer's zone if they set one.
   Never the server clock, which is UTC.

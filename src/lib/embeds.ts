@@ -438,9 +438,8 @@ function raidLine(team: RaidTeam, instance: InstanceWithAttendance, members: Gui
 }
 
 /**
- * Coming Up: each later raid on one line with its role counts, plus the select that
- * opens the personal schedule or privately shows one Coming Up raid's roster. A
- * section takes only one button, so the roster shortcuts live in the select.
+ * Coming Up: each later raid on one line with its role counts and Status button, then
+ * the select that opens the personal schedule (whose days each have a Roster button).
  */
 function comingUpContainer(team: RaidTeam, later: InstanceWithAttendance[], members: GuildMember[]) {
   const container = new ContainerBuilder();
@@ -457,29 +456,19 @@ function comingUpContainer(team: RaidTeam, later: InstanceWithAttendance[], memb
     );
   }
 
-  const rosterOptions = later
-    .filter((instance) => !instance.cancelled)
-    .map((instance) => ({
-      label: `Roster · ${formatRaidLabel(instance.startsAt, team.timezone)}`,
-      description: "See who's in and out for this raid",
-      value: `${ROSTER_VALUE_PREFIX}${instance.id}`,
-      emoji: "ℹ️",
-    }));
-
+  // Only "See more dates": roster shortcuts here would be plain text in one shared
+  // zone, so their times wouldn't match the timestamps on the lines above.
   return container.addActionRowComponents(
     selectRow(
       new StringSelectMenuBuilder()
         .setCustomId(`attendance:pub:${team.id}`)
-        .setPlaceholder(rosterOptions.length > 0 ? "📅 See more dates or a roster…" : "📅 See more dates…")
-        .addOptions(
-          {
-            label: "See more dates",
-            description: "See your full schedule and call out further ahead",
-            value: MORE_DATES_VALUE,
-            emoji: "📅",
-          },
-          ...rosterOptions,
-        ),
+        .setPlaceholder("📅 See more dates…")
+        .addOptions({
+          label: "See more dates",
+          description: "See your full schedule and call out further ahead",
+          value: MORE_DATES_VALUE,
+          emoji: "📅",
+        }),
     ),
   );
 }
