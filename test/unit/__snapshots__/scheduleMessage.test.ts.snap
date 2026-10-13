@@ -231,7 +231,8 @@ exports[`snapshots > public message 1`] = `
           },
           "components": [
             {
-              "content": "-# Can't make it, or back in? **Status** toggles your attendance.",
+              "content": "-# Can't make it, or back in? **Status** toggles your attendance.
+-# Set your timezone with \`/timezone\` to see its times in yours.",
               "type": 10,
             },
           ],

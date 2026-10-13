@@ -356,8 +356,13 @@ export function buildNoticeMessage(notice: Notice) {
 /** What the schedule post and /schedule say before a team has any raids. */
 const NO_RAIDS_YET = "No raids to show here yet. Officers can add weekly raid nights with `/raidlead nights add`.";
 
-/** The text beside the Next Up Status button. */
-const STATUS_NOTE = "-# Can't make it, or back in? **Status** toggles your attendance.";
+/**
+ * The text beside the Next Up Status button, then a pointer to /timezone, which
+ * puts the times in pickers and dropdowns in the raider's own zone.
+ */
+const STATUS_NOTE =
+  "-# Can't make it, or back in? **Status** toggles your attendance.\n" +
+  "-# Set your timezone with `/timezone` to see its times in yours.";
 
 function statusButton(team: RaidTeam, instance: InstanceWithAttendance) {
   return new ButtonBuilder()
