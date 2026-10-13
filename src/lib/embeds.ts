@@ -431,7 +431,9 @@ function raidCard(
  * role counts, indented to line up under the date. A cancelled raid is one line.
  */
 function raidLine(team: RaidTeam, instance: InstanceWithAttendance, members: GuildMember[]): string {
-  const when = `**${raidTime(instance.startsAt)}**`;
+  // The short style ("10/14/2026, 8:00 PM") fits one line beside the button on a
+  // phone; the full style, the only one with a weekday, wraps to two.
+  const when = `**${discordTime(instance.startsAt, "s")}**`;
   if (instance.cancelled) return `🚫 ${when} · Cancelled`;
   const raid = raidAttendance(team, instance, members);
   return `${dot(raid.status, true)} ${when} · ${raid.attending.length}/${raid.size}\n-# ${INDENT}${roleCounts(raid.roles)}`;

@@ -297,11 +297,11 @@ describe("personalCalendar", () => {
     expect(all.find((c) => c.custom_id === `mynav:earlier:${team.id}:0`).disabled).toBe(false);
     expect(all.find((c) => c.custom_id === `mynav:later:${team.id}:0`).disabled).toBe(true);
     const text = payloadText(msg);
-    expect(text).toContain("**<t:1791334800:F>** · 1/2");
+    expect(text).toContain("**<t:1791334800:s>** · 1/2");
     expect(text).toContain("✅ You're in · Called out: `Bob`");
     expect(text).toContain("❌ You're out");
     expect(text).not.toContain("u-gone");
-    expect(text).toContain("🚫 **<t:1791507600:F>** · Cancelled");
+    expect(text).toContain("🚫 **<t:1791507600:s>** · Cancelled");
     expect(select.options.map((o: any) => o.value)).not.toContain(cancelled.id);
   });
 

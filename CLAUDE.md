@@ -152,7 +152,9 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   it. `cancelled` keeps it visible as 🚫 Cancelled; only `oneOff` raids (from
   `/raidlead raid add`) can be hard-deleted with `raid remove`.
 - Every date or time in message text is a Discord timestamp (`raidTime`, a
-  `<t:unix:F>`, in `time.ts`), so each viewer sees their own timezone. Plain
+  `<t:unix:F>`, in `time.ts`), so each viewer sees their own timezone; Coming
+  Up and `/schedule` days use the short `s` style so they fit one line beside
+  their button on a phone (no style abbreviates the weekday). Plain
   text Discord shows as is (autocomplete choices, select options) uses team
   time with its zone (`formatRaidLabel`: `Tue, Oct 6 · 8:00 PM CDT`); weekly
   nights, which are rules, carry the zone's generic name (`Central Time`).
