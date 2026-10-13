@@ -113,15 +113,16 @@ Every subcommand takes the team's `role:` first.
 - Every view is labelled with the team's name (or its role's name, for a team
   created without one).
 - The schedule message shows the next raid, then `coming-up` more raids
-  (default 3, at most 8). It never scrolls, since paging it would change it for everyone.
+  (default 3, at most 6). It never scrolls, since paging it would change it for everyone.
   - **Next Up**: the next raid, with a 10-segment attendance bar (raiders in
     out of the raid size, in the raid's status color, outlined for open spots), role counts
     by icon (🛡️ tanks, ➕ healers, ⚔️ damage) with an off-spec key under them,
     everyone attending in Tanks / Healers / Damage sections (one line per
     class, each name a chip; off-tanks and off-healers marked in Damage), and
     who's out, by class. Its accent color is the raid's status.
-  - **Coming Up**: one line per later raid with its count, then its role counts
-    (no role dots; the raid's own dot covers it).
+  - **Coming Up**: per later raid, its full date and count on one line, then its
+    role counts beside its **Status ⇄** button (no role dots; the raid's own dot
+    covers it).
   - Role counts are kept short enough to fit on one line on a phone.
   - Raid status (accent bar, attendance bar and the dot before each Coming Up
     date): 🟢 at least the raid size in, 🟡 one or two short, 🔴 more.

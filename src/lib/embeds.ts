@@ -56,11 +56,11 @@ export const PICK_TO_COME_BACK = "You're called out. Pick to switch back in";
  * Discord caps a Components V2 message at 40 components, nested ones included.
  * The public message's Next Up container costs up to 10 (container, 5 text
  * blocks, divider, and a section with a short note beside the button) and the
- * Coming Up container 4 (container, header, select row, select) plus 3 per
- * later raid (section, text, button). So it fits 14 + 3 × (days − 1) ≤ 40 →
- * 9 days.
+ * Coming Up container 4 (container, header, select row, select) plus 4 per
+ * later raid (date text; section, role text, button). So it fits
+ * 14 + 4 × (days − 1) ≤ 40 → 7 days.
  */
-export const MAX_PUBLIC_DAYS = 9;
+export const MAX_PUBLIC_DAYS = 7;
 
 /** The team's `coming-up` setting (`displayCount`) counts raids after Next Up. */
 export const MAX_COMING_UP = MAX_PUBLIC_DAYS - 1;
@@ -427,32 +427,46 @@ function raidCard(
 }
 
 /**
- * One raid as Coming Up shows it: status dot, date, time and attendance, then its
- * role counts, indented to line up under the date. A cancelled raid is one line.
+ * One raid's two lines: status dot, date, time and attendance, then its role counts,
+ * indented to line up under the date (`roles` is empty for a cancelled raid).
  */
-function raidLine(team: RaidTeam, instance: InstanceWithAttendance, members: GuildMember[]): string {
-  const when = `**${raidTime(instance.startsAt, "short")}**`; // beside a button
-  if (instance.cancelled) return `🚫 ${when} · Cancelled`;
+function raidLineParts(team: RaidTeam, instance: InstanceWithAttendance, members: GuildMember[], size: "full" | "short") {
+  const when = `**${raidTime(instance.startsAt, size)}**`;
+  if (instance.cancelled) return { head: `🚫 ${when} · Cancelled`, roles: "" };
   const raid = raidAttendance(team, instance, members);
-  return `${dot(raid.status, true)} ${when} · ${raid.attending.length}/${raid.size}\n-# ${INDENT}${roleCounts(raid.roles)}`;
+  return {
+    head: `${dot(raid.status, true)} ${when} · ${raid.attending.length}/${raid.size}`,
+    roles: `-# ${INDENT}${roleCounts(raid.roles)}`,
+  };
 }
 
 /**
- * Coming Up: each later raid on one line with its role counts and Status button, then
+ * One raid as a single text block, for views that put a button beside it
+ * (`/schedule`, `/attendance`): the short date, so it doesn't wrap on a phone.
+ * A cancelled raid is one line.
+ */
+function raidLine(team: RaidTeam, instance: InstanceWithAttendance, members: GuildMember[]): string {
+  const { head, roles } = raidLineParts(team, instance, members, "short");
+  return roles ? `${head}\n${roles}` : head;
+}
+
+/**
+ * Coming Up: each later raid's date line, then its role counts with its Status button, then
  * the select that opens the personal schedule (whose days each have a Roster button).
  */
 function comingUpContainer(team: RaidTeam, later: InstanceWithAttendance[], members: GuildMember[]) {
   const container = new ContainerBuilder();
   if (later.length > 0) container.addTextDisplayComponents(text("-# **COMING UP**"));
 
+  // The date line has the full width to itself, so it keeps the full date; the
+  // Status button sits beside the role counts and a blank line, which also spaces
+  // the raids apart.
   for (const instance of later) {
-    const line = raidLine(team, instance, members);
-    if (instance.cancelled) {
-      container.addTextDisplayComponents(text(line));
-      continue;
-    }
+    const { head, roles } = raidLineParts(team, instance, members, "full");
+    container.addTextDisplayComponents(text(head));
+    if (instance.cancelled) continue;
     container.addSectionComponents(
-      new SectionBuilder().addTextDisplayComponents(text(line)).setButtonAccessory(statusButton(team, instance)),
+      new SectionBuilder().addTextDisplayComponents(text(`${roles}\n${INDENT}`)).setButtonAccessory(statusButton(team, instance)),
     );
   }
 

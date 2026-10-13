@@ -351,15 +351,16 @@ describe("buildPublicMessage — Next Up", () => {
 });
 
 describe("buildPublicMessage — Coming Up", () => {
-  it("gives each later raid a section with its date, count, a dotless role line and own button", () => {
+  it("gives each later raid a full-width date line, then a section with its dotless role line and own button", () => {
     const raids = weeklyRaids(3, (i) => ({ out: i === 1 ? ["u-tank1"] : [] }));
     const comingUp = containers(buildPublicMessage(team({ raidSize: 20 }), "Main Raid", raids, [...ROSTER, ...squad(10)]))[1];
-    const sections = comingUp.components.filter((c: any) => c.type === ComponentType.Section);
-    expect(sections).toHaveLength(2);
-    expect(sections[0].components[0].content).toBe(
-      "🟡 **<t:1792026000:s>** · 19/20\n-# \u2800\u2003🛡️ 1/3\u2003➕ 3/5\u2003⚔️ 15/12",
-    );
-    expect(sections[1].components[0].content).toMatch(/^🟢 \*\*<t:1792630800:s>\*\* · 20\/20\n/);
+    const { TextDisplay: T, Section: X, ActionRow: R } = ComponentType;
+    expect(comingUp.components.map((c: any) => c.type)).toEqual([T, T, X, T, X, R]);
+    expect(comingUp.components[1].content).toBe("🟡 **<t:1792026000:F>** · 19/20");
+    expect(comingUp.components[3].content).toBe("🟢 **<t:1792630800:F>** · 20/20");
+    const sections = comingUp.components.filter((c: any) => c.type === X);
+    // The blank line under the roles gives the button room and spaces the raids apart.
+    expect(sections[0].components[0].content).toBe("-# \u2800\u2003🛡️ 1/3\u2003➕ 3/5\u2003⚔️ 15/12\n\u2800\u2003");
     expect(sections.map((s: any) => s.accessory.custom_id)).toEqual([
       `attendance:btn:${TEAM_ID}:${raids[1]!.id}`,
       `attendance:btn:${TEAM_ID}:${raids[2]!.id}`,
@@ -369,7 +370,7 @@ describe("buildPublicMessage — Coming Up", () => {
   it("shows Coming Up dates as timestamps of each raid's moment, across DST", () => {
     // weeklyRaids keeps 8 PM Chicago; the Nov 4 raid is after DST ends, an hour later in UTC.
     const comingUp = containers(buildPublicMessage(team(), "Main Raid", weeklyRaids(5), ROSTER))[1];
-    expect(texts(comingUp).at(-1)).toMatch(/^🔴 \*\*<t:1793844000:s>\*\* · /);
+    expect(texts(comingUp).at(-2)).toMatch(/^🔴 \*\*<t:1793844000:F>\*\* · /);
   });
 
   it("uses the large dot app emojis for each raid's status when uploaded", async () => {
@@ -377,14 +378,14 @@ describe("buildPublicMessage — Coming Up", () => {
     const raids = weeklyRaids(3, (i) => ({ out: i === 2 ? ids(3) : [] }));
     const t = texts(containers(buildPublicMessage(team(), "Main Raid", raids, squad(25)))[1]);
     expect(t[1]).toMatch(/^<:dot_lg_green:9000> /);
-    expect(t[2]).toMatch(/^<:dot_lg_red:9001> .* · 22\/25/);
+    expect(t[3]).toMatch(/^<:dot_lg_red:9001> .* · 22\/25/);
   });
 
   it("shows a cancelled later raid as one line with no button", () => {
     const raids = weeklyRaids(3, (i) => ({ cancelled: i === 1 }));
     const p = buildPublicMessage(team(), "Main Raid", raids, ROSTER);
     const comingUp = containers(p)[1];
-    expect(comingUp.components[1]).toEqual({ type: ComponentType.TextDisplay, content: "🚫 **<t:1792026000:s>** · Cancelled" });
+    expect(comingUp.components[1]).toEqual({ type: ComponentType.TextDisplay, content: "🚫 **<t:1792026000:F>** · Cancelled" });
     expect(buttons(p).map((b) => b.custom_id.split(":")[3])).toEqual([raids[0]!.id, raids[2]!.id]);
   });
 
@@ -521,10 +522,10 @@ describe("buildCalendarMessage", () => {
     expect(texts(containers(p)[0])[0]).toBe("-# **MAIN RAID · YOUR SCHEDULE**\n-# Pick a date below to call out or switch back in.");
   });
 
-  it("shows each day as Coming Up does, then your own status", () => {
-    const [comingUp] = texts(containers(buildPublicMessage(team(), "Main Raid", weeklyRaids(2), ROSTER))[1]).slice(1);
+  it("shows each day as Coming Up does, with the short date beside its button, then your own status", () => {
+    const [head, roles] = texts(containers(buildPublicMessage(team(), "Main Raid", weeklyRaids(2), ROSTER))[1]).slice(1);
     const [day] = days(build(weeklyRaids(2).slice(1)));
-    expect(day).toBe(`${comingUp}\n-# ⠀\u2003✅ You're in`);
+    expect(day).toBe(`${head!.replace(":F>", ":s>")}\n${roles!.split("\n")[0]}\n-# ⠀\u2003✅ You're in`);
   });
 
   it.each([
@@ -735,8 +736,10 @@ describe("buildAttendanceMessage", () => {
     expect(header(p)).toBe(
       "-# **MAIN RAID · YOUR ATTENDANCE**\n## You're in for 2 of the next 4 raids\n-# Called out of 2. **Back in** switches you back.",
     );
-    const comingUp = texts(containers(buildPublicMessage(team(), "Main Raid", raids, ROSTER))[1]).slice(1);
-    expect(texts(containers(p)[0]).slice(1, 3)).toEqual([comingUp[0], comingUp[2]]);
+    expect(texts(containers(p)[0]).slice(1, 3)).toEqual([
+      "🔴 **<t:1792026000:s>** · 9/25\n-# \u2800\u2003🛡️ 2/3\u2003➕ 3/5\u2003⚔️ 4/17",
+      "🔴 **<t:1793235600:s>** · 9/25\n-# \u2800\u2003🛡️ 2/3\u2003➕ 3/5\u2003⚔️ 4/17",
+    ]);
     expect(buttons(p).map((b) => [b.label, b.custom_id])).toEqual([
       ["Back in", `attendance:in:${TEAM_ID}:${raids[1]!.id}`],
       ["Back in", `attendance:in:${TEAM_ID}:${raids[3]!.id}`],
