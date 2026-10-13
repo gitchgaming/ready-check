@@ -9,12 +9,14 @@ import {
   buildNoticeMessage,
   buildRaidRosterCard,
   confirmation,
+  timezoneTip,
   type Notice,
   type UndoView,
 } from "../lib/embeds.js";
 import { attendanceView, setOut } from "../lib/attendance.js";
 import { teamDisplayName } from "../lib/pickers.js";
 import { raidTime } from "../lib/time.js";
+import { userTimezone } from "../lib/userSettings.js";
 import { fetchRosterMembers } from "../lib/roster.js";
 import { personalCalendar, renderTeamMessage } from "../lib/scheduler.js";
 
@@ -136,7 +138,13 @@ async function applySelection(
     return;
   }
 
-  await interaction.reply(asEphemeral(buildNoticeMessage(confirmation(nowOut, instance.startsAt, teamId, instance.id, "s"))));
+  const tip = await statusReplyTip(interaction.user.id, instance.raidTeam.timezone);
+  await interaction.reply(asEphemeral(buildNoticeMessage(confirmation(nowOut, instance.startsAt, teamId, instance.id, "s"), tip)));
+}
+
+/** The /timezone pointer under a Status reply, only for raiders who haven't set a zone. */
+async function statusReplyTip(userId: string, teamZone: string): Promise<string | undefined> {
+  return (await userTimezone(userId)) ? undefined : timezoneTip(teamZone);
 }
 
 /**
@@ -157,7 +165,10 @@ async function undo(
   const raid = await prisma.raidInstance.findUnique({ where: { id: raidId }, include: { raidTeam: true } });
 
   const redraw = async (notice: Notice) => {
-    if (view === "s") await interaction.update(buildNoticeMessage(notice));
+    if (view === "s") {
+      const tip = raid && typeof notice !== "string" ? await statusReplyTip(userId, raid.raidTeam.timezone) : undefined;
+      await interaction.update(buildNoticeMessage(notice, tip));
+    }
     else if (view === "a" || view === "t") {
       await interaction.update(await attendanceView(guild, userId, notice, view === "t" ? teamId : undefined));
     }

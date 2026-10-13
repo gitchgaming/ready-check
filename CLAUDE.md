@@ -168,7 +168,9 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   timezone, so it uses the zone the viewer set with `/timezone` (`UserSetting`,
   `userTimezone`), else team time, always with the zone's short name
   (`formatRaidLabel`: `Tue, Oct 6 · 8:00 PM CDT`). The public message is
-  shared, so it holds no plain-text times at all. Weekly nights, which are rules, stay in
+  shared, so it holds no plain-text times at all, and its Status note stays
+  one line: the `/timezone` pointer goes under the private Status reply
+  (`timezoneTip`), only for raiders who haven't set a zone. Weekly nights, which are rules, stay in
   team time with the zone's generic name (`Central Time`), plus their next raid
   in the viewer's zone if they set one.
   Never the server clock, which is UTC.

@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { MessageFlags } from "discord.js";
 import { handleAttendanceControl, isAttendanceControl } from "../../src/interactions/attendanceControls.js";
+import { setUserTimezone } from "../../src/lib/userSettings.js";
 import { ROLE_ID, callOut, makeRaid, makeTeam, prisma } from "../db.js";
 import { fakeButton, fakeSelect, flattenComponents, payloadText, raider } from "../discord.js";
 import { isEphemeral, onlyReply, useDbAndClock, world } from "./world.js";
+
+/** Under a Status reply for someone who hasn't set a zone (the test team is on Central Time). */
+const TIP = "-# Menus and pickers show times in Central Time. Set yours with `/timezone`.";
 
 useDbAndClock();
 
@@ -48,7 +52,7 @@ describe("public date button", () => {
 
     const first = fakeButton(id, base);
     await handleAttendanceControl(first, client);
-    expect(onlyReply(first)).toBe("❌ You're out for **<t:1791334800:s>**.");
+    expect(onlyReply(first)).toBe("❌ You're out for **<t:1791334800:s>**.\n" + TIP);
     expect(buttonIds(first.replies[0])).toEqual([`attendance:undo:${team.id}:${raid.id}:in:s`]);
     expect(await isOut(raid.id)).toBe(true);
     expect(renders()).toBe(1);
@@ -56,10 +60,18 @@ describe("public date button", () => {
 
     const second = fakeButton(id, base);
     await handleAttendanceControl(second, client);
-    expect(onlyReply(second)).toBe("✅ You're back in for **<t:1791334800:s>**.");
+    expect(onlyReply(second)).toBe("✅ You're back in for **<t:1791334800:s>**.\n" + TIP);
     expect(buttonIds(second.replies[0])).toEqual([`attendance:undo:${team.id}:${raid.id}:out:s`]);
     expect(await isOut(raid.id)).toBe(false);
     expect(renders()).toBe(2);
+  });
+
+  it("leaves the /timezone tip off the reply once the raider has set a zone", async () => {
+    const { team, raid, client, base } = await setup();
+    await setUserTimezone("u-alice", "Europe/Berlin");
+    const click = fakeButton(`attendance:btn:${team.id}:${raid.id}`, base);
+    await handleAttendanceControl(click, client);
+    expect(onlyReply(click)).toBe("❌ You're out for **<t:1791334800:s>**.");
   });
 
   it("only touches the clicker's own call-out", async () => {
@@ -309,14 +321,14 @@ describe("Undo button", () => {
     await handleAttendanceControl(click, client);
     expect(await isOut(raid.id)).toBe(false);
     expect(click.replies).toEqual([]);
-    expect(payloadText(click.updates[0])).toBe("✅ You're back in for **<t:1791334800:s>**.");
+    expect(payloadText(click.updates[0])).toBe("✅ You're back in for **<t:1791334800:s>**.\n" + TIP);
     expect(buttonIds(click.updates[0])).toEqual([undoId(team.id, raid.id, "out", "s")]);
     expect(renders()).toBe(2);
 
     const again = fakeButton(undoId(team.id, raid.id, "out", "s"), base);
     await handleAttendanceControl(again, client);
     expect(await isOut(raid.id)).toBe(true);
-    expect(payloadText(again.updates[0])).toBe("❌ You're out for **<t:1791334800:s>**.");
+    expect(payloadText(again.updates[0])).toBe("❌ You're out for **<t:1791334800:s>**.\n" + TIP);
   });
 
   it("redraws /schedule at its offset and /attendance in place", async () => {
@@ -340,7 +352,7 @@ describe("Undo button", () => {
     const click = fakeButton(undoId(team.id, raid.id, "in", "s"), base);
     await handleAttendanceControl(click, client);
     expect(await isOut(raid.id)).toBe(false);
-    expect(payloadText(click.updates[0])).toBe("✅ You're back in for **<t:1791334800:s>**.");
+    expect(payloadText(click.updates[0])).toBe("✅ You're back in for **<t:1791334800:s>**.\n" + TIP);
     expect(renders()).toBe(0);
   });
 

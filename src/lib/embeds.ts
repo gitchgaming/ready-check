@@ -30,7 +30,7 @@ import {
 } from "./classes.js";
 import { appEmoji } from "./emojis.js";
 import { formatRaidLabel } from "./pickers.js";
-import { discordTime, raidTime } from "./time.js";
+import { discordTime, raidTime, zoneGenericName } from "./time.js";
 
 type InstanceWithAttendance = RaidInstance & { attendance: Attendance[] };
 
@@ -349,9 +349,17 @@ function noticeComponents(notice: Notice | undefined) {
   ];
 }
 
-/** A confirmation on its own, as the private reply to a Status click. */
-export function buildNoticeMessage(notice: Notice) {
-  return { flags: V2_FLAGS, components: noticeComponents(notice), allowedMentions: NO_PINGS };
+/**
+ * Under a Status reply, for raiders who haven't set a zone. The public post's times
+ * already follow each viewer; menus and pickers are plain text in team time.
+ */
+export function timezoneTip(teamZone: string): string {
+  return `-# Menus and pickers show times in ${zoneGenericName(teamZone)}. Set yours with \`/timezone\`.`;
+}
+
+/** A confirmation on its own, as the private reply to a Status click, with an optional `tip` under it. */
+export function buildNoticeMessage(notice: Notice, tip?: string) {
+  return { flags: V2_FLAGS, components: [...noticeComponents(notice), ...(tip ? [text(tip)] : [])], allowedMentions: NO_PINGS };
 }
 
 /** What the schedule post and /schedule say before a team has any raids. */
@@ -360,12 +368,10 @@ const NO_RAIDS_YET = "No raids to show here yet. Officers can add weekly raid ni
 const NO_MORE_RAIDS = "This team's final raid date has passed, so no more raids are scheduled.";
 
 /**
- * The text beside the Next Up Status button, then a pointer to /timezone, which
- * puts the times in pickers and dropdowns in the raider's own zone.
+ * The text beside the Next Up Status button. Kept to one short line; the /timezone
+ * pointer goes in the private Status reply instead (`timezoneTip`), for those who need it.
  */
-const STATUS_NOTE =
-  "-# Can't make it, or back in? **Status** toggles your attendance.\n" +
-  "-# Set your timezone with `/timezone` to see its times in yours.";
+const STATUS_NOTE = "-# Can't make it, or back in? **Status** toggles your attendance.";
 
 function statusButton(team: RaidTeam, instance: InstanceWithAttendance) {
   return new ButtonBuilder()
