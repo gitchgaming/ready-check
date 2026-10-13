@@ -7,6 +7,8 @@ on:
   push:
     branches: [main]
   workflow_call:
+  # The Release workflow runs it on each release commit it puts on production.
+  workflow_dispatch:
 
 permissions:
   contents: read

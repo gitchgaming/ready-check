@@ -131,9 +131,13 @@ Actions → **Release** → Run workflow (from `main`), pick `patch`, `minor`, o
 
 1. Re-runs CI on the exact `main` commit.
 2. Works out the next version from the latest `v*` tag and refuses if there's
-   nothing new, the tag exists, or `production` has commits that aren't on `main`.
-3. Tags the commit `vX.Y.Z` and fast-forwards `production` to it. Railway
-   deploys `production`.
+   nothing new, the tag exists, or `production` has commits that aren't on `main`
+   (other than earlier release commits).
+3. Makes a release commit: the `main` commit plus `release.json` holding the
+   version (with `production` as a second parent when it holds an earlier
+   release commit, so it only ever fast-forwards). Tags it `vX.Y.Z`,
+   fast-forwards `production` to it, and runs CI on it. Railway deploys
+   `production`.
 4. Publishes a GitHub Release with notes generated from the merged PRs: one
    line per PR title, grouped by `.github/release.yml` into "For raiders and
    officers" (PRs labelled `user-facing`) and "Behind the scenes". Fix a bad
@@ -147,9 +151,9 @@ Actions → **Release** → Run workflow (from `main`), pick `patch`, `minor`, o
    production project token). Boot logs show `prisma migrate deploy`
    applying any migrations, `Registered N commands globally`, then
    `Logged in as ready-check#2607`. The bot's status then shows the release
-   (e.g. `v0.1.0`): the build looks up the tag on the deployed commit
-   (`src/lib/release.ts`), and shows the short commit instead if that
-   failed. A failed command registration makes
+   (e.g. `v0.1.0`): the build reads it from the release commit's
+   `release.json` (`src/lib/release.ts`), with no network lookup. A commit
+   without one (a release from before v0.5.0) shows the short commit. A failed command registration makes
    Railway retry the boot.
 2. In the raid guild, check the schedule post looks right and a call-out
    button still toggles (press it twice to undo).
@@ -164,7 +168,8 @@ Version numbers ([SemVer](https://semver.org)) for a bot:
 - **patch** — fixes and visual tweaks.
 
 Git tags are the source of truth for the version; `package.json`'s `version`
-isn't bumped.
+isn't bumped. Each tag sits on its release commit, which only `production`
+carries, so `release.json` never appears on `main`.
 
 ## Hotfixes
 

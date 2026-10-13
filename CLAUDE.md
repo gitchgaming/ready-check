@@ -59,7 +59,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   `emojis.ts` (loads application emojis by name), `lanes.ts` (staging's
   main/branch lane and database choice), `railway.ts` (staging CLI helper),
   `backup.ts` (database backups to a Railway bucket), `release.ts`
-  (production's version, baked in at build from the release tag).
+  (production's version, baked in at build from the release commit's
+  `release.json`).
 - `src/prepare-db.ts` + `docker-start.sh` — the container boot; the other
   top-level `src/*.ts` files are the npm scripts' entry points.
 - `assets/emojis/` — images uploaded as application emojis by `deploy-emojis`.
@@ -252,8 +253,8 @@ testing is for look and feel only.
   comment line. `.claude/hooks/pr-attribution-guard.sh` blocks GitHub tool
   calls whose text has a bolded "Requested by" name.
 - Railway deploys the `production` branch, which only the **Release** workflow
-  (`.github/workflows/release.yml`: CI, tag `vX.Y.Z`, fast-forward
-  `production`, GitHub Release) and **Rollback** workflow move. Never push to
+  (`.github/workflows/release.yml`: CI, a release commit adding
+  `release.json`, tag `vX.Y.Z`, fast-forward `production`, GitHub Release) and **Rollback** workflow move. Never push to
   `production` by hand. Only release when the user asks.
 - The container (`docker-start.sh`) runs `prepare-db` (picks the database;
   a pass-through outside staging), `backup-before-deploy` (production only;
