@@ -22,8 +22,8 @@ export function discordTime(date: Date, style: TimestampStyle): string {
 /**
  * A raid's moment as message text, in the viewer's own timezone. Full ("Wednesday,
  * October 14, 2026 at 8:00 PM", the only style with a weekday) where a line has
- * room; short ("10/14/26, 8:00 PM") where it shares the line with a button or is a
- * heading, since the full style wraps there on a phone. Tapping either shows the full date.
+ * room; short ("10/14/26, 8:00 PM") where it shares the line with a button, since the
+ * full style wraps there on a phone. Tapping either shows the full date.
  */
 export function raidTime(date: Date, size: "full" | "short" = "full"): string {
   return discordTime(date, size === "full" ? "F" : "s");

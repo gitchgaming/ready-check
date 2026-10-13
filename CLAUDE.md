@@ -154,8 +154,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - Every date or time in message text is a Discord timestamp (`raidTime`
   in `time.ts`), so each viewer sees their own timezone: full (`F`, the only
   style with a weekday) where it has room, short (`s`, "10/14/26, 8:00 PM")
-  wherever it would wrap on a phone: headings and lines beside a button
-  (Next Up, Coming Up, `/schedule` days, confirmations). Tapping one shows
+  wherever it would wrap on a phone beside a button (Coming Up, `/schedule`
+  days, confirmations). The Next Up heading keeps the full style. Tapping a short one shows
   the full date. Plain text Discord shows as is (autocomplete choices, select options) uses team
   time with its zone (`formatRaidLabel`: `Tue, Oct 6 · 8:00 PM CDT`); weekly
   nights, which are rules, carry the zone's generic name (`Central Time`).

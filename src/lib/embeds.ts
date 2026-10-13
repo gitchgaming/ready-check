@@ -387,7 +387,7 @@ function raidCard(
   { label, withButton }: RaidCardOptions,
 ) {
   const header = text(
-    `-# **${teamName.toUpperCase()} · ${label}**\n## ${raidTime(instance.startsAt, "short")}\n-# ${discordTime(instance.startsAt, "R")}`,
+    `-# **${teamName.toUpperCase()} · ${label}**\n## ${raidTime(instance.startsAt)}\n-# ${discordTime(instance.startsAt, "R")}`,
   );
 
   if (instance.cancelled) {

@@ -182,7 +182,7 @@ exports[`snapshots > public message 1`] = `
       "components": [
         {
           "content": "-# **MAIN RAID · NEXT UP**
-## <t:1791421200:s>
+## <t:1791421200:F>
 -# <t:1791421200:R>",
           "type": 10,
         },
@@ -347,7 +347,7 @@ exports[`snapshots > raid roster card 1`] = `
       "components": [
         {
           "content": "-# **MAIN RAID · ROSTER**
-## <t:1791421200:s>
+## <t:1791421200:F>
 -# <t:1791421200:R>",
           "type": 10,
         },
