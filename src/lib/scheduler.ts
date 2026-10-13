@@ -37,19 +37,45 @@ export function nextOccurrences(
   return results;
 }
 
+/**
+ * The first moment after a team's final raid date: the next midnight in team time.
+ * Raids starting at or after it are never generated and are removed while open.
+ * Null when the team has no final raid date.
+ */
+export function scheduleCutoff(team: Pick<RaidTeam, "finalRaidDate" | "timezone">): DateTime | null {
+  if (!team.finalRaidDate) return null;
+  const day = DateTime.fromISO(team.finalRaidDate, { zone: team.timezone });
+  return day.isValid ? day.plus({ days: 1 }).startOf("day") : null;
+}
+
+/** The team's final raid date as plain text, in team time: `Tuesday, Oct 27, 2026`. */
+export function formatFinalRaidDate(team: Pick<RaidTeam, "finalRaidDate">): string | null {
+  if (!team.finalRaidDate) return null;
+  return DateTime.fromISO(team.finalRaidDate).setLocale("en-US").toFormat("cccc, MMM d, yyyy");
+}
+
 /** Ensures enough future raid instances exist, closes out expired ones, and re-renders the team's message. */
 export async function syncRaidTeam(client: Client, teamId: string): Promise<void> {
   const team = await prisma.raidTeam.findUnique({ where: { id: teamId }, include: { slots: true } });
   if (!team) return;
 
   const generateCount = Math.max(MIN_FUTURE_GENERATE_COUNT, team.displayCount + 1);
+  const cutoff = scheduleCutoff(team);
+
+  // Nothing runs after the final raid date: open raids past it go (their call-outs
+  // cascade), and none are generated. Closed raids stay as attendance history.
+  if (cutoff) {
+    await prisma.raidInstance.deleteMany({
+      where: { raidTeamId: team.id, closed: false, startsAt: { gte: cutoff.toJSDate() } },
+    });
+  }
 
   if (team.slots.length > 0) {
     const candidates = team.slots.flatMap((slot) =>
       nextOccurrences(slot.dayOfWeek, slot.hour, slot.minute, team.timezone, generateCount),
     );
     candidates.sort((a, b) => a.toMillis() - b.toMillis());
-    const chosen = candidates.slice(0, generateCount);
+    const chosen = candidates.slice(0, generateCount).filter((startsAt) => !cutoff || startsAt < cutoff);
 
     for (const startsAt of chosen) {
       await prisma.raidInstance.upsert({
@@ -60,9 +86,9 @@ export async function syncRaidTeam(client: Client, teamId: string): Promise<void
     }
   }
 
-  const cutoff = DateTime.now().minus({ hours: CLOSE_GRACE_HOURS }).toJSDate();
+  const closeBefore = DateTime.now().minus({ hours: CLOSE_GRACE_HOURS }).toJSDate();
   await prisma.raidInstance.updateMany({
-    where: { raidTeamId: team.id, closed: false, startsAt: { lt: cutoff } },
+    where: { raidTeamId: team.id, closed: false, startsAt: { lt: closeBefore } },
     data: { closed: true },
   });
 

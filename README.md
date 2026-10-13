@@ -77,6 +77,14 @@ Every subcommand takes the team's `role:` first.
   Changing the channel moves the schedule message.
 - `publish` — post the schedule message in the current channel, replacing
   the old one. Use it if the message was deleted.
+- `final-raid date:` — end the team after this day (in team time): raids
+  after it are removed along with their call-outs, and no new raids are
+  scheduled past it, so the weekly nights stop. Past raids and their
+  attendance stay. The picker lists the days of upcoming raids, or type any
+  date like `3/15/2027`. Run it again to move the date; `raid add` refuses
+  dates after it.
+- `resume` — clear the final raid date, so the weekly nights schedule raids
+  again. Call-outs on raids it removed don't come back.
 - `delete` — permanently delete the team after a confirmation: its weekly
   nights, raids, call-outs, and its schedule message. The Discord
   role is left alone.

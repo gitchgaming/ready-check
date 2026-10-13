@@ -33,6 +33,10 @@ model RaidTeam {
   // Players the raid is built for (20 or 25, the `size` option). Sets each
   // role's targets and the attendance bar's colors (RAID_SIZES in classes.ts).
   raidSize Int @default(25)
+  // The team's last raid day ("yyyy-MM-dd" in team time), set with
+  // /raidlead team final-raid. Nothing is generated after it and the sync removes
+  // open raids after it; closed raids keep their attendance as history.
+  finalRaidDate String?
 
   slots     RaidSlot[]
   instances RaidInstance[]

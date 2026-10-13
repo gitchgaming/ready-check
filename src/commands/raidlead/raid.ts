@@ -3,7 +3,7 @@ import { MessageFlags } from "discord.js";
 import { DateTime } from "luxon";
 import { prisma } from "../../lib/db.js";
 import { formatRaidLabel, parseTypedDate } from "../../lib/pickers.js";
-import { renderTeamMessage } from "../../lib/scheduler.js";
+import { formatFinalRaidDate, renderTeamMessage, scheduleCutoff } from "../../lib/scheduler.js";
 import { parseHourMinute, raidTime } from "../../lib/time.js";
 import { requireTeam } from "./shared.js";
 
@@ -102,6 +102,17 @@ export async function add(interaction: ChatInputCommandInteraction, client: Clie
   const startsAt = day.set(time);
   if (startsAt <= DateTime.now()) {
     await interaction.reply({ content: "That time has already passed.", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  const cutoff = scheduleCutoff(team);
+  if (cutoff && startsAt >= cutoff) {
+    await interaction.reply({
+      content:
+        `That's after the team's final raid date, ${formatFinalRaidDate(team)}. ` +
+        "Move it with `/raidlead team final-raid`, or clear it with `/raidlead team resume`.",
+      flags: MessageFlags.Ephemeral,
+    });
     return;
   }
 
