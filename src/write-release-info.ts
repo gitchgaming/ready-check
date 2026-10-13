@@ -1,20 +1,15 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { lookUpReleaseTag, RELEASE_INFO_PATH, type ReleaseInfo } from "./lib/release.js";
+import { RELEASE_INFO_PATH, readReleaseVersion, type ReleaseInfo } from "./lib/release.js";
 
 // Runs in the Docker build (see Dockerfile) with Railway's git build variables.
-// Writes nothing outside a Railway GitHub deploy (local builds, `railway up`);
-// when GitHub can't be reached it records the commit alone, so the bot still
-// shows something.
+// Writes nothing outside a Railway GitHub deploy (local builds, `railway up`).
+// The version comes from the checkout's release.json, so no network is needed;
+// a commit without one (an old release, a rollback to one) shows the commit.
 const commit = process.env.RAILWAY_GIT_COMMIT_SHA;
-const owner = process.env.RAILWAY_GIT_REPO_OWNER;
-const repo = process.env.RAILWAY_GIT_REPO_NAME;
 
-if (commit && owner && repo) {
-  const version = await lookUpReleaseTag(`${owner}/${repo}`, commit).catch((err) => {
-    console.warn(`Couldn't look up the release tag: ${err}`);
-    return null;
-  });
+if (commit) {
+  const version = readReleaseVersion();
   const info: ReleaseInfo = { version, commit };
   mkdirSync(dirname(RELEASE_INFO_PATH), { recursive: true });
   writeFileSync(RELEASE_INFO_PATH, JSON.stringify(info));

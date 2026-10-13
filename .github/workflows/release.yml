@@ -1,6 +1,7 @@
-# Cut a release from main: run CI on the commit, tag it vX.Y.Z, fast-forward
-# `production` to it (Railway deploys that branch), and publish a GitHub
-# Release with notes generated from the merged PRs.
+# Cut a release from main: run CI on the commit, add release.json with the
+# version, tag that commit vX.Y.Z, fast-forward `production` to it (Railway
+# deploys that branch), and publish a GitHub Release with notes generated
+# from the merged PRs.
 #
 # Run it from Actions → Release → Run workflow, with "Use workflow from" = main.
 name: Release
@@ -31,6 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
     steps:
       # The exact commit CI just checked, with all tags and branches.
       - uses: actions/checkout@v5
@@ -68,24 +70,56 @@ jobs:
           echo "tag=v$next" >> "$GITHUB_OUTPUT"
           echo "Releasing v$next (previous: ${latest:-none})"
 
-      # production must only ever move forward along main. If someone pushed
-      # to it directly, stop rather than overwrite their commit.
+      # production must only ever move forward along main, plus the release
+      # commits this workflow adds (each only writes release.json). If someone
+      # pushed anything else to it, stop rather than overwrite their commit.
       - name: Check production can fast-forward
         run: |
-          if ! git merge-base --is-ancestor origin/production HEAD; then
-            echo "::error::origin/production has commits that are not on main. Merge them into main first."
-            exit 1
-          fi
+          for c in $(git rev-list HEAD..origin/production); do
+            changed=$(git diff --name-only "$c^1" "$c")
+            if [ "$changed" != "release.json" ]; then
+              echo "::error::origin/production has commit $c that is not on main. Merge it into main first."
+              exit 1
+            fi
+          done
 
-      - name: Tag and promote to production
+      # Bake the version into the commit Railway builds, so the bot's status
+      # needs no GitHub lookup (src/lib/release.ts). The release commit is the
+      # CI-checked main commit plus release.json; it also has production as a
+      # parent when production holds an earlier release commit, so production
+      # always fast-forwards. The tag goes on it, so a rollback keeps it too.
+      - name: Make the release commit
+        id: commit
         env:
           TAG: ${{ steps.version.outputs.tag }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$TAG" -m "$TAG"
+          printf '{ "version": "%s" }\n' "$TAG" > release.json
+          git add release.json
+          parents=(-p HEAD)
+          if ! git merge-base --is-ancestor origin/production HEAD; then
+            parents+=(-p origin/production)
+          fi
+          sha=$(git commit-tree "$(git write-tree)" "${parents[@]}" -m "Release $TAG")
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Tag and promote to production
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          SHA: ${{ steps.commit.outputs.sha }}
+        run: |
+          git tag -a "$TAG" -m "$TAG" "$SHA"
           git push origin "refs/tags/$TAG"
-          git push origin HEAD:refs/heads/production
+          git push origin "$SHA:refs/heads/production"
+
+      # Pushes made with the workflow's token start no workflows, so run CI on
+      # the release commit by hand: Railway's Wait for CI then has a run on the
+      # exact commit it deploys.
+      - name: Run CI on the release commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ci.yml --ref production
 
       - name: Publish the GitHub Release
         env:
