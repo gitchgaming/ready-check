@@ -186,7 +186,7 @@ describe("buildPublicMessage — Next Up", () => {
       "",
       "-# **DAMAGE · 3**",
       "**Warrior** `Cleave`",
-      "**Paladin** `Alpha` `Zed`",
+      "**Paladin** `Alpha` · `Zed`",
     ]);
   });
 
@@ -211,7 +211,7 @@ describe("buildPublicMessage — Next Up", () => {
     expect(lines).toContain("-# **TANKS · 1**");
     expect(lines).toContain("**Warrior** `Main`");
     expect(lines.at(-1)).toBe(
-      "**Warrior** <:mark_offtank:9000><:mark_offheal:9001>`Both` <:mark_offtank:9000>`Wall` <:mark_offheal:9001>`Heals` `Axe`",
+      "**Warrior** <:mark_offtank:9000><:mark_offheal:9001>`Both` · <:mark_offtank:9000>`Wall` · <:mark_offheal:9001>`Heals` · `Axe`",
     );
   });
 
@@ -242,7 +242,7 @@ describe("buildPublicMessage — Next Up", () => {
     expect(t[3]).not.toMatch(/Tankalot|Axe|Zap|Newbie|Mendy/);
     expect(t[4]!.split("\n")).toEqual([
       "-# **CALLED OUT · 5**",
-      "<:warrior:9000> `Tankalot` `Axe`",
+      "<:warrior:9000> `Tankalot` · `Axe`",
       "**Priest** `Mendy`",
       "**Mage** `Zap`",
       "`Newbie`",
