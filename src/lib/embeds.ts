@@ -358,8 +358,13 @@ const NO_RAIDS_YET = "No raids to show here yet. Officers can add weekly raid ni
 /** After a team's final raid date, nothing more is scheduled. */
 const NO_MORE_RAIDS = "This team's final raid date has passed, so no more raids are scheduled.";
 
-/** The text beside the Next Up Status button. */
-const STATUS_NOTE = "-# Can't make it, or back in? **Status** toggles your attendance.";
+/**
+ * The text beside the Next Up Status button, then a pointer to /timezone, which
+ * puts the times in pickers and dropdowns in the raider's own zone.
+ */
+const STATUS_NOTE =
+  "-# Can't make it, or back in? **Status** toggles your attendance.\n" +
+  "-# Set your timezone with `/timezone` to see its times in yours.";
 
 function statusButton(team: RaidTeam, instance: InstanceWithAttendance) {
   return new ButtonBuilder()
