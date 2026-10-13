@@ -6,15 +6,18 @@ import {
   MORE_DATES_VALUE,
   ROSTER_VALUE_PREFIX,
   asEphemeral,
+  buildHowItWorksMessage,
   buildNoticeMessage,
   buildRaidRosterCard,
   confirmation,
+  timezoneTip,
   type Notice,
   type UndoView,
 } from "../lib/embeds.js";
 import { attendanceView, setOut } from "../lib/attendance.js";
 import { teamDisplayName } from "../lib/pickers.js";
 import { raidTime } from "../lib/time.js";
+import { userTimezone } from "../lib/userSettings.js";
 import { fetchRosterMembers } from "../lib/roster.js";
 import { personalCalendar, renderTeamMessage } from "../lib/scheduler.js";
 
@@ -24,6 +27,7 @@ type AttendanceInteraction = ButtonInteraction | StringSelectMenuInteraction;
  * customId shape:
  *   "attendance:btn:<raidTeamId>:<raidInstanceId>" — a date button on the public message
  *   "attendance:pub:<raidTeamId>"                  — the "See more dates" select on the public message
+ *   "attendance:help:<raidTeamId>"                 — Next Up's "How it works" select (the /howitworks guide)
  *   "attendance:cal:<raidTeamId>:<offset>"         — the date select on a personal schedule
  *   "attendance:ros:<raidTeamId>:<raidInstanceId>" — a Roster button on a personal schedule
  *   "attendance:in:<raidTeamId>:<raidInstanceId>[:t]" — a Back in button on /attendance
@@ -44,6 +48,14 @@ export function isAttendanceControl(customId: string): boolean {
 export async function handleAttendanceControl(interaction: AttendanceInteraction, client: Client): Promise<void> {
   const [, source, teamId, extra] = interaction.customId.split(":");
   if (!teamId || !interaction.guild) return;
+  if (source === "help") {
+    try {
+      await interaction.reply(asEphemeral(buildHowItWorksMessage()));
+    } finally {
+      await renderTeamMessage(client, teamId); // clears the select so it can be picked again
+    }
+    return;
+  }
   if (source === "ros") {
     if (extra) await showRoster(interaction, teamId, extra);
     return;
@@ -136,7 +148,13 @@ async function applySelection(
     return;
   }
 
-  await interaction.reply(asEphemeral(buildNoticeMessage(confirmation(nowOut, instance.startsAt, teamId, instance.id, "s"))));
+  const tip = await statusReplyTip(interaction.user.id, instance.raidTeam.timezone);
+  await interaction.reply(asEphemeral(buildNoticeMessage(confirmation(nowOut, instance.startsAt, teamId, instance.id, "s"), tip)));
+}
+
+/** The /timezone pointer under a Status reply, only for raiders who haven't set a zone. */
+async function statusReplyTip(userId: string, teamZone: string): Promise<string | undefined> {
+  return (await userTimezone(userId)) ? undefined : timezoneTip(teamZone);
 }
 
 /**
@@ -157,7 +175,10 @@ async function undo(
   const raid = await prisma.raidInstance.findUnique({ where: { id: raidId }, include: { raidTeam: true } });
 
   const redraw = async (notice: Notice) => {
-    if (view === "s") await interaction.update(buildNoticeMessage(notice));
+    if (view === "s") {
+      const tip = raid && typeof notice !== "string" ? await statusReplyTip(userId, raid.raidTeam.timezone) : undefined;
+      await interaction.update(buildNoticeMessage(notice, tip));
+    }
     else if (view === "a" || view === "t") {
       await interaction.update(await attendanceView(guild, userId, notice, view === "t" ? teamId : undefined));
     }

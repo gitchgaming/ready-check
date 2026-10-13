@@ -30,7 +30,7 @@ import {
 } from "./classes.js";
 import { appEmoji } from "./emojis.js";
 import { formatRaidLabel } from "./pickers.js";
-import { discordTime, raidTime } from "./time.js";
+import { discordTime, raidTime, zoneGenericName } from "./time.js";
 
 type InstanceWithAttendance = RaidInstance & { attendance: Attendance[] };
 
@@ -44,6 +44,9 @@ export const MAX_SELECT_OPTIONS = 25;
 
 /** Select value on the public message that opens the personal full schedule. */
 export const MORE_DATES_VALUE = "more";
+
+/** The one option of Next Up's "How it works" select: "attendance:help:<teamId>". */
+export const HOW_IT_WORKS_VALUE = "guide";
 
 /** Select values on the public message that privately show one raid's roster: "roster:<raidId>". */
 export const ROSTER_VALUE_PREFIX = "roster:";
@@ -349,9 +352,17 @@ function noticeComponents(notice: Notice | undefined) {
   ];
 }
 
-/** A confirmation on its own, as the private reply to a Status click. */
-export function buildNoticeMessage(notice: Notice) {
-  return { flags: V2_FLAGS, components: noticeComponents(notice), allowedMentions: NO_PINGS };
+/**
+ * Under a Status reply, for raiders who haven't set a zone. The public post's times
+ * already follow each viewer; menus and pickers are plain text in team time.
+ */
+export function timezoneTip(teamZone: string): string {
+  return `-# Menus and pickers show times in ${zoneGenericName(teamZone)}. Set yours with \`/timezone\`.`;
+}
+
+/** A confirmation on its own, as the private reply to a Status click, with an optional `tip` under it. */
+export function buildNoticeMessage(notice: Notice, tip?: string) {
+  return { flags: V2_FLAGS, components: [...noticeComponents(notice), ...(tip ? [text(tip)] : [])], allowedMentions: NO_PINGS };
 }
 
 /** What the schedule post and /schedule say before a team has any raids. */
@@ -360,12 +371,10 @@ const NO_RAIDS_YET = "No raids to show here yet. Officers can add weekly raid ni
 const NO_MORE_RAIDS = "This team's final raid date has passed, so no more raids are scheduled.";
 
 /**
- * The text beside the Next Up Status button, then a pointer to /timezone, which
- * puts the times in pickers and dropdowns in the raider's own zone.
+ * The text beside the Next Up Status button. Kept to one short line; the /timezone
+ * pointer goes in the private Status reply instead (`timezoneTip`), for those who need it.
  */
-const STATUS_NOTE =
-  "-# Can't make it, or back in? **Status** toggles your attendance.\n" +
-  "-# Set your timezone with `/timezone` to see its times in yours.";
+const STATUS_NOTE = "-# Can't make it, or back in? **Status** toggles your attendance.";
 
 function statusButton(team: RaidTeam, instance: InstanceWithAttendance) {
   return new ButtonBuilder()
@@ -431,7 +440,61 @@ function raidCard(
       new SectionBuilder()
         .addTextDisplayComponents(text(STATUS_NOTE))
         .setButtonAccessory(statusButton(team, instance)),
+    )
+    .addActionRowComponents(howItWorksRow(team));
+}
+
+/**
+ * Next Up's last row: a select whose one option privately shows the guide
+ * (as /howitworks does). Its own select, so Coming Up's "See more dates" stays the
+ * only thing in that one.
+ */
+function howItWorksRow(team: RaidTeam) {
+  return selectRow(
+    new StringSelectMenuBuilder()
+      .setCustomId(`attendance:help:${team.id}`)
+      .setPlaceholder("💡 How it works…")
+      .addOptions({
+        label: "How it works",
+        description: "The basics: calling out, your schedule, and every command",
+        value: HOW_IT_WORKS_VALUE,
+        emoji: "💡",
+      }),
+  );
+}
+
+/** The short guide to the bot, from Next Up's "How it works" select or /howitworks; always sent with asEphemeral. */
+export function buildHowItWorksMessage() {
+  const guide = new ContainerBuilder()
+    .setAccentColor(0x5865f2)
+    .addTextDisplayComponents(
+      text(
+        "-# **READY CHECK · HOW IT WORKS**\n" +
+          "## You're in unless you call out\n" +
+          "Everyone with a raid team's role is on the roster for every raid. When you can't make one, call out, and switch back in if plans change.",
+      ),
+    )
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+    .addTextDisplayComponents(
+      text(
+        "-# **ON THE SCHEDULE POST**\n" +
+          "**Status ⇄** on any raid switches you out, or back in. Only you see the confirmation, and its **Undo** button switches it back.\n" +
+          "**See more dates** opens your own schedule, further ahead, with each raid's roster.",
+      ),
+      text(
+        "-# **COMMANDS** · only you see the replies\n" +
+          "`/attendance` your call-outs; add `date:` to call out of one raid\n" +
+          "`/schedule` every upcoming raid, with whether you're in\n" +
+          "`/roster` who's coming, for one raid or your whole team\n" +
+          "`/timezone` show times in menus and pickers in your zone\n" +
+          "`/howitworks` this guide",
+      ),
+      text(
+        "-# Times in messages already show in your own timezone. Menus and pickers can't, so they use the one you set with `/timezone`, or else the team's.\n" +
+          "-# Officers set up teams and raid nights with `/raidlead`.",
+      ),
     );
+  return { flags: V2_FLAGS, components: [guide], allowedMentions: NO_PINGS };
 }
 
 /**

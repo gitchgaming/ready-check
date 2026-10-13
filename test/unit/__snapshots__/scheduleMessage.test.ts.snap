@@ -231,12 +231,33 @@ exports[`snapshots > public message 1`] = `
           },
           "components": [
             {
-              "content": "-# Can't make it, or back in? **Status** toggles your attendance.
--# Set your timezone with \`/timezone\` to see its times in yours.",
+              "content": "-# Can't make it, or back in? **Status** toggles your attendance.",
               "type": 10,
             },
           ],
           "type": 9,
+        },
+        {
+          "components": [
+            {
+              "custom_id": "attendance:help:c00000000000000000000team",
+              "options": [
+                {
+                  "description": "The basics: calling out, your schedule, and every command",
+                  "emoji": {
+                    "animated": false,
+                    "id": undefined,
+                    "name": "💡",
+                  },
+                  "label": "How it works",
+                  "value": "guide",
+                },
+              ],
+              "placeholder": "💡 How it works…",
+              "type": 3,
+            },
+          ],
+          "type": 1,
         },
       ],
       "type": 17,

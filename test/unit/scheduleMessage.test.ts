@@ -277,16 +277,26 @@ describe("buildPublicMessage — Next Up", () => {
   it("ends with the Status ⇄ button for the next raid, on its own line as a section accessory", () => {
     const [first] = weeklyRaids(1);
     const card = nextUp(buildPublicMessage(team(), "Main Raid", [first!], ROSTER));
-    const last = card.components.at(-1);
+    const last = card.components.at(-2);
     expect(last.type).toBe(ComponentType.Section);
     expect(last.components[0].content).toContain("**Status** toggles your attendance");
-    expect(last.components[0].content).toContain("\n-# Set your timezone with `/timezone` to see its times in yours.");
+    expect(last.components[0].content).not.toContain("\n"); // one line; the /timezone tip is in the private Status reply
     expect(last.accessory).toEqual({
       type: ComponentType.Button,
       custom_id: `attendance:btn:${TEAM_ID}:${first!.id}`,
       label: "Status ⇄",
       style: ButtonStyle.Secondary,
     });
+  });
+
+  it("closes with a How it works select under the Status button, apart from Coming Up's See more dates", () => {
+    const card = nextUp(buildPublicMessage(team(), "Main Raid", weeklyRaids(1), ROSTER));
+    const row = card.components.at(-1);
+    expect(row.type).toBe(ComponentType.ActionRow);
+    const select = row.components[0];
+    expect(select.custom_id).toBe(`attendance:help:${TEAM_ID}`);
+    expect(select.placeholder).toBe("💡 How it works…");
+    expect(select.options.map((o: any) => o.value)).toEqual(["guide"]);
   });
 
   it("separates the summary from the roster with a divider", () => {
@@ -298,6 +308,7 @@ describe("buildPublicMessage — Next Up", () => {
       ComponentType.Separator,
       ComponentType.TextDisplay,
       ComponentType.Section,
+      ComponentType.ActionRow,
     ]);
   });
 
