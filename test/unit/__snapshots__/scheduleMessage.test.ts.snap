@@ -237,6 +237,28 @@ exports[`snapshots > public message 1`] = `
           ],
           "type": 9,
         },
+        {
+          "components": [
+            {
+              "custom_id": "attendance:help:c00000000000000000000team",
+              "options": [
+                {
+                  "description": "The basics: calling out, your schedule, and every command",
+                  "emoji": {
+                    "animated": false,
+                    "id": undefined,
+                    "name": "💡",
+                  },
+                  "label": "How it works",
+                  "value": "guide",
+                },
+              ],
+              "placeholder": "💡 How it works…",
+              "type": 3,
+            },
+          ],
+          "type": 1,
+        },
       ],
       "type": 17,
     },

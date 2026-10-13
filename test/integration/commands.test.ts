@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MessageFlags } from "discord.js";
 import * as attendance from "../../src/commands/attendance.js";
+import * as howitworks from "../../src/commands/howitworks.js";
 import * as raidlead from "../../src/commands/raidlead/index.js";
 import * as roster from "../../src/commands/roster.js";
 import * as schedule from "../../src/commands/schedule.js";
@@ -148,6 +149,20 @@ describe("/attendance", () => {
     const run = fakeChatInput({ commandName: "attendance", guild: null, userId: "u-alice", options: { date: "x" } });
     await attendance.execute(run, client);
     expect(run.replies).toEqual([{ content: "This command only works in a server.", flags: MessageFlags.Ephemeral }]);
+  });
+});
+
+describe("/howitworks", () => {
+  it("privately shows the same guide as Next Up's How it works select, listing every raider command", async () => {
+    const { guild, client } = await twoTeams();
+    const run = fakeChatInput({ commandName: "howitworks", guild, userId: "u-alice" });
+    await howitworks.execute(run, client);
+    const reply = run.replies[0];
+    expect(isEphemeral(reply)).toBe(true);
+    expect(reply.flags).toContain(MessageFlags.IsComponentsV2);
+    const text = payloadText(reply);
+    expect(text).toContain("**READY CHECK · HOW IT WORKS**");
+    for (const cmd of ["/attendance", "/schedule", "/roster", "/timezone", "/howitworks"]) expect(text).toContain(`\`${cmd}\``);
   });
 });
 

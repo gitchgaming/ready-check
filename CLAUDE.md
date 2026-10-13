@@ -33,13 +33,15 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 ## Layout
 
 - `src/commands/` — `attendance` (call-outs; toggles with a date), `schedule`, `roster` (read-only; raider),
-  `timezone` (a raider's own zone, `src/lib/userSettings.ts`), and
+  `timezone` (a raider's own zone, `src/lib/userSettings.ts`), `howitworks`
+  (the guide, `buildHowItWorksMessage`), and
   `raidlead/` (officer): `index.ts` builds the command and routes by
   "group sub" key; `team.ts`, `nights.ts`, `raid.ts` hold the handlers.
 - `src/interactions/` — `router.ts` (routes every interaction by command name
   or customId prefix; `index.ts` only sets up the client), then the select and
   button handlers. State lives in the customId:
   `attendance:btn:<teamId>:<raidId>` (public date buttons),
+  `attendance:help:<teamId>` (Next Up's "How it works" select, value `guide`),
   `attendance:pub:<teamId>` (public "See more dates" select, value `more`;
   `roster:<raidId>` from posts drawn before its roster options were dropped),
   `attendance:cal:<teamId>:<offset>` (personal date select, value is a raid id),
@@ -108,7 +110,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - Schedule messages use Components V2. The public one (design 9a) is two
   containers: **Next Up** (next raid: attendance bar, role summary, attending
   roster in Tanks/Healers/Damage sections (small-text headings, then one
-  normal-size line per class with names as inline-code chips), Called Out block, one Status ⇄ button on its own line;
+  normal-size line per class with names as inline-code chips), Called Out block, one Status ⇄ button on its own line,
+  then a "How it works" select (`attendance:help:<teamId>`) whose one option privately shows the `/howitworks` guide;
   accent = raid status) and
   **Coming Up** (one section per later raid with its own button, then the
   "See more dates" select). The personal view (`buildCalendarMessage`) is one

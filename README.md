@@ -64,6 +64,10 @@ All dates are picked from a list of your team's actual raids.
   device). Without a zone it shows your current one; pick **Use each team's
   timezone** to clear it. The reply says what time it is there now, so a wrong
   pick is easy to spot. It applies on every server and team.
+- `/howitworks` — only you see it. A short guide to the bot: you're in unless
+  you call out, what the schedule post's buttons do, and every raider command.
+  The schedule post's **How it works** menu, under Next Up's Status button,
+  shows the same guide.
 
 ## Officer commands (`/raidlead`)
 

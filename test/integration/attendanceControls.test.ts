@@ -155,6 +155,21 @@ describe('public "See more dates" select', () => {
   });
 });
 
+describe('Next Up "How it works" select', () => {
+  it("privately shows the guide, changes nothing, and resets the public select", async () => {
+    const { team, raid, client, base, renders } = await setup();
+    const pick = fakeSelect(`attendance:help:${team.id}`, ["guide"], base);
+    await handleAttendanceControl(pick, client);
+
+    expect(pick.replies).toHaveLength(1);
+    expect(isEphemeral(pick.replies[0])).toBe(true);
+    expect(pick.replies[0].flags).toContain(MessageFlags.IsComponentsV2);
+    expect(payloadText(pick.replies[0])).toContain("HOW IT WORKS");
+    expect(await isOut(raid.id)).toBe(false);
+    expect(renders()).toBe(1);
+  });
+});
+
 describe("public roster shortcut", () => {
   it("privately shows that raid's roster card and resets the public select", async () => {
     const { team, raid, client, base, renders } = await setup();

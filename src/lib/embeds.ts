@@ -45,6 +45,9 @@ export const MAX_SELECT_OPTIONS = 25;
 /** Select value on the public message that opens the personal full schedule. */
 export const MORE_DATES_VALUE = "more";
 
+/** The one option of Next Up's "How it works" select: "attendance:help:<teamId>". */
+export const HOW_IT_WORKS_VALUE = "guide";
+
 /** Select values on the public message that privately show one raid's roster: "roster:<raidId>". */
 export const ROSTER_VALUE_PREFIX = "roster:";
 
@@ -437,7 +440,61 @@ function raidCard(
       new SectionBuilder()
         .addTextDisplayComponents(text(STATUS_NOTE))
         .setButtonAccessory(statusButton(team, instance)),
+    )
+    .addActionRowComponents(howItWorksRow(team));
+}
+
+/**
+ * Next Up's last row: a select whose one option privately shows the guide
+ * (as /howitworks does). Its own select, so Coming Up's "See more dates" stays the
+ * only thing in that one.
+ */
+function howItWorksRow(team: RaidTeam) {
+  return selectRow(
+    new StringSelectMenuBuilder()
+      .setCustomId(`attendance:help:${team.id}`)
+      .setPlaceholder("💡 How it works…")
+      .addOptions({
+        label: "How it works",
+        description: "The basics: calling out, your schedule, and every command",
+        value: HOW_IT_WORKS_VALUE,
+        emoji: "💡",
+      }),
+  );
+}
+
+/** The short guide to the bot, from Next Up's "How it works" select or /howitworks; always sent with asEphemeral. */
+export function buildHowItWorksMessage() {
+  const guide = new ContainerBuilder()
+    .setAccentColor(0x5865f2)
+    .addTextDisplayComponents(
+      text(
+        "-# **READY CHECK · HOW IT WORKS**\n" +
+          "## You're in unless you call out\n" +
+          "Everyone with a raid team's role is on the roster for every raid. When you can't make one, call out, and switch back in if plans change.",
+      ),
+    )
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+    .addTextDisplayComponents(
+      text(
+        "-# **ON THE SCHEDULE POST**\n" +
+          "**Status ⇄** on any raid switches you out, or back in. Only you see the confirmation, and its **Undo** button switches it back.\n" +
+          "**See more dates** opens your own schedule, further ahead, with each raid's roster.",
+      ),
+      text(
+        "-# **COMMANDS** · only you see the replies\n" +
+          "`/attendance` your call-outs; add `date:` to call out of one raid\n" +
+          "`/schedule` every upcoming raid, with whether you're in\n" +
+          "`/roster` who's coming, for one raid or your whole team\n" +
+          "`/timezone` show times in menus and pickers in your zone\n" +
+          "`/howitworks` this guide",
+      ),
+      text(
+        "-# Times in messages already show in your own timezone. Menus and pickers can't, so they use the one you set with `/timezone`, or else the team's.\n" +
+          "-# Officers set up teams and raid nights with `/raidlead`.",
+      ),
     );
+  return { flags: V2_FLAGS, components: [guide], allowedMentions: NO_PINGS };
 }
 
 /**

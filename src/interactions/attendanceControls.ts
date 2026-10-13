@@ -6,6 +6,7 @@ import {
   MORE_DATES_VALUE,
   ROSTER_VALUE_PREFIX,
   asEphemeral,
+  buildHowItWorksMessage,
   buildNoticeMessage,
   buildRaidRosterCard,
   confirmation,
@@ -26,6 +27,7 @@ type AttendanceInteraction = ButtonInteraction | StringSelectMenuInteraction;
  * customId shape:
  *   "attendance:btn:<raidTeamId>:<raidInstanceId>" — a date button on the public message
  *   "attendance:pub:<raidTeamId>"                  — the "See more dates" select on the public message
+ *   "attendance:help:<raidTeamId>"                 — Next Up's "How it works" select (the /howitworks guide)
  *   "attendance:cal:<raidTeamId>:<offset>"         — the date select on a personal schedule
  *   "attendance:ros:<raidTeamId>:<raidInstanceId>" — a Roster button on a personal schedule
  *   "attendance:in:<raidTeamId>:<raidInstanceId>[:t]" — a Back in button on /attendance
@@ -46,6 +48,14 @@ export function isAttendanceControl(customId: string): boolean {
 export async function handleAttendanceControl(interaction: AttendanceInteraction, client: Client): Promise<void> {
   const [, source, teamId, extra] = interaction.customId.split(":");
   if (!teamId || !interaction.guild) return;
+  if (source === "help") {
+    try {
+      await interaction.reply(asEphemeral(buildHowItWorksMessage()));
+    } finally {
+      await renderTeamMessage(client, teamId); // clears the select so it can be picked again
+    }
+    return;
+  }
   if (source === "ros") {
     if (extra) await showRoster(interaction, teamId, extra);
     return;
