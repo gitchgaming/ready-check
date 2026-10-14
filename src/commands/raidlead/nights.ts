@@ -5,7 +5,7 @@ import { prisma } from "../../lib/db.js";
 import { formatNight } from "../../lib/pickers.js";
 import { DateTime } from "luxon";
 import { formatFinalRaidDate, nextOccurrence, scheduleCutoff, syncRaidTeam } from "../../lib/scheduler.js";
-import { parseHourMinute, raidTime, zoneGenericName } from "../../lib/time.js";
+import { parseTime, raidTime, zoneGenericName } from "../../lib/time.js";
 import { requireTeam } from "./shared.js";
 
 /**
@@ -36,10 +36,10 @@ export async function add(interaction: ChatInputCommandInteraction, client: Clie
 
   const day = Number(interaction.options.getString("day", true));
   const timeInput = interaction.options.getString("time", true);
-  const time = parseHourMinute(timeInput);
+  const time = parseTime(timeInput);
   if (!time) {
     await interaction.reply({
-      content: `"${timeInput}" isn't a valid 24-hour time. Use \`HH:MM\`, e.g. \`20:00\`.`,
+      content: `Couldn't read "${timeInput}" as a time. Pick one from the suggestions, or type it like \`8pm\` or \`20:00\`.`,
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -125,10 +125,10 @@ export async function edit(interaction: ChatInputCommandInteraction, client: Cli
   }
 
   const timeInput = interaction.options.getString("time", true);
-  const time = parseHourMinute(timeInput);
+  const time = parseTime(timeInput);
   if (!time) {
     await interaction.reply({
-      content: `"${timeInput}" isn't a valid 24-hour time. Use \`HH:MM\`, e.g. \`20:00\`.`,
+      content: `Couldn't read "${timeInput}" as a time. Pick one from the suggestions, or type it like \`8pm\` or \`20:00\`.`,
       flags: MessageFlags.Ephemeral,
     });
     return;

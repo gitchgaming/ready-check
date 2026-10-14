@@ -2,7 +2,7 @@ import type { AutocompleteInteraction, Guild } from "discord.js";
 import type { RaidTeam } from "../generated/prisma/client.js";
 import { DateTime } from "luxon";
 import { prisma } from "./db.js";
-import { nextOccurrence, zoneAbbrev, zoneGenericName } from "./time.js";
+import { formatClock, nextOccurrence, readTimes, timeValue, zoneAbbrev, zoneGenericName } from "./time.js";
 import { weekdayName } from "./weekdays.js";
 
 export const MAX_CHOICES = 25; // Discord's limit on autocomplete results
@@ -112,6 +112,21 @@ export async function nightChoices(team: RaidTeam, viewerZone: string | null = n
     const next = nextOccurrence(n.dayOfWeek, n.hour, n.minute, team.timezone, DateTime.now()).setZone(viewerZone);
     return { name: `${night} · ${next.toFormat("ccc h:mm a")} ${zoneAbbrev(next.toJSDate(), viewerZone)} for you`, value: n.id };
   });
+}
+
+/** Evening start times, half-hourly, offered before anything is typed. */
+const SUGGESTED_TIMES = Array.from({ length: 14 }, (_, i) => ({ hour: 17 + Math.floor(i / 2), minute: (i % 2) * 30 }));
+
+/**
+ * Start-time choices in team time, named with the zone so it's never a guess:
+ * `8:00 PM Central Time`, value `20:00`. What's typed is read by `readTimes`
+ * (`8pm`, `20:00`, `830`); nothing typed offers evening times.
+ */
+export function timeChoices(typed: string, timezone: string): Choice[] {
+  const zone = zoneGenericName(timezone);
+  const times = typed.trim() ? readTimes(typed) : SUGGESTED_TIMES;
+  if (times.length === 0) return [{ name: "Type a time like 8pm or 20:00", value: NO_CHOICE }];
+  return times.map((t) => ({ name: `${formatClock(t)} ${zone}`, value: timeValue(t) }));
 }
 
 const FULL_DATE_FORMATS = ["yyyy-MM-dd", "M/d/yyyy", "M/d/yy", "MMM d yyyy", "MMM d, yyyy", "MMMM d yyyy", "MMMM d, yyyy"];

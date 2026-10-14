@@ -103,8 +103,11 @@ one; otherwise the command asks you to pick.
   role is left alone.
 
 **`nights`** — weekly recurring raid nights (`team settings` lists them)
-- `add day: time:` — e.g. Wednesday, `20:00`. Times are 24-hour, in the
-  team's timezone.
+- `add day: time:` — e.g. Wednesday, 8 PM. Times are in the team's
+  timezone: pick one from the suggestions, or type it like `8pm`, `8:30 pm`
+  or `20:00`, and the picker shows what it reads with the team's zone. A
+  bare hour like `8` or `8:30` means evening (the AM reading is offered
+  second).
 - `edit night: time:` — change a night's start time. Its upcoming raids move
   with it and keep their call-outs; tonight's raid is removed if its new time
   has already passed. To move a night to another day, remove it and add the
@@ -117,6 +120,7 @@ one; otherwise the command asks you to pick.
 - `add date: time:` — a one-off raid outside the weekly nights. The picker
   offers the next few weeks, or type any date up to two years out, like
   `3/15/2027`, `Mar 15 2027`, or `2027-03-15`, and pick it from the list.
+  The time works as in `nights add`.
 - `cancel date:` — cancels a raid, or restores a cancelled one: the picker
   lists every upcoming raid with what picking it does ("Pick to cancel" /
   🚫 "Cancelled. Pick to restore"). A cancelled raid stays on the schedule as

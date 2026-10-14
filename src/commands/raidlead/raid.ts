@@ -4,7 +4,7 @@ import { DateTime } from "luxon";
 import { prisma } from "../../lib/db.js";
 import { formatRaidLabel, parseTypedDate } from "../../lib/pickers.js";
 import { formatFinalRaidDate, renderTeamMessage, scheduleCutoff } from "../../lib/scheduler.js";
-import { parseHourMinute, raidTime } from "../../lib/time.js";
+import { parseTime, raidTime } from "../../lib/time.js";
 import { requireTeam } from "./shared.js";
 
 /**
@@ -54,7 +54,7 @@ export async function add(interaction: ChatInputCommandInteraction, client: Clie
 
   const dateInput = interaction.options.getString("date", true);
   const timeInput = interaction.options.getString("time", true);
-  const time = parseHourMinute(timeInput);
+  const time = parseTime(timeInput);
   const day = parseTypedDate(dateInput, team.timezone);
 
   if (!day) {
@@ -66,7 +66,7 @@ export async function add(interaction: ChatInputCommandInteraction, client: Clie
   }
   if (!time) {
     await interaction.reply({
-      content: `"${timeInput}" isn't a valid 24-hour time. Use \`HH:MM\`, e.g. \`20:00\`.`,
+      content: `Couldn't read "${timeInput}" as a time. Pick one from the suggestions, or type it like \`8pm\` or \`20:00\`.`,
       flags: MessageFlags.Ephemeral,
     });
     return;

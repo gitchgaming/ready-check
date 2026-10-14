@@ -24,6 +24,7 @@ import {
   teamDisplayName,
   viewableTeams,
   cancelChoices,
+  timeChoices,
   timezoneChoices,
   upcomingDateChoices,
 } from "../../lib/pickers.js";
@@ -137,7 +138,7 @@ export const data = new SlashCommandBuilder()
             opt.setName("day").setDescription("Day of the week").setRequired(true).addChoices(...WEEKDAY_CHOICES),
           )
           .addStringOption((opt) =>
-            opt.setName("time").setDescription('Start time, 24-hour, e.g. "20:00"').setRequired(true),
+            opt.setName("time").setDescription("Start time in team time, e.g. 8pm or 20:00").setRequired(true).setAutocomplete(true),
           )
           .addStringOption(teamOption),
       )
@@ -149,7 +150,7 @@ export const data = new SlashCommandBuilder()
             opt.setName("night").setDescription("The night to move").setRequired(true).setAutocomplete(true),
           )
           .addStringOption((opt) =>
-            opt.setName("time").setDescription('New start time, 24-hour, e.g. "21:00"').setRequired(true),
+            opt.setName("time").setDescription("New start time in team time, e.g. 9pm or 21:00").setRequired(true).setAutocomplete(true),
           )
           .addStringOption(teamOption),
       )
@@ -179,7 +180,7 @@ export const data = new SlashCommandBuilder()
               .setAutocomplete(true),
           )
           .addStringOption((opt) =>
-            opt.setName("time").setDescription('Start time, 24-hour, e.g. "20:00"').setRequired(true),
+            opt.setName("time").setDescription("Start time in team time, e.g. 8pm or 20:00").setRequired(true).setAutocomplete(true),
           )
           .addStringOption(teamOption),
       )
@@ -272,7 +273,9 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
 
   const viewerZone = await userTimezone(interaction.user.id);
   const zone = viewerZone ?? raidTeam.timezone;
-  if (focused === "night") {
+  if (focused === "time") {
+    await interaction.respond(timeChoices(interaction.options.getFocused(), raidTeam.timezone));
+  } else if (focused === "night") {
     await respondFiltered(interaction, await nightChoices(raidTeam, viewerZone), "No weekly raid nights yet");
   } else if (key === "raid cancel") {
     await respondFiltered(interaction, await cancelChoices(raidTeam, zone), "No upcoming raids");

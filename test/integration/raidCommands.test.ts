@@ -97,12 +97,14 @@ describe("raid add", () => {
     expect(channel.sent).toHaveLength(1);
   });
 
-  it("accepts the picker's yyyy-MM-dd value and a single-digit hour", async () => {
+  it("accepts the picker's yyyy-MM-dd value and typed times, a bare hour as evening", async () => {
     const t = await makeTeam();
     const { run } = setup();
+    const at = async () => (await raids(t.id)).map((r) => DateTime.fromJSDate(r.startsAt).setZone(TZ).toFormat("yyyy-MM-dd HH:mm"));
     onlyReply(await run("raid", "add", { date: "2027-03-15", time: "9:05" }));
-    const [raid] = await raids(t.id);
-    expect(DateTime.fromJSDate(raid!.startsAt).setZone(TZ).toFormat("yyyy-MM-dd HH:mm")).toBe("2027-03-15 09:05");
+    onlyReply(await run("raid", "add", { date: "2027-03-16", time: "09:05" }));
+    onlyReply(await run("raid", "add", { date: "2027-03-17", time: "8:30 pm" }));
+    expect(await at()).toEqual(["2027-03-15 21:05", "2027-03-16 09:05", "2027-03-17 20:30"]);
   });
 
   it("rejects unreadable dates and times", async () => {
@@ -111,8 +113,8 @@ describe("raid add", () => {
     expect(onlyReply(await run("raid", "add", { date: "someday", time: "20:00" }))).toBe(
       'Couldn\'t read "someday" as an upcoming date. Pick one from the suggestions, or type it like `3/15/2027`.',
     );
-    expect(onlyReply(await run("raid", "add", { date: "10/9", time: "8pm" }))).toBe(
-      '"8pm" isn\'t a valid 24-hour time. Use `HH:MM`, e.g. `20:00`.',
+    expect(onlyReply(await run("raid", "add", { date: "10/9", time: "late" }))).toBe(
+      'Couldn\'t read "late" as a time. Pick one from the suggestions, or type it like `8pm` or `20:00`.',
     );
     expect(onlyReply(await run("raid", "add", { date: "1/1/2020", time: "20:00" }))).toMatch(/^Couldn't read/);
     expect(await raids(t.id)).toEqual([]);
@@ -235,7 +237,7 @@ describe("nights", () => {
     await makeTeam();
     const { run } = setup();
     expect(onlyReply(await run("nights", "add", { day: "3", time: "24:00" }))).toBe(
-      '"24:00" isn\'t a valid 24-hour time. Use `HH:MM`, e.g. `20:00`.',
+      'Couldn\'t read "24:00" as a time. Pick one from the suggestions, or type it like `8pm` or `20:00`.',
     );
     expect(await prisma.raidSlot.count()).toBe(0);
   });
@@ -332,7 +334,7 @@ describe("nights", () => {
     await makeSlot(t.id, 3, 21);
     const { run } = setup();
     const edit = async (time: string) => onlyReply(await run("nights", "edit", { night: slot.id, time }));
-    expect(await edit("25:00")).toBe('"25:00" isn\'t a valid 24-hour time. Use `HH:MM`, e.g. `20:00`.');
+    expect(await edit("25:00")).toBe('Couldn\'t read "25:00" as a time. Pick one from the suggestions, or type it like `8pm` or `20:00`.');
     expect(await edit("20:00")).toBe("Wednesday 8:00 PM is already this night's time.");
     expect(await edit("21:00")).toBe(
       "Wednesday 9:00 PM is already a weekly raid night. Remove this one with `/raidlead nights remove` instead.",
