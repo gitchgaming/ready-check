@@ -161,6 +161,12 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   team time, set with `team final-raid`, cleared with `team resume`): the sync
   generates nothing after it (`scheduleCutoff`) and deletes open raids after it;
   closed raids stay as attendance history.
+- Changing a team's timezone never moves a raid: `changeTeamTimezone`
+  (`scheduler.ts`) rewrites each weekly night to the same moment in the new
+  zone, so the sync matches the raids it already made. Where the zones change
+  clocks on different dates, those weeks' raids shift to the night's new time
+  with their call-outs, and the final raid date moves later if its last raid
+  would fall past it.
 - Every date or time in message text is a Discord timestamp (`raidTime`
   in `time.ts`), so each viewer sees their own timezone: full (`F`, the only
   style with a weekday) where it has room, short (`s`, "10/14/26, 8:00 PM")
