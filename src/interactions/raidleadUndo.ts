@@ -1,6 +1,6 @@
 import { type ButtonInteraction, type Client } from "discord.js";
 import { DateTime } from "luxon";
-import { cancelReply, placeOneOff, setCancelled } from "../commands/raidlead/raid.js";
+import { cancelReply, placeOneOff, removeOneOff, setCancelled } from "../commands/raidlead/raid.js";
 import { isOfficer } from "../lib/access.js";
 import { officerAttendanceReply, setOut } from "../lib/attendance.js";
 import { prisma } from "../lib/db.js";
@@ -9,10 +9,11 @@ import { renderTeamMessage } from "../lib/scheduler.js";
 /**
  * The Undo buttons on /raidlead replies. Each names the state to set, never a
  * toggle, so a double click can't flip it back:
- * "raidlead:cancel:<raidId>:<1|0>" (cancelled or not; cancelling a one-off
- * removes it), "raidlead:readd:<teamId>:<unix seconds>" (a removed one-off,
- * back without its call-outs) and "raidlead:att:<raidId>:<userId>:<out|in>"
- * (someone's attendance).
+ * "raidlead:cancel:<raidId>:<1|0>" (cancelled or not),
+ * "raidlead:remove:<raidId>" (a one-off just added, removed),
+ * "raidlead:readd:<teamId>:<unix seconds>" (a removed one-off, back without
+ * its call-outs) and "raidlead:att:<raidId>:<userId>:<out|in>" (someone's
+ * attendance).
  */
 export function isRaidleadUndo(customId: string): boolean {
   return customId.startsWith("raidlead:");
@@ -46,6 +47,17 @@ export async function handleRaidleadUndo(interaction: ButtonInteraction, client:
   const raid = await prisma.raidInstance.findUnique({ where: { id: raidId } });
   if (!raid || raid.closed) {
     await interaction.update({ content: "That raid has already started, passed, or been removed.", components: [] });
+    return;
+  }
+
+  if (kind === "remove") {
+    if (!raid.oneOff) {
+      await interaction.update({ content: "Only one-off raids can be removed.", components: [] });
+      return;
+    }
+    const reply = await removeOneOff(raid);
+    await renderTeamMessage(client, raid.raidTeamId);
+    await interaction.update(reply);
     return;
   }
 

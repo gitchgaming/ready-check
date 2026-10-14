@@ -55,10 +55,11 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   `c<offset>` `/schedule`),
   `mynav:<dir>:<teamId>:<offset>`,
   `teamdelete:<confirm|abort>:<teamId>`,
-  `raidlead:cancel:<raidId>:<1|0>`, `raidlead:readd:<teamId>:<unix seconds>`
-  (a removed one-off) and `raidlead:att:<raidId>:<userId>:<out|in>`
-  (officers' Undo buttons on `raid cancel` and `/raidlead attendance`; each
-  sets the named state, never toggles).
+  `raidlead:cancel:<raidId>:<1|0>`, `raidlead:remove:<raidId>` (`raid add`'s
+  Undo), `raidlead:readd:<teamId>:<unix seconds>` (a removed one-off, back
+  without its call-outs) and `raidlead:att:<raidId>:<userId>:<out|in>`
+  (officers' Undo buttons on `raid add`, `raid cancel` and
+  `/raidlead attendance`; each sets the named state, never toggles).
 - `src/lib/` — `scheduler.ts` (instance generation, hourly sync, schedule
   message render), `embeds.ts`, `roster.ts`, `attendance.ts`, `pickers.ts`
   (all autocomplete), `access.ts`, `classes.ts` (class/type role names),
@@ -167,9 +168,11 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - Raids are generated from weekly nights (`RaidSlot`, called "nights" in the
   UI) and upserted hourly. Never delete a generated raid — the sync recreates
   it. `cancelled` keeps it visible as 🚫 Cancelled; `raid cancel` toggles. A
-  one-off raid (`oneOff`, from `/raidlead raid add`) is the exception: nothing
-  regenerates it, so `raid cancel` deletes it with its call-outs
-  (`setCancelled` in `raid.ts`), and its Undo adds it back without them.
+  one-off raid (`oneOff`, from `/raidlead raid add`) cancelled for real stays
+  🚫 Cancelled too, but one added by mistake can be deleted with its
+  call-outs: `raid cancel`'s picker offers a second choice for it,
+  "Added by mistake? Pick to remove" (value `remove:<raidId>`,
+  `removeOneOff` in `raid.ts`), and `raid add`'s Undo does the same.
   The exception is a team's final raid date (`finalRaidDate`, "yyyy-MM-dd" in
   team time, set or cleared with `team settings final-raid:`): the sync
   generates nothing after it (`scheduleCutoff`) and deletes open raids after it;

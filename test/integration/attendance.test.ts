@@ -242,7 +242,8 @@ describe("DB-backed pickers", () => {
     expect(await cancelChoices(team)).toEqual([
       { name: `${TUE_LABEL} — Pick to cancel`, value: first.id },
       { name: "🚫 Wed, Oct 7 · 8:00 PM CDT — Cancelled. Pick to restore", value: cancelled.id },
-      { name: "Tue, Oct 13 · 8:00 PM CDT — One-off. Pick to remove", value: later.id },
+      { name: "Tue, Oct 13 · 8:00 PM CDT — Pick to cancel", value: later.id },
+      { name: "Tue, Oct 13 · 8:00 PM CDT — Added by mistake? Pick to remove", value: `remove:${later.id}` },
     ]);
     // Or in the viewer's own timezone, if they set one.
     expect((await cancelChoices(team, "Asia/Tokyo"))[0]).toEqual({ name: "Wed, Oct 7 · 10:00 AM GMT+9 — Pick to cancel", value: first.id });

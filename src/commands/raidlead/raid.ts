@@ -8,6 +8,9 @@ import { formatFinalRaidDate, renderTeamMessage, scheduleCutoff } from "../../li
 import { parseTime, raidTime } from "../../lib/time.js";
 import { requireTeam } from "./shared.js";
 
+/** A `raid cancel` choice value that removes a one-off instead of cancelling it. */
+export const REMOVE_PREFIX = "remove:";
+
 /**
  * The reply to cancelling or restoring a raid, with an Undo button
  * (`raidlead:cancel:<raidId>:<1|0>`, the state to go back to).
@@ -45,25 +48,30 @@ export function removedReply(teamId: string, startsAt: Date) {
   };
 }
 
-/**
- * Cancels or restores a raid and returns the reply. Cancelling a one-off removes
- * it, call-outs and all: nothing would generate it again, so there's no reason to
- * keep a 🚫 line on the schedule.
- */
+/** Cancels or restores a raid and returns the reply. */
 export async function setCancelled(raid: RaidInstance, cancelled: boolean) {
-  if (cancelled && raid.oneOff) {
-    await prisma.raidInstance.delete({ where: { id: raid.id } });
-    return removedReply(raid.raidTeamId, raid.startsAt);
-  }
   await prisma.raidInstance.update({ where: { id: raid.id }, data: { cancelled } });
   return cancelReply(raid.id, raid.startsAt, cancelled);
 }
 
 /**
- * Puts a one-off raid on the schedule at `startsAt` (restoring a cancelled raid
- * already there). Returns its id, or why it can't.
+ * Deletes a one-off raid added by mistake, call-outs and all, and returns the
+ * reply. A raid from a weekly night can only be cancelled: the sync would
+ * bring it back.
  */
-export async function placeOneOff(team: RaidTeam, startsAt: DateTime): Promise<{ id: string } | { problem: string }> {
+export async function removeOneOff(raid: RaidInstance) {
+  await prisma.raidInstance.delete({ where: { id: raid.id } });
+  return removedReply(raid.raidTeamId, raid.startsAt);
+}
+
+/**
+ * Puts a one-off raid on the schedule at `startsAt` (restoring a cancelled raid
+ * already there, `created` false). Returns its id, or why it can't.
+ */
+export async function placeOneOff(
+  team: RaidTeam,
+  startsAt: DateTime,
+): Promise<{ id: string; created: boolean } | { problem: string }> {
   if (startsAt <= DateTime.now()) return { problem: "That time has already passed." };
 
   const cutoff = scheduleCutoff(team);
@@ -81,20 +89,25 @@ export async function placeOneOff(team: RaidTeam, startsAt: DateTime): Promise<{
   if (existing && !existing.cancelled) return { problem: "A raid is already scheduled at that time." };
   if (existing) {
     await prisma.raidInstance.update({ where: { id: existing.id }, data: { cancelled: false } });
-    return { id: existing.id };
+    return { id: existing.id, created: false };
   }
   const created = await prisma.raidInstance.create({
     data: { raidTeamId: team.id, startsAt: startsAt.toJSDate(), oneOff: true },
   });
-  return { id: created.id };
+  return { id: created.id, created: true };
 }
 
-/** Cancels an upcoming raid (removing a one-off), or restores a cancelled one: the picker says which. */
+/**
+ * Cancels an upcoming raid, or restores a cancelled one: the picker says which.
+ * A `remove:<raidId>` pick deletes a one-off raid added by mistake.
+ */
 export async function cancel(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
   const team = await requireTeam(interaction);
   if (!team) return;
 
-  const instanceId = interaction.options.getString("date", true);
+  const picked = interaction.options.getString("date", true);
+  const remove = picked.startsWith(REMOVE_PREFIX);
+  const instanceId = remove ? picked.slice(REMOVE_PREFIX.length) : picked;
   const instance = await prisma.raidInstance.findFirst({ where: { id: instanceId, raidTeamId: team.id } });
   if (!instance) {
     await interaction.reply({ content: "Couldn't find that raid. Pick one from the suggestions.", flags: MessageFlags.Ephemeral });
@@ -105,7 +118,15 @@ export async function cancel(interaction: ChatInputCommandInteraction, client: C
     return;
   }
 
-  const reply = await setCancelled(instance, !instance.cancelled);
+  if (remove && !instance.oneOff) {
+    await interaction.reply({
+      content: "Only one-off raids can be removed. A weekly night's raid can be cancelled instead.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  const reply = remove ? await removeOneOff(instance) : await setCancelled(instance, !instance.cancelled);
   await renderTeamMessage(client, team.id);
   await interaction.reply({ ...reply, flags: MessageFlags.Ephemeral });
 }
@@ -142,8 +163,15 @@ export async function add(interaction: ChatInputCommandInteraction, client: Clie
   }
   await renderTeamMessage(client, team.id);
 
+  // Undo removes a new one-off, or re-cancels the cancelled raid this restored.
+  const undo = placed.created ? `raidlead:remove:${placed.id}` : `raidlead:cancel:${placed.id}:1`;
   await interaction.reply({
     content: `✅ Added a raid on ${raidTime(startsAt.toJSDate())} (${formatRaidLabel(startsAt.toJSDate(), team.timezone)} in team time).`,
+    components: [
+      new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder().setCustomId(undo).setLabel("Undo").setStyle(ButtonStyle.Secondary),
+      ),
+    ],
     flags: MessageFlags.Ephemeral,
   });
 }

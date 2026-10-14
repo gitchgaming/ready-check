@@ -120,16 +120,18 @@ one; otherwise the command asks you to pick.
 - `add date: time:` — a one-off raid outside the weekly nights. The picker
   offers the next few weeks, or type any date up to two years out, like
   `3/15/2027`, `Mar 15 2027`, or `2027-03-15`, and pick it from the list.
-  The time works as in `nights add`.
-- `cancel date:` — cancels a raid, removes a one-off raid, or restores a
-  cancelled one: the picker lists every upcoming raid with what picking it
-  does ("Pick to cancel" / "One-off. Pick to remove" / 🚫 "Cancelled. Pick
-  to restore"). A cancelled raid from a weekly night stays on the schedule as
-  🚫 Cancelled, with its call-outs hidden and no Status button; restoring
-  brings the call-outs back as they were. A one-off raid is removed outright,
-  with its call-outs. The reply has an **Undo** button (for a one-off, it
-  adds the raid back without its call-outs). To move a one-off raid, remove
-  it and add the new one.
+  The time works as in `nights add`. The reply has an **Undo** button that
+  removes the raid again.
+- `cancel date:` — cancels a raid, or restores a cancelled one: the picker
+  lists every upcoming raid with what picking it does ("Pick to cancel" /
+  🚫 "Cancelled. Pick to restore"). A cancelled raid stays on the schedule as
+  🚫 Cancelled, so raiders can see it's off, with its call-outs hidden and no
+  Status button; restoring brings the call-outs back as they were. The reply
+  has an **Undo** button.
+  A one-off raid added by mistake can be removed outright instead: pick
+  "Added by mistake? Pick to remove" (its call-outs go with it), or use the
+  **Undo** button on `raid add`'s reply. To move a one-off raid, remove it and
+  add the new one.
 
 **`attendance user: date:`** — call a raider out of a raid, or switch them
 back in. The picker lists their upcoming raids in `/attendance`'s words ("In.
