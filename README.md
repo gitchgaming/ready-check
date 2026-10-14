@@ -96,8 +96,9 @@ Every subcommand takes the team's `role:` first.
 **`nights`** — weekly recurring raid nights
 - `add day: time:` — e.g. Wednesday, `20:00`. Times are 24-hour, in the
   team's timezone.
-- `remove night:` — pick from the team's existing nights. Raids already on
-  the schedule stay.
+- `remove night:` — pick from the team's existing nights. Its upcoming raids
+  go with it, along with their call-outs; past raids, a raid under way, and
+  one-off raids stay.
 - `list`
 
 **`raid`** — change individual raids

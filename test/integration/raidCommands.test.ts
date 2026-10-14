@@ -239,16 +239,40 @@ describe("nights", () => {
     expect(errors).toHaveBeenCalled();
   });
 
-  it("remove deletes the night but keeps its raids", async () => {
+  it("remove deletes the night with its upcoming raids and their call-outs", async () => {
+    const t = await makeTeam({ messageId: "public" });
+    const slot = await makeSlot(t.id, 3); // Wednesdays, 8:00 PM Central
+    await makeSlot(t.id, 2);
+    const wed = await makeRaid(t.id, "2026-10-08T01:00:00Z");
+    await callOut(wed.id, "raider-1");
+    await makeRaid(t.id, "2026-10-15T01:00:00Z", { cancelled: true });
+    const oneOff = await makeRaid(t.id, "2026-10-22T01:00:00Z", { oneOff: true });
+    const closed = await makeRaid(t.id, "2026-09-24T01:00:00Z", { closed: true });
+    const tue = await makeRaid(t.id, TUE_8PM);
+    const { run, channel } = setup();
+    channel.seedMessage("public");
+
+    expect(onlyReply(await run("nights", "remove", { role: ROLE_ID, night: slot.id }))).toBe(
+      "🗑️ Removed Wednesday 8:00 PM Central Time as a weekly raid night, along with its 2 upcoming raids and 1 call-out.",
+    );
+    expect(await prisma.raidSlot.count()).toBe(1);
+    const left = (await raids(t.id)).map((r) => r.id);
+    expect(left).toEqual(expect.arrayContaining([closed.id, tue.id, oneOff.id]));
+    expect(left).not.toContain(wed.id);
+    expect(await prisma.attendance.count()).toBe(0);
+    // The sync adds nothing back on Wednesdays.
+    expect((await raids(t.id)).filter((r) => r.startsAt.getUTCDay() === 4 && !r.oneOff && !r.closed)).toEqual([]);
+  });
+
+  it("remove keeps a raid that's already under way", async () => {
     const t = await makeTeam();
-    const slot = await makeSlot(t.id, 3);
-    const raid = await makeRaid(t.id, "2026-10-08T01:00:00Z");
+    const slot = await makeSlot(t.id, 2, 6); // Tuesdays, 6:00 AM Central: an hour ago
+    const started = await makeRaid(t.id, "2026-10-06T11:00:00Z");
     const { run } = setup();
     expect(onlyReply(await run("nights", "remove", { role: ROLE_ID, night: slot.id }))).toBe(
-      "🗑️ Removed Wednesday 8:00 PM Central Time as a weekly raid night. Raids already on the schedule stay; cancel them with `/raidlead raid cancel` if needed.",
+      "🗑️ Removed Tuesday 6:00 AM Central Time as a weekly raid night.",
     );
-    expect(await prisma.raidSlot.count()).toBe(0);
-    expect((await raids(t.id)).map((r) => r.id)).toEqual([raid.id]);
+    expect((await raids(t.id)).map((r) => r.id)).toEqual([started.id]);
   });
 
   it("remove only finds the role's team's nights", async () => {

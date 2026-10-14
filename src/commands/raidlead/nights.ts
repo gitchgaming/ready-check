@@ -63,7 +63,12 @@ export async function add(interaction: ChatInputCommandInteraction, client: Clie
   await syncRaidTeam(client, team.id).catch((err) => console.error(`Failed to sync raid team ${team.id}:`, err));
 }
 
-export async function remove(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
+/**
+ * Removes a weekly night along with its upcoming raids (and their call-outs), since
+ * nothing would generate them again. Raids under way stay until they close, and
+ * one-off raids at the same time stay.
+ */
+export async function remove(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
   const team = await requireTeam(interaction);
   if (!team) return;
 
@@ -74,13 +79,36 @@ export async function remove(interaction: ChatInputCommandInteraction, _client: 
     return;
   }
 
-  await prisma.raidSlot.delete({ where: { id: night.id } });
+  const upcoming = await prisma.raidInstance.findMany({
+    where: { raidTeamId: team.id, closed: false, oneOff: false, startsAt: { gt: new Date() } },
+    include: { _count: { select: { attendance: true } } },
+  });
+  const fromNight = upcoming.filter((raid) => {
+    const local = DateTime.fromJSDate(raid.startsAt).setZone(team.timezone);
+    return local.weekday === night.dayOfWeek && local.hour === night.hour && local.minute === night.minute;
+  });
+  const callOuts = fromNight.reduce((sum, raid) => sum + raid._count.attendance, 0);
+
+  // Attendance rows cascade with the raids.
+  await prisma.$transaction([
+    prisma.raidSlot.delete({ where: { id: night.id } }),
+    prisma.raidInstance.deleteMany({ where: { id: { in: fromNight.map((raid) => raid.id) } } }),
+  ]);
+
+  const removed =
+    fromNight.length === 0
+      ? ""
+      : `, along with its ${plural(fromNight.length, "upcoming raid")}` + (callOuts > 0 ? ` and ${plural(callOuts, "call-out")}` : "");
   await interaction.reply({
-    content:
-      `🗑️ Removed ${formatNight(night.dayOfWeek, night.hour, night.minute, team.timezone)} as a weekly raid night. ` +
-      "Raids already on the schedule stay; cancel them with `/raidlead raid cancel` if needed.",
+    content: `🗑️ Removed ${formatNight(night.dayOfWeek, night.hour, night.minute, team.timezone)} as a weekly raid night${removed}.`,
     flags: MessageFlags.Ephemeral,
   });
+
+  await syncRaidTeam(client, team.id).catch((err) => console.error(`Failed to sync raid team ${team.id}:`, err));
+}
+
+function plural(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
 export async function list(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
