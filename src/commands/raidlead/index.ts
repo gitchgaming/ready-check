@@ -5,6 +5,7 @@ import {
   type ChatInputCommandInteraction,
   type Client,
   type SlashCommandRoleOption,
+  type SlashCommandStringOption,
   MessageFlags,
 } from "discord.js";
 import { OFFICER_PERMISSION, isOfficer } from "../../lib/access.js";
@@ -19,7 +20,9 @@ import {
   oneOffRaidChoices,
   raidDayChoices,
   respondFiltered,
-  teamFromRoleOption,
+  fitChoiceName,
+  teamDisplayName,
+  viewableTeams,
   teamRaidChoices,
   timezoneChoices,
   upcomingDateChoices,
@@ -28,10 +31,15 @@ import { WEEKDAY_CHOICES } from "../../lib/weekdays.js";
 import { userTimezone } from "../../lib/userSettings.js";
 import * as nights from "./nights.js";
 import * as raid from "./raid.js";
+import { pickTeam } from "./shared.js";
 import * as team from "./team.js";
 
 const roleOption = (opt: SlashCommandRoleOption) =>
-  opt.setName("role").setDescription("The raid team's role").setRequired(true);
+  opt.setName("role").setDescription("The role whose members make up the team").setRequired(true);
+
+/** Which team to act on; optional when the server has one team, or the officer is on one. */
+const teamOption = (opt: SlashCommandStringOption) =>
+  opt.setName("team").setDescription("Only needed if there's more than one raid team").setAutocomplete(true);
 
 const SIZE_CHOICES = RAID_SIZES.map((size) => ({ name: `${size}-player`, value: size }));
 
@@ -77,7 +85,6 @@ export const data = new SlashCommandBuilder()
         sub
           .setName("edit")
           .setDescription("Change a raid team's settings")
-          .addRoleOption(roleOption)
           .addChannelOption((opt) =>
             opt
               .setName("channel")
@@ -97,38 +104,39 @@ export const data = new SlashCommandBuilder()
           )
           .addIntegerOption((opt) =>
             opt.setName("size").setDescription("Players the raid is built for").addChoices(...SIZE_CHOICES),
-          ),
+          )
+          .addStringOption(teamOption),
       )
       .addSubcommand((sub) =>
         sub
           .setName("publish")
           .setDescription("Post the team's schedule message in this channel")
-          .addRoleOption(roleOption),
+          .addStringOption(teamOption),
       )
       .addSubcommand((sub) =>
         sub
           .setName("final-raid")
           .setDescription("Set the team's last raid day: later raids are removed and no more are scheduled")
-          .addRoleOption(roleOption)
           .addStringOption((opt) =>
             opt
               .setName("date")
               .setDescription("Pick a raid day, or type a date like 3/15/2027")
               .setRequired(true)
               .setAutocomplete(true),
-          ),
+          )
+          .addStringOption(teamOption),
       )
       .addSubcommand((sub) =>
         sub
           .setName("resume")
           .setDescription("Clear the team's final raid date and schedule its weekly nights again")
-          .addRoleOption(roleOption),
+          .addStringOption(teamOption),
       )
       .addSubcommand((sub) =>
         sub
           .setName("delete")
           .setDescription("Permanently delete a raid team and its schedule")
-          .addRoleOption(roleOption),
+          .addStringOption(teamOption),
       ),
   )
   .addSubcommandGroup((group) =>
@@ -139,37 +147,37 @@ export const data = new SlashCommandBuilder()
         sub
           .setName("add")
           .setDescription("Add a weekly raid night")
-          .addRoleOption(roleOption)
           .addStringOption((opt) =>
             opt.setName("day").setDescription("Day of the week").setRequired(true).addChoices(...WEEKDAY_CHOICES),
           )
           .addStringOption((opt) =>
             opt.setName("time").setDescription('Start time, 24-hour, e.g. "20:00"').setRequired(true),
-          ),
+          )
+          .addStringOption(teamOption),
       )
       .addSubcommand((sub) =>
         sub
           .setName("remove")
           .setDescription("Remove a weekly raid night")
-          .addRoleOption(roleOption)
           .addStringOption((opt) =>
             opt.setName("night").setDescription("The night to remove").setRequired(true).setAutocomplete(true),
-          ),
+          )
+          .addStringOption(teamOption),
       )
       .addSubcommand((sub) =>
         sub
           .setName("edit")
           .setDescription("Change a weekly raid night's start time; its upcoming raids move with it")
-          .addRoleOption(roleOption)
           .addStringOption((opt) =>
             opt.setName("night").setDescription("The night to move").setRequired(true).setAutocomplete(true),
           )
           .addStringOption((opt) =>
             opt.setName("time").setDescription('New start time, 24-hour, e.g. "21:00"').setRequired(true),
-          ),
+          )
+          .addStringOption(teamOption),
       )
       .addSubcommand((sub) =>
-        sub.setName("list").setDescription("List a team's weekly raid nights").addRoleOption(roleOption),
+        sub.setName("list").setDescription("List a team's weekly raid nights").addStringOption(teamOption),
       ),
   )
   .addSubcommandGroup((group) =>
@@ -180,25 +188,24 @@ export const data = new SlashCommandBuilder()
         sub
           .setName("cancel")
           .setDescription("Cancel an upcoming raid")
-          .addRoleOption(roleOption)
           .addStringOption((opt) =>
             opt.setName("date").setDescription("The raid to cancel").setRequired(true).setAutocomplete(true),
-          ),
+          )
+          .addStringOption(teamOption),
       )
       .addSubcommand((sub) =>
         sub
           .setName("restore")
           .setDescription("Restore a cancelled raid")
-          .addRoleOption(roleOption)
           .addStringOption((opt) =>
             opt.setName("date").setDescription("The cancelled raid").setRequired(true).setAutocomplete(true),
-          ),
+          )
+          .addStringOption(teamOption),
       )
       .addSubcommand((sub) =>
         sub
           .setName("add")
           .setDescription("Add a one-off raid outside the weekly nights")
-          .addRoleOption(roleOption)
           .addStringOption((opt) =>
             opt
               .setName("date")
@@ -208,16 +215,17 @@ export const data = new SlashCommandBuilder()
           )
           .addStringOption((opt) =>
             opt.setName("time").setDescription('Start time, 24-hour, e.g. "20:00"').setRequired(true),
-          ),
+          )
+          .addStringOption(teamOption),
       )
       .addSubcommand((sub) =>
         sub
           .setName("remove")
           .setDescription("Delete a one-off raid from the schedule")
-          .addRoleOption(roleOption)
           .addStringOption((opt) =>
             opt.setName("date").setDescription("The one-off raid").setRequired(true).setAutocomplete(true),
-          ),
+          )
+          .addStringOption(teamOption),
       ),
   )
   .addSubcommand((sub) =>
@@ -301,11 +309,19 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
     return;
   }
 
-  const raidTeam = await teamFromRoleOption(interaction);
-  if (!raidTeam) {
-    await interaction.respond([{ name: "Pick a raid team role first", value: NO_CHOICE }]);
+  if (focused === "team") {
+    const teams = await viewableTeams(interaction.guild, interaction.user.id, true);
+    const choices = teams.map((t) => ({ name: fitChoiceName(teamDisplayName(t, interaction.guild)), value: t.id }));
+    await respondFiltered(interaction, choices, "No raid teams yet");
     return;
   }
+
+  const pick = await pickTeam(interaction.guild, interaction.user.id, interaction.options.get("team")?.value as string | undefined);
+  if (!("team" in pick)) {
+    await interaction.respond([{ name: fitChoiceName(pick.problem.replace(/`/g, "")), value: NO_CHOICE }]);
+    return;
+  }
+  const raidTeam = pick.team;
 
   const viewerZone = await userTimezone(interaction.user.id);
   const zone = viewerZone ?? raidTeam.timezone;

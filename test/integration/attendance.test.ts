@@ -4,7 +4,6 @@ import { raidDateAutocomplete, setAttendance, type AttendanceChange } from "../.
 import {
   nightChoices,
   oneOffRaidChoices,
-  teamFromRoleOption,
   teamRaidChoices,
   teamsForMember,
   viewableTeams,
@@ -235,17 +234,6 @@ describe("raidDateAutocomplete", () => {
 });
 
 describe("DB-backed pickers", () => {
-  it("teamFromRoleOption reads the raw role id during autocomplete", async () => {
-    const team = await makeTeam();
-    const { guild } = world();
-    const pick = (options: Record<string, unknown>, g = guild as typeof guild | null) =>
-      teamFromRoleOption(fakeAutocomplete({ guild: g, focused: "date", options }));
-    expect((await pick({ role: ROLE_ID }))?.id).toBe(team.id);
-    expect(await pick({ role: "role-not-a-team" })).toBeNull();
-    expect(await pick({})).toBeNull();
-    expect(await pick({ role: ROLE_ID }, null)).toBeNull();
-  });
-
   it("teamRaidChoices lists upcoming raids by cancelled state, soonest first, in the team's timezone", async () => {
     const team = await makeTeam();
     await makeRaid(team.id, "2026-09-30T01:00:00Z", { closed: true });

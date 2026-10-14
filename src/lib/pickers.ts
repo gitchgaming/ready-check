@@ -60,18 +60,6 @@ export async function respondFiltered(
   await interaction.respond((filtered.length > 0 ? filtered : choices).slice(0, MAX_CHOICES));
 }
 
-/**
- * Reads the role option during autocomplete. Discord only guarantees a resolved
- * object for the focused option, so this uses the raw snowflake instead.
- */
-export async function teamFromRoleOption(interaction: AutocompleteInteraction): Promise<RaidTeam | null> {
-  const roleId = interaction.options.get("role")?.value as string | undefined;
-  if (!roleId || !interaction.guildId) return null;
-  return prisma.raidTeam.findUnique({
-    where: { guildId_roleId: { guildId: interaction.guildId, roleId } },
-  });
-}
-
 /** Upcoming raids for one team, filtered by cancelled state. */
 /** `zone` is the viewer's own timezone if they set one (`userTimezone`), else the team's. */
 export async function teamRaidChoices(team: RaidTeam, cancelled: boolean, zone = team.timezone): Promise<Choice[]> {

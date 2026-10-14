@@ -8,7 +8,7 @@ import {
 } from "discord.js";
 import { DateTime } from "luxon";
 import { prisma } from "../../lib/db.js";
-import { formatNight, parseTypedDate } from "../../lib/pickers.js";
+import { formatNight, parseTypedDate, teamDisplayName } from "../../lib/pickers.js";
 import {
   changeTeamTimezone,
   formatFinalRaidDate,
@@ -115,7 +115,7 @@ export async function edit(interaction: ChatInputCommandInteraction, client: Cli
 
   await interaction.reply({
     content:
-      `✅ Updated **${updated.name ?? interaction.options.getRole("role", true).name}**.\n` +
+      `✅ Updated **${teamDisplayName(updated, interaction.guild)}**.\n` +
       `• Channel: <#${updated.channelId}>\n` +
       `• Timezone: ${updated.timezone}\n` +
       `• Raid size: ${updated.raidSize}-player\n` +
