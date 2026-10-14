@@ -8,8 +8,15 @@ import {
 } from "discord.js";
 import { DateTime } from "luxon";
 import { prisma } from "../../lib/db.js";
-import { parseTypedDate } from "../../lib/pickers.js";
-import { formatFinalRaidDate, renderTeamMessage, scheduleCutoff, syncRaidTeam } from "../../lib/scheduler.js";
+import { formatNight, parseTypedDate } from "../../lib/pickers.js";
+import {
+  changeTeamTimezone,
+  formatFinalRaidDate,
+  renderTeamMessage,
+  scheduleCutoff,
+  syncRaidTeam,
+} from "../../lib/scheduler.js";
+import { zoneGenericName } from "../../lib/time.js";
 import { deleteMessage, requireTeam } from "./shared.js";
 
 function invalidTimezone(timezone: string): boolean {
@@ -92,12 +99,14 @@ export async function edit(interaction: ChatInputCommandInteraction, client: Cli
   const movingChannel = channel && channel.id !== team.channelId;
   if (movingChannel && team.messageId) await deleteMessage(client, team.channelId, team.messageId);
 
+  // Raids stay put: the weekly nights are rewritten into the new zone.
+  const nights = timezone && timezone !== team.timezone ? await changeTeamTimezone(team, timezone) : null;
+
   const updated = await prisma.raidTeam.update({
     where: { id: team.id },
     data: {
       ...(channel ? { channelId: channel.id } : {}),
       ...(movingChannel ? { messageId: null } : {}),
-      ...(timezone ? { timezone } : {}),
       ...(name ? { name } : {}),
       ...(comingUp !== null ? { displayCount: comingUp } : {}),
       ...(size !== null ? { raidSize: size } : {}),
@@ -111,7 +120,12 @@ export async function edit(interaction: ChatInputCommandInteraction, client: Cli
       `• Timezone: ${updated.timezone}\n` +
       `• Raid size: ${updated.raidSize}-player\n` +
       `• Coming Up raids: ${updated.displayCount}` +
-      (updated.finalRaidDate ? `\n• Final raid date: ${formatFinalRaidDate(updated)}` : ""),
+      (updated.finalRaidDate ? `\n• Final raid date: ${formatFinalRaidDate(updated)}` : "") +
+      (nights && nights.length > 0
+        ? `\n• Weekly nights, now in ${zoneGenericName(updated.timezone)}: ` +
+          nights.map((n) => formatNight(n.dayOfWeek, n.hour, n.minute)).join(", ") +
+          ". The raids didn't move."
+        : ""),
     flags: MessageFlags.Ephemeral,
   });
 
