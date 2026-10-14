@@ -9,7 +9,6 @@ import {
   respondFiltered,
   teamDisplayName,
   timezoneChoices,
-  teamFromRoleOption,
   teamsForMember,
   upcomingDateChoices,
 } from "../../src/lib/pickers.js";
@@ -266,12 +265,6 @@ describe("respondFiltered", () => {
 });
 
 describe("pure early returns of the DB-backed pickers", () => {
-  it("teamFromRoleOption is null without a role option or outside a guild (no query)", async () => {
-    const guild = fakeGuild();
-    expect(await teamFromRoleOption(fakeAutocomplete({ focused: "date", guild }))).toBeNull();
-    expect(await teamFromRoleOption(fakeAutocomplete({ focused: "date", options: { role: teamRole.id } }))).toBeNull();
-  });
-
   it("teamsForMember is empty for someone who isn't in the guild", async () => {
     expect(await teamsForMember(fakeGuild(), "not-a-member", [team()])).toEqual([]);
   });

@@ -71,10 +71,13 @@ All dates are picked from a list of your team's actual raids.
 
 ## Officer commands (`/raidlead`)
 
-Every subcommand takes the team's `role:` first.
+`team setup` creates a team from a `role:`. Every other subcommand acts on one
+team, picked in its optional `team:` option (the picker lists every team, your
+own first). Leave it out when the server has one team, or you're on exactly
+one; otherwise the command asks you to pick.
 
 **`team`** — create and manage raid teams
-- `setup channel: timezone: [name:] [coming-up:] [size:]` — create a team and post
+- `setup role: channel: timezone: [name:] [coming-up:] [size:]` — create a team and post
   its schedule message in `channel`. The name defaults to the
   role's name; `size` is the raid size, 20 or 25 players (default 25).
 - `edit [channel:] [timezone:] [name:] [coming-up:] [size:]` — change settings.

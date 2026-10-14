@@ -369,7 +369,7 @@ describe("/roster", () => {
 describe("/raidlead execute", () => {
   it("refuses non-officers and DMs", async () => {
     const { guild, client } = await twoTeams();
-    const raiderRun = fakeChatInput({ commandName: "raidlead", group: "nights", subcommand: "list", guild, userId: "u-alice", options: { role: ROLE_ID } });
+    const raiderRun = fakeChatInput({ commandName: "raidlead", group: "nights", subcommand: "list", guild, userId: "u-alice", options: { team: "Main Raid" } });
     await raidlead.execute(raiderRun, client);
     expect(onlyReply(raiderRun)).toBe("Only officers can use /raidlead.");
 
@@ -381,11 +381,11 @@ describe("/raidlead execute", () => {
   it('routes by "group sub" key, for officers and the server owner', async () => {
     const { main, guild, client } = await twoTeams();
     await makeSlot(main.id, 3);
-    const officer = fakeChatInput({ commandName: "raidlead", group: "nights", subcommand: "list", guild, officer: true, options: { role: ROLE_ID } });
+    const officer = fakeChatInput({ commandName: "raidlead", group: "nights", subcommand: "list", guild, officer: true, options: { team: "Main Raid" } });
     await raidlead.execute(officer, client);
     expect(onlyReply(officer)).toBe("• Wednesday 8:00 PM · next <t:1791421200:F>\n-# Nights are in team time, Central Time (America/Chicago).");
 
-    const owner = fakeChatInput({ commandName: "raidlead", group: "team", subcommand: "delete", guild, userId: "u-owner", options: { role: ROLE_ID } });
+    const owner = fakeChatInput({ commandName: "raidlead", group: "team", subcommand: "delete", guild, userId: "u-owner", options: { team: "Main Raid" } });
     await raidlead.execute(owner, client);
     expect(owner.replies[0].content).toMatch(/^Delete \*\*Main Raid\*\*\?/);
     expect(owner.replies[0].components[0].toJSON().components.map((b: any) => b.custom_id)).toEqual([
@@ -434,7 +434,7 @@ describe("/raidlead autocomplete", () => {
   }
 
   it("responds with nothing to non-officers and in DMs", async () => {
-    expect((await respond({ group: "raid", subcommand: "cancel", focused: "date", options: { role: ROLE_ID }, officer: false })).responses).toEqual([[]]);
+    expect((await respond({ group: "raid", subcommand: "cancel", focused: "date", options: { team: "Main Raid" }, officer: false })).responses).toEqual([[]]);
     await prisma.raidTeam.deleteMany();
     expect((await respond({ group: "raid", subcommand: "cancel", focused: "date", guildless: true })).responses).toEqual([[]]);
   });
@@ -471,29 +471,29 @@ describe("/raidlead autocomplete", () => {
     expect(await ask("callout")).toEqual([{ name: "Pick a raider first", value: "none" }]);
   });
 
-  it("asks for the role first when it's missing or not a team", async () => {
+  it("asks for the team first when it's missing or unknown", async () => {
     const none = await respond({ group: "raid", subcommand: "cancel", focused: "date" });
-    expect(none.responses).toEqual([[{ name: "Pick a raid team role first", value: "none" }]]);
+    expect(none.responses).toEqual([[{ name: "Pick which team in the team: option.", value: "none" }]]);
     await prisma.raidTeam.deleteMany();
-    const notTeam = await respond({ group: "raid", subcommand: "cancel", focused: "date", options: { role: "role-random" } });
-    expect(notTeam.responses).toEqual([[{ name: "Pick a raid team role first", value: "none" }]]);
+    const unknown = await respond({ group: "raid", subcommand: "cancel", focused: "date", options: { team: "nope" } });
+    expect(unknown.responses).toEqual([[{ name: "Couldn't find that team. Pick one from the team: suggestions.", value: "none" }]]);
   });
 
   it("lists nights for nights remove", async () => {
     const w = await twoTeams();
     const slot = await makeSlot(w.main.id, 5, 21, 15);
-    const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "nights", subcommand: "remove", focused: "night", options: { role: ROLE_ID } });
+    const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "nights", subcommand: "remove", focused: "night", options: { team: "Main Raid" } });
     await raidlead.autocomplete(ac);
     expect(ac.responses).toEqual([[{ name: "Friday 9:15 PM Central Time", value: slot.id }]]);
 
     // An officer elsewhere also sees the next one in their own timezone.
     await setUserTimezone("user-1", "Europe/Berlin");
-    const own = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "nights", subcommand: "remove", focused: "night", options: { role: ROLE_ID } });
+    const own = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "nights", subcommand: "remove", focused: "night", options: { team: "Main Raid" } });
     await raidlead.autocomplete(own);
     expect(own.responses).toEqual([[{ name: "Friday 9:15 PM Central Time · Sat 4:15 AM GMT+2 for you", value: slot.id }]]);
 
     await prisma.raidSlot.deleteMany();
-    const empty = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "nights", subcommand: "remove", focused: "night", options: { role: ROLE_ID } });
+    const empty = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "nights", subcommand: "remove", focused: "night", options: { team: "Main Raid" } });
     await raidlead.autocomplete(empty);
     expect(empty.responses).toEqual([[{ name: "No weekly raid nights yet", value: "none" }]]);
   });
@@ -504,7 +504,7 @@ describe("/raidlead autocomplete", () => {
     const cancelled = await makeRaid(w.main.id, "2026-10-08T01:00:00Z", { cancelled: true });
     const oneOff = await makeRaid(w.main.id, "2026-10-09T01:00:00Z", { oneOff: true });
     const ask = async (subcommand: string) => {
-      const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "raid", subcommand, focused: "date", options: { role: ROLE_ID } });
+      const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "raid", subcommand, focused: "date", options: { team: "Main Raid" } });
       await raidlead.autocomplete(ac);
       return ac.responses[0]!.map((c) => c.value);
     };
@@ -514,7 +514,7 @@ describe("/raidlead autocomplete", () => {
 
     await prisma.raidInstance.deleteMany();
     const names = async (subcommand: string) => {
-      const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "raid", subcommand, focused: "date", options: { role: ROLE_ID } });
+      const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "raid", subcommand, focused: "date", options: { team: "Main Raid" } });
       await raidlead.autocomplete(ac);
       return ac.responses[0]!.map((c) => c.name);
     };
@@ -526,7 +526,7 @@ describe("/raidlead autocomplete", () => {
   it("raid add offers a typed date as-is, else upcoming dates in the team's timezone", async () => {
     const w = await twoTeams();
     const ask = async (date: string) => {
-      const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "raid", subcommand: "add", focused: "date", options: { role: ROLE_ID, date } });
+      const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "raid", subcommand: "add", focused: "date", options: { team: "Main Raid", date } });
       await raidlead.autocomplete(ac);
       return ac.responses[0]!;
     };
@@ -542,7 +542,7 @@ describe("/raidlead autocomplete", () => {
   it("team final-raid offers the days of upcoming raids in team time, else any date", async () => {
     const w = await twoTeams();
     const ask = async (date: string) => {
-      const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "team", subcommand: "final-raid", focused: "date", options: { role: ROLE_ID, date } });
+      const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "team", subcommand: "final-raid", focused: "date", options: { team: "Main Raid", date } });
       await raidlead.autocomplete(ac);
       return ac.responses[0]!;
     };

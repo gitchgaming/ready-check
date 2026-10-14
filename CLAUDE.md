@@ -76,6 +76,11 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   buttons re-check with `isOfficer` because admins can override visibility.
   Officers can view every team (`viewableTeams`, oldest first, their own
   teams first, so `/schedule` and `/roster` default to a team they're on).
+  `/raidlead` subcommands (all but `team setup`, which takes the `role:` it
+  creates the team from) take an optional `team:` picker last (Discord puts
+  required options first). `pickTeam` (`raidlead/shared.ts`) uses the pick (an
+  id, or a typed team name), else the server's only team, else the officer's
+  only team, else asks: these commands change things, so it never guesses.
 - Raider commands take at most a date and a team. The team comes from the
   user's roles; `/schedule` and `/roster` have an optional `team:` for raiders
   on several teams (and officers), while `/attendance` covers all their teams.
@@ -211,7 +216,7 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - In discord.js 14.16+, `isTextBased()` includes group DMs, which have no
   `send`; also check `"send" in channel` before sending.
 - During autocomplete, read other options as raw values
-  (`options.get("role")?.value`); only the focused option is fully resolved.
+  (`options.get("team")?.value`); only the focused option is fully resolved.
 
 ## Testing
 
