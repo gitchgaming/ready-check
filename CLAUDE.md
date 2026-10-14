@@ -146,7 +146,7 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   `/schedule`'s Roster buttons do). The bot sends no embeds; every
   view is a V2 container.
 - Each team has a raid size, 20 or 25 (`raidSize`, the `size` option on
-  `team setup`/`team edit`, default 25), with fixed role targets
+  `team setup`/`team settings`, default 25), with fixed role targets
   (`roleTargets` in `classes.ts`): Tanks need 2 / want 3, Healers 4 / 5,
   Damage wants the rest and needs 2 fewer. A role is 🟢 at its want, 🟡 at
   its need, 🔴 below, shown as in/want with a dot on every Next Up role. The
@@ -163,7 +163,7 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   it. `cancelled` keeps it visible as 🚫 Cancelled; only `oneOff` raids (from
   `/raidlead raid add`) can be hard-deleted with `raid remove`.
   The exception is a team's final raid date (`finalRaidDate`, "yyyy-MM-dd" in
-  team time, set with `team final-raid`, cleared with `team resume`): the sync
+  team time, set or cleared with `team settings final-raid:`): the sync
   generates nothing after it (`scheduleCutoff`) and deletes open raids after it;
   closed raids stay as attendance history.
   Removing a weekly night (`nights remove`) is the other: its upcoming
@@ -251,7 +251,7 @@ testing is for look and feel only.
   `npm run dev` start. Confirm it the first time the user asks to run dev.
 - Fixed team time, clearly labelled: see `docs/timezone-plan.md`. Sections 1
   and 2 (timestamps in message text, zone labels in plain text) are done;
-  officer input (3) and a permanent timezone (4) are not.
+  officer input (3) is not, and a permanent timezone (4) was dropped.
 
 ## Production hosting (Railway)
 

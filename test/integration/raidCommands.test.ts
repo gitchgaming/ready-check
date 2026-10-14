@@ -32,15 +32,12 @@ describe("picking the team", () => {
     ["nights", "add", { day: "3", time: "20:00" }],
     ["nights", "remove", { night: "x" }],
     ["nights", "edit", { night: "x", time: "21:00" }],
-    ["nights", "list", {}],
     ["raid", "cancel", { date: "x" }],
     ["raid", "restore", { date: "x" }],
     ["raid", "remove", { date: "x" }],
-    ["team", "edit", { name: "New" }],
+    ["team", "settings", { name: "New" }],
     ["team", "delete", {}],
-    ["team", "publish", {}],
-    ["team", "final-raid", { date: "2026-10-20" }],
-    ["team", "resume", {}],
+    ["team", "post", {}],
   ])("%s %s with a team that doesn't exist says so and changes nothing", async (group, sub, options) => {
     const t = await makeTeam();
     const { run, channel } = setup();
@@ -53,7 +50,7 @@ describe("picking the team", () => {
 
   it("with no teams yet, says how to create one", async () => {
     const { run } = setup();
-    expect(onlyReply(await run("nights", "list"))).toBe("There are no raid teams yet. Create one with `/raidlead team setup`.");
+    expect(onlyReply(await run("team", "settings"))).toBe("There are no raid teams yet. Create one with `/raidlead team setup`.");
   });
 
   it("uses the server's only team, else the officer's only team, else asks", async () => {
@@ -63,16 +60,16 @@ describe("picking the team", () => {
     await makeSlot(alts.id, 4);
     const { guild, client } = setup();
     const list = async (userId: string, options: Record<string, unknown> = {}) => {
-      const interaction = fakeChatInput({ commandName: "raidlead", group: "nights", subcommand: "list", guild, officer: true, userId, options });
+      const interaction = fakeChatInput({ commandName: "raidlead", group: "team", subcommand: "settings", guild, officer: true, userId, options });
       await raidlead.execute(interaction, client);
       return onlyReply(interaction);
     };
     expect(await list("user-1")).toBe("Pick which team in the `team:` option.");
     guild.members.cache.set("u-alts", fakeMember({ id: "u-alts", name: "Ana", roles: [fakeRole("Alts", "role-alts")] }));
-    expect(await list("u-alts")).toMatch(/^• Thursday 8:00 PM/);
+    expect(await list("u-alts")).toMatch(/^\*\*Alts\*\*/);
     // A pick wins over the default, by id or by typed name.
-    expect(await list("u-alts", { team: main.id })).toMatch(/^• Tuesday 8:00 PM/);
-    expect(await list("user-1", { team: " main raid " })).toMatch(/^• Tuesday 8:00 PM/);
+    expect(await list("u-alts", { team: main.id })).toMatch(/^\*\*Main Raid\*\*/);
+    expect(await list("user-1", { team: " main raid " })).toMatch(/^\*\*Main Raid\*\*/);
   });
 
   it("the team picker lists every team, the officer's own first", async () => {
@@ -369,19 +366,6 @@ describe("nights", () => {
     );
     expect(await prisma.raidSlot.count()).toBe(1);
   });
-
-  it("list shows the nights in order with each one's next raid and the timezone, or how to add one", async () => {
-    const t = await makeTeam();
-    const { run } = setup();
-    expect(onlyReply(await run("nights", "list", {}))).toBe(
-      "No weekly raid nights yet. Add one with `/raidlead nights add`.",
-    );
-    await makeSlot(t.id, 6, 19, 30);
-    await makeSlot(t.id, 2, 20, 0);
-    expect(onlyReply(await run("nights", "list", {}))).toBe(
-      "• Tuesday 8:00 PM · next <t:1791334800:F>\n• Saturday 7:30 PM · next <t:1791678600:F>\n-# Nights are in team time, Central Time (America/Chicago).",
-    );
-  });
 });
 
 describe("team setup", () => {
@@ -423,6 +407,16 @@ describe("team setup", () => {
     expect(errors).toHaveBeenCalledWith(expect.stringContaining("Failed to sync raid team"), expect.any(Error));
   });
 
+  it("posts in the channel it's run in when no channel is picked", async () => {
+    const here = fakeChannel("channel-here");
+    const { run } = setup([here]);
+    expect(onlyReply(await run("team", "setup", { role: ROLE_ID, timezone: TZ }, { channel: here }))).toMatch(/posting its schedule in <#channel-here>\./);
+    expect(here.sent).toHaveLength(1);
+    expect(onlyReply(await run("team", "setup", { role: "role-x", timezone: TZ }, { channel: null }))).toBe(
+      "Pick a `channel:` for the schedule, or run this in one.",
+    );
+  });
+
   it("rejects an unknown timezone and a role that's already a team", async () => {
     const { run } = setup();
     expect(onlyReply(await run("team", "setup", { role: ROLE_ID, channel: CHANNEL_ID, timezone: "Mars/Olympus" }))).toBe(
@@ -432,18 +426,32 @@ describe("team setup", () => {
 
     await makeTeam();
     expect(onlyReply(await run("team", "setup", { role: ROLE_ID, channel: CHANNEL_ID, timezone: TZ }))).toBe(
-      `<@&${ROLE_ID}> is already a raid team. Change its settings with \`/raidlead team edit\`.`,
+      `<@&${ROLE_ID}> is already a raid team. Change its settings with \`/raidlead team settings\`.`,
     );
     expect(await prisma.raidTeam.count()).toBe(1);
   });
 });
 
-describe("team edit", () => {
-  it("needs at least one setting, and a valid timezone", async () => {
+describe("team settings", () => {
+  it("without options shows the team at a glance", async () => {
     const t = await makeTeam();
     const { run } = setup();
-    expect(onlyReply(await run("team", "edit", {}))).toBe("Pick at least one setting to change.");
-    expect(onlyReply(await run("team", "edit", { timezone: "Nowhere/Land" }))).toMatch(/isn't a recognized timezone/);
+    expect(onlyReply(await run("team", "settings"))).toBe(
+      `**Main Raid** · <@&${ROLE_ID}>\n• Schedule: <#${CHANNEL_ID}>\n• Timezone: Central Time (America/Chicago)\n` +
+        "• Raid size: 25-player\n• Coming Up raids: 3\n• Final raid date: none\n**Weekly nights**, in team time\n" +
+        "• None yet. Add one with `/raidlead nights add`.",
+    );
+    await makeSlot(t.id, 6, 19, 30);
+    await makeSlot(t.id, 2, 20, 0);
+    expect(onlyReply(await run("team", "settings"))).toMatch(
+      /\n\*\*Weekly nights\*\*, in team time\n• Tuesday 8:00 PM · next <t:1791334800:F>\n• Saturday 7:30 PM · next <t:1791678600:F>$/,
+    );
+  });
+
+  it("rejects an unknown timezone and changes nothing", async () => {
+    const t = await makeTeam();
+    const { run } = setup();
+    expect(onlyReply(await run("team", "settings", { timezone: "Nowhere/Land", name: "X" }))).toMatch(/isn't a recognized timezone/);
     expect(await team(t.id)).toMatchObject({ timezone: TZ, name: "Main Raid" });
   });
 
@@ -451,8 +459,9 @@ describe("team edit", () => {
     const t = await makeTeam({ messageId: "public" });
     const { run, channel } = setup();
     const existing = channel.seedMessage("public");
-    const reply = onlyReply(await run("team", "edit", { name: "Core", timezone: "Europe/Paris", "coming-up": 5 }));
-    expect(reply).toBe(`✅ Updated **Core**.\n• Channel: <#${CHANNEL_ID}>\n• Timezone: Europe/Paris\n• Raid size: 25-player\n• Coming Up raids: 5`);
+    const reply = onlyReply(await run("team", "settings", { name: "Core", timezone: "Europe/Paris", "coming-up": 5 }));
+    expect(reply).toMatch(/^✅ Saved\.\n\n\*\*Core\*\* · /);
+    expect(reply).toContain("• Timezone: Central European Time (Europe/Paris)\n• Raid size: 25-player\n• Coming Up raids: 5\n");
     expect(await team(t.id)).toMatchObject({ name: "Core", timezone: "Europe/Paris", displayCount: 5, messageId: "public" });
     expect(existing.payloads).toHaveLength(2);
     expect(channel.sent).toHaveLength(0);
@@ -472,8 +481,9 @@ describe("team edit", () => {
       const before = await openRaids(t.id);
       await callOut(before[1]!.id, "raider-1");
 
-      const reply = onlyReply(await run("team", "edit", { timezone: "America/New_York" }));
-      expect(reply).toContain("• Weekly nights, now in Eastern Time: Tuesday 9:00 PM. The raids didn't move.");
+      const reply = onlyReply(await run("team", "settings", { timezone: "America/New_York" }));
+      expect(reply).toMatch(/^✅ Saved\. The weekly nights are now in Eastern Time, and no raid moved\.\n/);
+      expect(reply).toContain("\n• Tuesday 9:00 PM · next <t:1791334800:F>");
       expect(await nights(t.id)).toEqual([{ dayOfWeek: 2, hour: 21, minute: 0 }]);
 
       await syncRaidTeam(client, t.id);
@@ -492,7 +502,7 @@ describe("team edit", () => {
       const oct27 = (await openRaids(t.id)).find((r) => r.startsAt.toISOString() === "2026-10-28T01:00:00.000Z")!;
       await callOut(oct27.id, "raider-1");
 
-      onlyReply(await run("team", "edit", { timezone: "Europe/London" }));
+      onlyReply(await run("team", "settings", { timezone: "Europe/London" }));
       expect(await nights(t.id)).toEqual([{ dayOfWeek: 3, hour: 2, minute: 0 }]);
       await syncRaidTeam(client, t.id);
 
@@ -512,9 +522,9 @@ describe("team edit", () => {
       await syncRaidTeam(client, t.id);
       expect(await openRaids(t.id)).toHaveLength(2);
 
-      const reply = onlyReply(await run("team", "edit", { timezone: "America/New_York" }));
+      const reply = onlyReply(await run("team", "settings", { timezone: "America/New_York" }));
       expect(reply).toContain("• Final raid date: Wednesday, Oct 14, 2026");
-      expect(reply).toContain("Wednesday 12:00 AM");
+      expect(reply).toContain("• Wednesday 12:00 AM");
       await syncRaidTeam(client, t.id);
       expect(await openRaids(t.id)).toHaveLength(2);
     });
@@ -524,29 +534,9 @@ describe("team edit", () => {
     const t = await makeTeam({ messageId: "public" });
     const { run, channel } = setup();
     const existing = channel.seedMessage("public");
-    expect(onlyReply(await run("team", "edit", { size: 20 }))).toContain("• Raid size: 20-player");
+    expect(onlyReply(await run("team", "settings", { size: 20 }))).toContain("• Raid size: 20-player");
     expect(await team(t.id)).toMatchObject({ raidSize: 20 });
     expect(existing.payloads).toHaveLength(2);
-  });
-
-  it("moving the channel deletes the old message and posts in the new channel", async () => {
-    const t = await makeTeam({ messageId: "public" });
-    const newChannel = fakeChannel("channel-2");
-    const { run, channel } = setup([newChannel]);
-    const old = channel.seedMessage("public");
-    onlyReply(await run("team", "edit", { channel: "channel-2" }));
-    expect(old.deleted).toBe(true);
-    expect(newChannel.sent).toHaveLength(1);
-    expect(await team(t.id)).toMatchObject({ channelId: "channel-2", messageId: newChannel.sent[0]!.id });
-  });
-
-  it("moves away from a channel that no longer exists", async () => {
-    const t = await makeTeam({ channelId: "deleted-channel", messageId: "lost" });
-    const newChannel = fakeChannel("channel-2");
-    const { run } = setup([newChannel]);
-    onlyReply(await run("team", "edit", { channel: "channel-2" }));
-    expect(newChannel.sent).toHaveLength(1);
-    expect(await team(t.id)).toMatchObject({ channelId: "channel-2", messageId: newChannel.sent[0]!.id });
   });
 
   it("still saves and replies when re-rendering fails", async () => {
@@ -556,46 +546,45 @@ describe("team edit", () => {
       throw new Error("Missing Access");
     };
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(onlyReply(await run("team", "edit", { name: "Core" }))).toMatch(/^✅ Updated \*\*Core\*\*/);
+    expect(onlyReply(await run("team", "settings", { name: "Core" }))).toMatch(/^✅ Saved\.\n\n\*\*Core\*\*/);
     expect((await team(t.id)).name).toBe("Core");
     expect(errors).toHaveBeenCalled();
   });
 
-  it("naming the current channel is not a move", async () => {
-    await makeTeam({ messageId: "public" });
-    const { run, channel } = setup();
-    const existing = channel.seedMessage("public");
-    onlyReply(await run("team", "edit", { channel: CHANNEL_ID }));
-    expect(existing.deleted).toBe(false);
-    expect(existing.payloads).toHaveLength(2);
-  });
-
-  it("falls back to the role's name in the reply for an unnamed team", async () => {
+  it("falls back to the role's name for an unnamed team", async () => {
     await makeTeam({ name: null });
     const { run } = setup();
-    expect(onlyReply(await run("team", "edit", { "coming-up": 1 }))).toMatch(/^✅ Updated \*\*Main Raid\*\*\./);
+    expect(onlyReply(await run("team", "settings", { "coming-up": 1 }))).toMatch(/^✅ Saved\.\n\n\*\*Main Raid\*\* · /);
   });
 });
 
-describe("team publish", () => {
+describe("team post", () => {
   it("posts the schedule in the current channel, replacing the old message", async () => {
     const t = await makeTeam({ messageId: "public" });
     const here = fakeChannel("channel-here");
     const { run, channel } = setup([here]);
     const old = channel.seedMessage("public");
-    expect(onlyReply(await run("team", "publish", {}, { channel: here }))).toBe(
-      "✅ Schedule posted in <#channel-here>.",
-    );
+    expect(onlyReply(await run("team", "post", {}, { channel: here }))).toBe("✅ Schedule posted in <#channel-here>.");
     expect(old.deleted).toBe(true);
     expect(here.sent).toHaveLength(1);
     expect(await team(t.id)).toMatchObject({ channelId: "channel-here", messageId: here.sent[0]!.id });
   });
 
-  it("re-publishing in the same channel replaces the message rather than editing it", async () => {
+  it("posts in a picked channel instead, even away from one that no longer exists", async () => {
+    const t = await makeTeam({ channelId: "deleted-channel", messageId: "lost" });
+    const newChannel = fakeChannel("channel-2");
+    const { run, channel } = setup([newChannel]);
+    expect(onlyReply(await run("team", "post", { channel: "channel-2" }, { channel }))).toBe("✅ Schedule posted in <#channel-2>.");
+    expect(newChannel.sent).toHaveLength(1);
+    expect(channel.sent).toHaveLength(0);
+    expect(await team(t.id)).toMatchObject({ channelId: "channel-2", messageId: newChannel.sent[0]!.id });
+  });
+
+  it("posting again in the same channel replaces the message rather than editing it", async () => {
     const t = await makeTeam();
     const { run, channel } = setup();
-    await run("team", "publish", {}, { channel });
-    await run("team", "publish", {}, { channel });
+    await run("team", "post", {}, { channel });
+    await run("team", "post", {}, { channel });
     expect(channel.sent).toHaveLength(2);
     expect(channel.sent[0]!.deleted).toBe(true);
     expect((await team(t.id)).messageId).toBe(channel.sent[1]!.id);
@@ -605,14 +594,16 @@ describe("team publish", () => {
     const t = await makeTeam();
     const voice = Object.assign(fakeChannel("voice"), { isTextBased: () => false });
     const { run } = setup([voice]);
-    expect(onlyReply(await run("team", "publish", {}, { channel: voice }))).toBe("Run this in a text channel.");
-    expect(onlyReply(await run("team", "publish", {}, { channel: null }))).toBe("Run this in a text channel.");
+    const needs = "Pick a `channel:`, or run this in a text channel.";
+    expect(onlyReply(await run("team", "post", {}, { channel: voice }))).toBe(needs);
+    expect(onlyReply(await run("team", "post", {}, { channel: null }))).toBe(needs);
     expect((await team(t.id)).channelId).toBe(CHANNEL_ID);
   });
 });
 
-describe("team final-raid / resume", () => {
+describe("team settings final-raid", () => {
   const day = (r: { startsAt: Date }) => DateTime.fromJSDate(r.startsAt).setZone(TZ).toISODate();
+  const finalRaid = (date: string) => ({ "final-raid": date });
 
   /** A Tuesday 8 PM team with its 12 weekly raids generated: Oct 6 through Dec 22. */
   async function weeklyTeam() {
@@ -633,11 +624,11 @@ describe("team final-raid / resume", () => {
     await callOut(all.find((r) => day(r) === "2026-10-27")!.id, "u-alice");
     await callOut(all.find((r) => day(r) === "2026-11-03")!.id, "u-bob");
 
-    expect(onlyReply(await run("team", "final-raid", { date: "2026-10-20" }))).toBe(
-      "🏁 **Main Raid**'s final raid date is Tuesday, Oct 20, 2026 (team time). Removed 9 raids after it, with 2 call-outs.\n" +
-        "No new raids will be scheduled after it; past raids and their attendance stay. " +
-        "To schedule the weekly nights again, use `/raidlead team resume`.",
+    const reply = onlyReply(await run("team", "settings", finalRaid("2026-10-20")));
+    expect(reply).toMatch(
+      /^✅ Saved\. 🏁 The final raid date is Tuesday, Oct 20, 2026 \(team time\)\. Removed 9 raids after it, with 2 call-outs\. Past raids and their attendance stay\.\n/,
     );
+    expect(reply).toContain("• Final raid date: Tuesday, Oct 20, 2026; no raids are scheduled after it");
     expect((await team(t.id)).finalRaidDate).toBe("2026-10-20");
     expect((await raids(t.id)).map(day)).toEqual(["2026-09-29", "2026-10-06", "2026-10-13", "2026-10-20"]);
     expect(await prisma.attendance.count()).toBe(2);
@@ -652,12 +643,12 @@ describe("team final-raid / resume", () => {
 
   it("takes a typed date, and moving it later only stops what's past the new date", async () => {
     const { t, run } = await weeklyTeam();
-    onlyReply(await run("team", "final-raid", { date: "10/13" }));
+    onlyReply(await run("team", "settings", finalRaid("10/13")));
     expect(await raids(t.id)).toHaveLength(2);
 
     // Moving it later lets the sync fill in up to the new date.
-    expect(onlyReply(await run("team", "final-raid", { date: "11/3" }))).toMatch(
-      /^🏁 \*\*Main Raid\*\*'s final raid date is Tuesday, Nov 3, 2026 \(team time\)\. There were no raids after it\.\n/,
+    expect(onlyReply(await run("team", "settings", finalRaid("11/3")))).toMatch(
+      /^✅ Saved\. 🏁 The final raid date is Tuesday, Nov 3, 2026 \(team time\)\. Past raids and their attendance stay\.\n/,
     );
     expect((await raids(t.id)).map(day).at(-1)).toBe("2026-11-03");
     expect(await raids(t.id)).toHaveLength(5);
@@ -666,7 +657,7 @@ describe("team final-raid / resume", () => {
   it("rejects dates it can't read or that have passed", async () => {
     const { t, run } = await weeklyTeam();
     for (const date of ["someday", "1/1/2020", "none"]) {
-      expect(onlyReply(await run("team", "final-raid", { date }))).toBe(
+      expect(onlyReply(await run("team", "settings", finalRaid(date)))).toBe(
         `Couldn't read "${date}" as an upcoming date. Pick one from the suggestions, or type it like \`3/15/2027\`.`,
       );
     }
@@ -677,7 +668,7 @@ describe("team final-raid / resume", () => {
   it("today ends the team after today's raid; with none left the schedule says so", async () => {
     const t = await makeTeam();
     const { run, channel } = setup();
-    expect(onlyReply(await run("team", "final-raid", { date: "2026-10-06" }))).toMatch(/There were no raids after it\./);
+    expect(onlyReply(await run("team", "settings", finalRaid("2026-10-06")))).toMatch(/^✅ Saved\. 🏁 The final raid date is Tuesday, Oct 6, 2026/);
     await run("nights", "add", { day: "3", time: "20:00" });
     expect(await raids(t.id)).toHaveLength(0);
     const text = payloadText(channel.sent.at(-1)!.payloads.at(-1) as any);
@@ -689,43 +680,31 @@ describe("team final-raid / resume", () => {
     const t = await makeTeam({ finalRaidDate: "2026-10-09" });
     const { run } = setup();
     expect(onlyReply(await run("raid", "add", { date: "10/10", time: "00:30" }))).toBe(
-      "That's after the team's final raid date, Friday, Oct 9, 2026. Move it with `/raidlead team final-raid`, or clear it with `/raidlead team resume`.",
+      "That's after the team's final raid date, Friday, Oct 9, 2026. Move or clear it with `/raidlead team settings final-raid:`.",
     );
     onlyReply(await run("raid", "add", { date: "10/9", time: "23:30" }));
     expect(await raids(t.id)).toHaveLength(1);
   });
 
-  it("nights list and add note the final raid date", async () => {
-    const t = await makeTeam({ finalRaidDate: "2026-10-06" });
-    await makeSlot(t.id, 2);
+  it("nights add notes the final raid date", async () => {
+    await makeTeam({ finalRaidDate: "2026-10-06" });
     const { run } = setup();
-    const note = "\n-# Final raid date: Tuesday, Oct 6, 2026. No raids are scheduled after it; clear it with `/raidlead team resume`.";
-    expect(onlyReply(await run("nights", "list", {}))).toBe(
-      "• Tuesday 8:00 PM · next <t:1791334800:F>\n-# Nights are in team time, Central Time (America/Chicago)." + note,
-    );
     expect(onlyReply(await run("nights", "add", { day: "3", time: "20:00" }))).toBe(
-      "✅ Added Wednesday 8:00 PM Central Time (America/Chicago) as a weekly raid night. Next: none before the final raid date." + note,
+      "✅ Added Wednesday 8:00 PM Central Time (America/Chicago) as a weekly raid night. Next: none before the final raid date." +
+        "\n-# Final raid date: Tuesday, Oct 6, 2026. No raids are scheduled after it; clear it with `/raidlead team settings final-raid:`.",
     );
   });
 
-  it("resume clears the date and the weekly nights schedule again", async () => {
+  it("No final raid clears the date and the weekly nights schedule again", async () => {
     const { t, run } = await weeklyTeam();
-    expect(onlyReply(await run("team", "resume", {}))).toBe(
-      "**Main Raid** has no final raid date, so its weekly nights are already scheduling raids.",
-    );
-    await run("team", "final-raid", { date: "2026-10-06" });
+    expect(onlyReply(await run("team", "settings", finalRaid("clear")))).toMatch(/^✅ Saved\. There was no final raid date to clear\.\n/);
+    await run("team", "settings", finalRaid("2026-10-06"));
     expect(await raids(t.id)).toHaveLength(1);
 
-    expect(onlyReply(await run("team", "resume", {}))).toBe(
-      "✅ Cleared **Main Raid**'s final raid date (Tuesday, Oct 6, 2026). Its weekly nights are scheduling raids again; call-outs on removed raids don't come back.",
+    expect(onlyReply(await run("team", "settings", finalRaid("clear")))).toMatch(
+      /^✅ Saved\. Cleared the final raid date, so the weekly nights schedule raids again; call-outs on removed raids don't come back\.\n/,
     );
     expect((await team(t.id)).finalRaidDate).toBeNull();
     expect(await raids(t.id)).toHaveLength(12);
-  });
-
-  it("team edit lists the final raid date", async () => {
-    await makeTeam({ finalRaidDate: "2026-12-01" });
-    const { run } = setup();
-    expect(onlyReply(await run("team", "edit", { name: "Mythic" }))).toMatch(/\n• Final raid date: Tuesday, Dec 1, 2026$/);
   });
 });

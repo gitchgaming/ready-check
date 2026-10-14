@@ -77,39 +77,41 @@ own first). Leave it out when the server has one team, or you're on exactly
 one; otherwise the command asks you to pick.
 
 **`team`** — create and manage raid teams
-- `setup role: channel: timezone: [name:] [coming-up:] [size:]` — create a team and post
-  its schedule message in `channel`. The name defaults to the
-  role's name; `size` is the raid size, 20 or 25 players (default 25).
-- `edit [channel:] [timezone:] [name:] [coming-up:] [size:]` — change settings.
-  Changing the channel moves the schedule message. Changing the timezone
-  leaves every raid where it is and rewrites the weekly nights into the new
-  zone (Tuesday 8:00 PM Central becomes Tuesday 9:00 PM Eastern), listed in
-  the reply.
-- `publish` — post the schedule message in the current channel, replacing
-  the old one. Use it if the message was deleted.
-- `final-raid date:` — end the team after this day (in team time): raids
-  after it are removed along with their call-outs, and no new raids are
-  scheduled past it, so the weekly nights stop. Past raids and their
-  attendance stay. The picker lists the days of upcoming raids, or type any
-  date like `3/15/2027`. Run it again to move the date; `raid add` refuses
-  dates after it.
-- `resume` — clear the final raid date, so the weekly nights schedule raids
-  again. Call-outs on raids it removed don't come back.
+- `setup role: timezone: [channel:] [name:] [coming-up:] [size:]` — create a
+  team and post its schedule message in `channel` (default: the channel you're
+  in). The name defaults to the role's name; `size` is the raid size, 20 or 25
+  players (default 25).
+- `settings [name:] [timezone:] [size:] [coming-up:] [final-raid:]` — without
+  options, shows the team at a glance: its role, schedule channel, timezone,
+  size, Coming Up count, final raid date, and weekly nights with each one's
+  next raid. With options, changes them and shows the same view.
+  - Changing the `timezone` leaves every raid where it is and rewrites the
+    weekly nights into the new zone (Tuesday 8:00 PM Central becomes Tuesday
+    9:00 PM Eastern).
+  - `final-raid` ends the team after that day (in team time): raids after it
+    are removed along with their call-outs, and no new raids are scheduled
+    past it, so the weekly nights stop. Past raids and their attendance stay.
+    The picker lists the days of upcoming raids, or type any date like
+    `3/15/2027`; set it again to move it, or pick **No final raid** to clear
+    it, so the weekly nights schedule raids again (call-outs on raids it
+    removed don't come back). `raid add` refuses dates after it.
+- `post [channel:]` — post the schedule message in `channel` (default: the
+  channel you're in), replacing the old one. Use it to move the schedule, or
+  if the message was deleted.
 - `delete` — permanently delete the team after a confirmation: its weekly
   nights, raids, call-outs, and its schedule message. The Discord
   role is left alone.
 
-**`nights`** — weekly recurring raid nights
+**`nights`** — weekly recurring raid nights (`team settings` lists them)
 - `add day: time:` — e.g. Wednesday, `20:00`. Times are 24-hour, in the
   team's timezone.
-- `remove night:` — pick from the team's existing nights. Its upcoming raids
-  go with it, along with their call-outs; past raids, a raid under way, and
-  one-off raids stay.
 - `edit night: time:` — change a night's start time. Its upcoming raids move
   with it and keep their call-outs; tonight's raid is removed if its new time
   has already passed. To move a night to another day, remove it and add the
   new one.
-- `list`
+- `remove night:` — pick from the team's existing nights. Its upcoming raids
+  go with it, along with their call-outs; past raids, a raid under way, and
+  one-off raids stay.
 
 **`raid`** — change individual raids
 - `cancel date:` — the raid stays on the schedule as 🚫 Cancelled, with its
@@ -219,8 +221,9 @@ rollbacks. First-time setup:
 
 - Everything lives in SQLite — fine at this scale (single guild, a
   few hundred interactions a week at most).
-- Timezones are per raid team (set in `/raidlead team setup`), so a team's raid times
-  stay correct across daylight saving changes.
+- Timezones are per raid team (set in `/raidlead team setup`, changed in
+  `team settings`), so a team's raid times stay correct across daylight
+  saving changes.
 - Every date and time in a message is a Discord timestamp, so each person sees
   it in their own timezone. Discord can't do that in pickers and dropdown
   options, and never tells a bot a user's timezone, so those show the time in

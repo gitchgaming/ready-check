@@ -381,9 +381,9 @@ describe("/raidlead execute", () => {
   it('routes by "group sub" key, for officers and the server owner', async () => {
     const { main, guild, client } = await twoTeams();
     await makeSlot(main.id, 3);
-    const officer = fakeChatInput({ commandName: "raidlead", group: "nights", subcommand: "list", guild, officer: true, options: { team: "Main Raid" } });
+    const officer = fakeChatInput({ commandName: "raidlead", group: "team", subcommand: "settings", guild, officer: true, options: { team: "Main Raid" } });
     await raidlead.execute(officer, client);
-    expect(onlyReply(officer)).toBe("• Wednesday 8:00 PM · next <t:1791421200:F>\n-# Nights are in team time, Central Time (America/Chicago).");
+    expect(onlyReply(officer)).toMatch(/\n• Wednesday 8:00 PM · next <t:1791421200:F>$/);
 
     const owner = fakeChatInput({ commandName: "raidlead", group: "team", subcommand: "delete", guild, userId: "u-owner", options: { team: "Main Raid" } });
     await raidlead.execute(owner, client);
@@ -539,10 +539,10 @@ describe("/raidlead autocomplete", () => {
     expect(await ask("Friday")).toEqual(expect.arrayContaining([{ name: "Friday, Oct 9, 2026", value: "2026-10-09" }]));
   });
 
-  it("team final-raid offers the days of upcoming raids in team time, else any date", async () => {
+  it("team settings final-raid offers the days of upcoming raids in team time, else any date, and clearing it", async () => {
     const w = await twoTeams();
     const ask = async (date: string) => {
-      const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "team", subcommand: "final-raid", focused: "date", options: { team: "Main Raid", date } });
+      const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "team", subcommand: "settings", focused: "final-raid", options: { team: "Main Raid", "final-raid": date } });
       await raidlead.autocomplete(ac);
       return ac.responses[0]!;
     };
@@ -558,6 +558,11 @@ describe("/raidlead autocomplete", () => {
       { name: "Thursday, Oct 8, 2026", value: "2026-10-08" },
     ]);
     expect(await ask("3/15/2027")).toEqual([{ name: "Monday, Mar 15, 2027", value: "2027-03-15" }]);
+
+    // With a final raid date set, the first choice clears it.
+    await prisma.raidTeam.update({ where: { id: w.main.id }, data: { finalRaidDate: "2026-10-20" } });
+    expect((await ask(""))[0]).toEqual({ name: "No final raid: keep scheduling the weekly nights", value: "clear" });
   });
+
 
 });

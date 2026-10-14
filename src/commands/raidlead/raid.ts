@@ -110,7 +110,7 @@ export async function add(interaction: ChatInputCommandInteraction, client: Clie
     await interaction.reply({
       content:
         `That's after the team's final raid date, ${formatFinalRaidDate(team)}. ` +
-        "Move it with `/raidlead team final-raid`, or clear it with `/raidlead team resume`.",
+        "Move or clear it with `/raidlead team settings final-raid:`.",
       flags: MessageFlags.Ephemeral,
     });
     return;
