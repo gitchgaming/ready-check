@@ -157,6 +157,17 @@ export const data = new SlashCommandBuilder()
           ),
       )
       .addSubcommand((sub) =>
+        sub
+          .setName("edit")
+          .setDescription("Move a weekly raid night, and its upcoming raids, to a new day or time")
+          .addRoleOption(roleOption)
+          .addStringOption((opt) =>
+            opt.setName("night").setDescription("The night to move").setRequired(true).setAutocomplete(true),
+          )
+          .addStringOption((opt) => opt.setName("day").setDescription("New day of the week").addChoices(...WEEKDAY_CHOICES))
+          .addStringOption((opt) => opt.setName("time").setDescription('New start time, 24-hour, e.g. "21:00"')),
+      )
+      .addSubcommand((sub) =>
         sub.setName("list").setDescription("List a team's weekly raid nights").addRoleOption(roleOption),
       ),
   )
@@ -238,6 +249,7 @@ const handlers: Record<string, Handler> = {
   "team delete": team.remove,
   "nights add": nights.add,
   "nights remove": nights.remove,
+  "nights edit": nights.edit,
   "nights list": nights.list,
   "raid cancel": raid.cancel,
   "raid restore": raid.restore,

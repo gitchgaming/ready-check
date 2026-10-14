@@ -163,6 +163,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   closed raids stay as attendance history.
   Removing a weekly night (`nights remove`) is the other: its upcoming
   non-one-off raids go with it, since nothing would generate them again.
+  Moving one (`nights edit`) moves those raids to the new day or time with
+  their call-outs, so the sync matches them instead of adding new ones.
 - Every date or time in message text is a Discord timestamp (`raidTime`
   in `time.ts`), so each viewer sees their own timezone: full (`F`, the only
   style with a weekday) where it has room, short (`s`, "10/14/26, 8:00 PM")

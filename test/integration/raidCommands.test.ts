@@ -31,6 +31,7 @@ describe("role option that isn't a raid team", () => {
   it.each([
     ["nights", "add", { day: "3", time: "20:00" }],
     ["nights", "remove", { night: "x" }],
+    ["nights", "edit", { night: "x", time: "21:00" }],
     ["nights", "list", {}],
     ["raid", "cancel", { date: "x" }],
     ["raid", "restore", { date: "x" }],
@@ -273,6 +274,61 @@ describe("nights", () => {
       "🗑️ Removed Tuesday 6:00 AM Central Time as a weekly raid night.",
     );
     expect((await raids(t.id)).map((r) => r.id)).toEqual([started.id]);
+  });
+
+  it("edit moves the night and its upcoming raids, keeping their call-outs", async () => {
+    const t = await makeTeam({ messageId: "public" });
+    const slot = await makeSlot(t.id, 3); // Wednesdays, 8:00 PM Central
+    const { run, client, channel } = setup();
+    channel.seedMessage("public");
+    await syncRaidTeam(client, t.id);
+    const before = await raids(t.id);
+    await callOut(before[0]!.id, "raider-1");
+    const oneOff = await makeRaid(t.id, "2026-10-10T01:00:00Z", { oneOff: true });
+
+    expect(onlyReply(await run("nights", "edit", { role: ROLE_ID, night: slot.id, time: "21:00" }))).toBe(
+      "✅ Moved Wednesday 8:00 PM to Wednesday 9:00 PM Central Time. Its 12 upcoming raids moved with it, keeping their call-outs. Next: <t:1791424800:F>.",
+    );
+    expect(await prisma.raidSlot.findUniqueOrThrow({ where: { id: slot.id } })).toMatchObject({ dayOfWeek: 3, hour: 21, minute: 0 });
+    const after = await raids(t.id);
+    expect(after.find((r) => r.id === before[0]!.id)!.startsAt).toEqual(new Date("2026-10-08T02:00:00Z"));
+    expect(await prisma.attendance.findMany({ where: { raidInstanceId: before[0]!.id } })).toHaveLength(1);
+    expect(after.find((r) => r.id === oneOff.id)!.startsAt).toEqual(new Date("2026-10-10T01:00:00Z"));
+
+    // The sync finds the moved raids rather than adding new ones.
+    await syncRaidTeam(client, t.id);
+    expect(await raids(t.id)).toHaveLength(13);
+  });
+
+  it("edit removes a raid whose new day would already have passed", async () => {
+    const t = await makeTeam();
+    const slot = await makeSlot(t.id, 2); // Tuesdays, 8:00 PM Central: tonight
+    const tonight = await makeRaid(t.id, TUE_8PM);
+    await callOut(tonight.id, "raider-1");
+    const nextWeek = await makeRaid(t.id, "2026-10-14T01:00:00Z");
+    const { run } = setup();
+
+    expect(onlyReply(await run("nights", "edit", { role: ROLE_ID, night: slot.id, day: "1" }))).toMatch(
+      /^✅ Moved Tuesday 8:00 PM to Monday 8:00 PM Central Time\. Its 1 upcoming raid moved with it, keeping their call-outs\. Removed 1 raid that couldn't move, with 1 call-out\. Next: /,
+    );
+    const left = await prisma.raidInstance.findMany({ where: { raidTeamId: t.id } });
+    expect(left.map((r) => r.id)).not.toContain(tonight.id);
+    expect(left.find((r) => r.id === nextWeek.id)!.startsAt).toEqual(new Date("2026-10-13T01:00:00Z"));
+  });
+
+  it("edit needs a change, a valid time, and a free slot", async () => {
+    const t = await makeTeam();
+    const slot = await makeSlot(t.id, 3);
+    await makeSlot(t.id, 4);
+    const { run } = setup();
+    const edit = async (options: Record<string, unknown>) => onlyReply(await run("nights", "edit", { role: ROLE_ID, night: slot.id, ...options }));
+    expect(await edit({})).toBe("Pick a new day, a new time, or both.");
+    expect(await edit({ time: "25:00" })).toBe('"25:00" isn\'t a valid 24-hour time. Use `HH:MM`, e.g. `20:00`.');
+    expect(await edit({ time: "20:00" })).toBe("Wednesday 8:00 PM is already this night's time.");
+    expect(await edit({ day: "4" })).toBe(
+      "Thursday 8:00 PM is already a weekly raid night. Remove this one with `/raidlead nights remove` instead.",
+    );
+    expect(await prisma.raidSlot.findUniqueOrThrow({ where: { id: slot.id } })).toMatchObject({ dayOfWeek: 3, hour: 20 });
   });
 
   it("remove only finds the role's team's nights", async () => {
