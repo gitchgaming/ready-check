@@ -350,6 +350,68 @@ describe("team edit", () => {
     expect(channel.sent).toHaveLength(0);
   });
 
+  describe("changing the timezone", () => {
+    const openRaids = (teamId: string) =>
+      prisma.raidInstance.findMany({ where: { raidTeamId: teamId, closed: false }, orderBy: { startsAt: "asc" }, include: { attendance: true } });
+    const nights = (teamId: string) => prisma.raidSlot.findMany({ where: { raidTeamId: teamId }, select: { dayOfWeek: true, hour: true, minute: true } });
+
+    it("rewrites the weekly nights so no raid moves or doubles up", async () => {
+      const t = await makeTeam({ messageId: "public" });
+      await makeSlot(t.id, 2); // Tuesdays, 8:00 PM Central
+      const { run, client, channel } = setup();
+      channel.seedMessage("public");
+      await syncRaidTeam(client, t.id);
+      const before = await openRaids(t.id);
+      await callOut(before[1]!.id, "raider-1");
+
+      const reply = onlyReply(await run("team", "edit", { role: ROLE_ID, timezone: "America/New_York" }));
+      expect(reply).toContain("• Weekly nights, now in Eastern Time: Tuesday 9:00 PM. The raids didn't move.");
+      expect(await nights(t.id)).toEqual([{ dayOfWeek: 2, hour: 21, minute: 0 }]);
+
+      await syncRaidTeam(client, t.id);
+      const after = await openRaids(t.id);
+      expect(after.map((r) => r.startsAt)).toEqual(before.map((r) => r.startsAt));
+      expect(after[1]!.attendance.map((a) => a.userId)).toEqual(["raider-1"]);
+    });
+
+    it("shifts raids an hour, with their call-outs, where the zones change clocks on different dates", async () => {
+      const t = await makeTeam({ messageId: "public" });
+      await makeSlot(t.id, 2);
+      const { run, client, channel } = setup();
+      channel.seedMessage("public");
+      await syncRaidTeam(client, t.id);
+      // Oct 27: Britain is back on GMT, Chicago is still on daylight time.
+      const oct27 = (await openRaids(t.id)).find((r) => r.startsAt.toISOString() === "2026-10-28T01:00:00.000Z")!;
+      await callOut(oct27.id, "raider-1");
+
+      onlyReply(await run("team", "edit", { role: ROLE_ID, timezone: "Europe/London" }));
+      expect(await nights(t.id)).toEqual([{ dayOfWeek: 3, hour: 2, minute: 0 }]);
+      await syncRaidTeam(client, t.id);
+
+      const after = await openRaids(t.id);
+      expect(after).toHaveLength(12);
+      const moved = after.find((r) => r.id === oct27.id)!;
+      expect(moved.startsAt.toISOString()).toBe("2026-10-28T02:00:00.000Z");
+      expect(moved.attendance.map((a) => a.userId)).toEqual(["raider-1"]);
+      expect(after[0]!.startsAt).toEqual(new Date(TUE_8PM));
+    });
+
+    it("moves the final raid date when the last raid would land after it", async () => {
+      const t = await makeTeam({ messageId: "public", finalRaidDate: "2026-10-13" });
+      await makeSlot(t.id, 2, 23); // Tuesdays, 11:00 PM Central: past midnight in Eastern
+      const { run, client, channel } = setup();
+      channel.seedMessage("public");
+      await syncRaidTeam(client, t.id);
+      expect(await openRaids(t.id)).toHaveLength(2);
+
+      const reply = onlyReply(await run("team", "edit", { role: ROLE_ID, timezone: "America/New_York" }));
+      expect(reply).toContain("• Final raid date: Wednesday, Oct 14, 2026");
+      expect(reply).toContain("Wednesday 12:00 AM");
+      await syncRaidTeam(client, t.id);
+      expect(await openRaids(t.id)).toHaveLength(2);
+    });
+  });
+
   it("changes the raid size alone, and re-renders against it", async () => {
     const t = await makeTeam({ messageId: "public" });
     const { run, channel } = setup();

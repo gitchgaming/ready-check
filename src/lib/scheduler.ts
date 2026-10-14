@@ -54,6 +54,65 @@ export function formatFinalRaidDate(team: Pick<RaidTeam, "finalRaidDate">): stri
   return DateTime.fromISO(team.finalRaidDate).setLocale("en-US").toFormat("cccc, MMM d, yyyy");
 }
 
+/**
+ * Changes a team's timezone without moving its raids. Each weekly night becomes the
+ * same moment in the new zone (Tue 8:00 PM Central → Tue 9:00 PM Eastern), so the
+ * sync finds the raids it already made rather than adding new ones beside them.
+ * Where the two zones change clocks on different dates, a night can only match
+ * one side, so its open raids around the change shift to the night's new time,
+ * keeping their call-outs. A final raid date moves later if a raid on the final
+ * day would otherwise land after it. Returns the rewritten nights.
+ */
+export async function changeTeamTimezone(team: RaidTeam, timezone: string) {
+  const now = DateTime.now();
+  const slots = await prisma.raidSlot.findMany({ where: { raidTeamId: team.id } });
+  const nights = slots.map((slot) => {
+    const next = nextOccurrence(slot.dayOfWeek, slot.hour, slot.minute, team.timezone, now).setZone(timezone);
+    return { old: slot, dayOfWeek: next.weekday, hour: next.hour, minute: next.minute };
+  });
+
+  const open = await prisma.raidInstance.findMany({ where: { raidTeamId: team.id, closed: false } });
+  const taken = new Set(open.map((raid) => raid.startsAt.getTime()));
+  const moves: { id: string; startsAt: Date }[] = [];
+  for (const raid of open.filter((r) => !r.oneOff)) {
+    const local = DateTime.fromJSDate(raid.startsAt).setZone(team.timezone);
+    const night = nights.find(
+      (n) => n.old.dayOfWeek === local.weekday && n.old.hour === local.hour && n.old.minute === local.minute,
+    );
+    if (!night) continue;
+    // The night's occurrence nearest the raid: within half a week either side.
+    const from = DateTime.fromJSDate(raid.startsAt).minus({ hours: 84 });
+    const startsAt = nextOccurrence(night.dayOfWeek, night.hour, night.minute, timezone, from).toJSDate();
+    if (startsAt.getTime() === raid.startsAt.getTime() || taken.has(startsAt.getTime())) continue;
+    taken.delete(raid.startsAt.getTime());
+    taken.add(startsAt.getTime());
+    moves.push({ id: raid.id, startsAt });
+  }
+
+  let finalRaidDate = team.finalRaidDate;
+  const oldCutoff = scheduleCutoff(team);
+  const newCutoff = scheduleCutoff({ finalRaidDate, timezone });
+  if (oldCutoff && newCutoff) {
+    const startTimes = open.map((raid) => moves.find((m) => m.id === raid.id)?.startsAt ?? raid.startsAt);
+    const kept = startTimes.filter((t) => t < oldCutoff.toJSDate()).map((t) => DateTime.fromJSDate(t).setZone(timezone));
+    const last = DateTime.max(...kept);
+    if (last && last >= newCutoff) finalRaidDate = last.toFormat("yyyy-MM-dd");
+  }
+
+  await prisma.$transaction([
+    prisma.raidSlot.deleteMany({ where: { raidTeamId: team.id } }),
+    prisma.raidSlot.createMany({
+      data: nights.map((n) => ({ raidTeamId: team.id, dayOfWeek: n.dayOfWeek, hour: n.hour, minute: n.minute })),
+    }),
+    ...moves.map((m) => prisma.raidInstance.update({ where: { id: m.id }, data: { startsAt: m.startsAt } })),
+    prisma.raidTeam.update({ where: { id: team.id }, data: { timezone, finalRaidDate } }),
+  ]);
+
+  return nights
+    .map(({ dayOfWeek, hour, minute }) => ({ dayOfWeek, hour, minute }))
+    .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.hour - b.hour || a.minute - b.minute);
+}
+
 /** Ensures enough future raid instances exist, closes out expired ones, and re-renders the team's message. */
 export async function syncRaidTeam(client: Client, teamId: string): Promise<void> {
   const team = await prisma.raidTeam.findUnique({ where: { id: teamId }, include: { slots: true } });

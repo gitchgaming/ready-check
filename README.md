@@ -78,7 +78,10 @@ Every subcommand takes the team's `role:` first.
   its schedule message in `channel`. The name defaults to the
   role's name; `size` is the raid size, 20 or 25 players (default 25).
 - `edit [channel:] [timezone:] [name:] [coming-up:] [size:]` — change settings.
-  Changing the channel moves the schedule message.
+  Changing the channel moves the schedule message. Changing the timezone
+  leaves every raid where it is and rewrites the weekly nights into the new
+  zone (Tuesday 8:00 PM Central becomes Tuesday 9:00 PM Eastern), listed in
+  the reply.
 - `publish` — post the schedule message in the current channel, replacing
   the old one. Use it if the message was deleted.
 - `final-raid date:` — end the team after this day (in team time): raids
