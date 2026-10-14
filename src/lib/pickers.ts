@@ -79,6 +79,22 @@ export async function cancelChoices(team: RaidTeam, zone = team.timezone): Promi
 }
 
 /**
+ * Upcoming one-off raids for `raid remove`, cancelled ones included. Raids from
+ * weekly nights aren't listed: the sync would bring them back.
+ */
+export async function removeChoices(team: RaidTeam, zone = team.timezone): Promise<Choice[]> {
+  const instances = await prisma.raidInstance.findMany({
+    where: { raidTeamId: team.id, closed: false, oneOff: true },
+    orderBy: { startsAt: "asc" },
+    take: MAX_CHOICES,
+  });
+  return instances.map((i) => ({
+    name: `${i.cancelled ? "🚫 " : ""}${formatRaidLabel(i.startsAt, zone)}`,
+    value: i.id,
+  }));
+}
+
+/**
  * The days of a team's upcoming raids, in team time, as date choices (a final raid
  * date is a day, not a raid). Cancelled raids count, so the last one can be one.
  */

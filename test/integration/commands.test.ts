@@ -523,6 +523,25 @@ describe("/raidlead autocomplete", () => {
     expect((await ask()).map((c) => c.name)).toEqual(["No upcoming raids"]);
   });
 
+  it("lists only upcoming one-off raids for raid remove", async () => {
+    const w = await twoTeams();
+    await makeRaid(w.main.id, TUE_8PM);
+    const oneOff = await makeRaid(w.main.id, "2026-10-08T01:00:00Z", { oneOff: true });
+    const cancelled = await makeRaid(w.main.id, "2026-10-09T01:00:00Z", { oneOff: true, cancelled: true });
+    await makeRaid(w.main.id, "2026-09-30T01:00:00Z", { oneOff: true, closed: true });
+    const ask = async () => {
+      const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "raid", subcommand: "remove", focused: "date", options: { team: "Main Raid" } });
+      await raidlead.autocomplete(ac);
+      return ac.responses[0]!;
+    };
+    expect(await ask()).toEqual([
+      { name: "Wed, Oct 7 · 8:00 PM CDT", value: oneOff.id },
+      { name: "🚫 Thu, Oct 8 · 8:00 PM CDT", value: cancelled.id },
+    ]);
+    await prisma.raidInstance.deleteMany();
+    expect((await ask()).map((c) => c.name)).toEqual(["No upcoming one-off raids"]);
+  });
+
   it("raid add offers a typed date as-is, else upcoming dates in the team's timezone", async () => {
     const w = await twoTeams();
     const ask = async (date: string) => {

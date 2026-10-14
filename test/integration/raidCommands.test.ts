@@ -88,13 +88,20 @@ describe("picking the team", () => {
 describe("raid add", () => {
   it("adds a one-off raid from a typed date and time, in the team's timezone", async () => {
     const t = await makeTeam();
-    const { run, channel } = setup();
-    const reply = onlyReply(await run("raid", "add", { date: "10/9", time: "20:00" }));
-    expect(reply).toBe("✅ Added a raid on <t:1791594000:F> (Fri, Oct 9 · 8:00 PM CDT in team time).");
-    expect(await raids(t.id)).toEqual([
-      expect.objectContaining({ startsAt: new Date("2026-10-10T01:00:00Z"), oneOff: true, cancelled: false }),
-    ]);
+    const { run, channel, guild, client } = setup();
+    const add = await run("raid", "add", { date: "10/9", time: "20:00" });
+    expect(onlyReply(add)).toBe("✅ Added a raid on <t:1791594000:F> (Fri, Oct 9 · 8:00 PM CDT in team time).");
+    const [raid] = await raids(t.id);
+    expect(raid).toEqual(expect.objectContaining({ startsAt: new Date("2026-10-10T01:00:00Z"), oneOff: true, cancelled: false }));
     expect(channel.sent).toHaveLength(1);
+
+    // Its Undo removes it outright.
+    const undoId = add.replies[0].components[0].toJSON().components[0].custom_id;
+    expect(undoId).toBe(`raidlead:remove:${raid!.id}`);
+    const undo = fakeButton(undoId, { guild, officer: true });
+    await routeInteraction(undo, client);
+    expect(undo.updates[0].content).toBe("🗑️ Removed the one-off raid on <t:1791594000:F>.");
+    expect(await raids(t.id)).toEqual([]);
   });
 
   it("accepts the picker's yyyy-MM-dd value and typed times, a bare hour as evening", async () => {
@@ -146,8 +153,11 @@ describe("raid add", () => {
     const t = await makeTeam();
     const cancelled = await makeRaid(t.id, TUE_8PM, { cancelled: true });
     const { run } = setup();
-    expect(onlyReply(await run("raid", "add", { date: "10/6", time: "20:00" }))).toMatch(/^✅ Added a raid on <t:1791334800:F> \(Tue, Oct 6/);
+    const add = await run("raid", "add", { date: "10/6", time: "20:00" });
+    expect(onlyReply(add)).toMatch(/^✅ Added a raid on <t:1791334800:F> \(Tue, Oct 6/);
     expect(await raids(t.id)).toEqual([expect.objectContaining({ id: cancelled.id, cancelled: false, oneOff: false })]);
+    // Undo cancels it again rather than removing it.
+    expect(add.replies[0].components[0].toJSON().components[0].custom_id).toBe(`raidlead:cancel:${cancelled.id}:1`);
   });
 });
 
@@ -156,7 +166,7 @@ describe("raid cancel", () => {
 
   it("cancels an open raid and, picked again, restores it, re-rendering each time and keeping call-outs", async () => {
     const t = await makeTeam();
-    const raid = await makeRaid(t.id, TUE_8PM, { oneOff: true });
+    const raid = await makeRaid(t.id, TUE_8PM);
     await callOut(raid.id, "u-bob");
     const { run, channel } = setup();
 
@@ -172,6 +182,43 @@ describe("raid cancel", () => {
     expect((await raids(t.id))[0]!.cancelled).toBe(false);
     expect(channel.sent[0]!.payloads).toHaveLength(2);
     expect(await prisma.attendance.count()).toBe(1);
+  });
+
+  it("raid remove deletes a one-off raid with its call-outs, and Undo adds it back without them", async () => {
+    const t = await makeTeam({ messageId: "public" });
+    const raid = await makeRaid(t.id, TUE_8PM, { oneOff: true });
+    await callOut(raid.id, "u-bob");
+    const { run, guild, client, channel } = setup();
+    channel.seedMessage("public");
+    const click = async (customId: string) => {
+      const button = fakeButton(customId, { guild, officer: true });
+      await routeInteraction(button, client);
+      return button.updates[0].content;
+    };
+
+    const remove = await run("raid", "remove", { date: raid.id });
+    expect(onlyReply(remove)).toBe("🗑️ Removed the one-off raid on <t:1791334800:F>.");
+    expect(undoId(remove)).toBe(`raidlead:readd:${t.id}:1791334800`);
+    expect(await raids(t.id)).toEqual([]);
+    expect(await prisma.attendance.count()).toBe(0);
+
+    expect(await click(`raidlead:readd:${t.id}:1791334800`)).toBe("✅ Restored the raid on <t:1791334800:F>.");
+    const [back] = await raids(t.id);
+    expect(back).toEqual(expect.objectContaining({ oneOff: true, cancelled: false }));
+    expect(back!.startsAt.toISOString()).toBe(new Date(TUE_8PM).toISOString());
+    // Clicked again, it doesn't add a second one.
+    expect(await click(`raidlead:readd:${t.id}:1791334800`)).toBe("A raid is already scheduled at that time.");
+    expect(await raids(t.id)).toHaveLength(1);
+  });
+
+  it("removes only one-off raids", async () => {
+    const t = await makeTeam();
+    const raid = await makeRaid(t.id, TUE_8PM);
+    const { run } = setup();
+    expect(onlyReply(await run("raid", "remove", { date: raid.id }))).toBe(
+      "Only one-off raids can be removed. Use `/raidlead raid cancel` for a weekly night's raid.",
+    );
+    expect(await raids(t.id)).toHaveLength(1);
   });
 
   it("Undo sets the state it names, for officers only", async () => {
