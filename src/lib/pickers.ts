@@ -60,15 +60,22 @@ export async function respondFiltered(
   await interaction.respond((filtered.length > 0 ? filtered : choices).slice(0, MAX_CHOICES));
 }
 
-/** Upcoming raids for one team, filtered by cancelled state. */
-/** `zone` is the viewer's own timezone if they set one (`userTimezone`), else the team's. */
-export async function teamRaidChoices(team: RaidTeam, cancelled: boolean, zone = team.timezone): Promise<Choice[]> {
+/**
+ * Every upcoming raid for `raid cancel`, which toggles, marked with what picking
+ * it does. `zone` is the viewer's own timezone if they set one, else the team's.
+ */
+export async function cancelChoices(team: RaidTeam, zone = team.timezone): Promise<Choice[]> {
   const instances = await prisma.raidInstance.findMany({
-    where: { raidTeamId: team.id, closed: false, cancelled },
+    where: { raidTeamId: team.id, closed: false },
     orderBy: { startsAt: "asc" },
     take: MAX_CHOICES,
   });
-  return instances.map((i) => ({ name: formatRaidLabel(i.startsAt, zone), value: i.id }));
+  return instances.map((i) => ({
+    name: i.cancelled
+      ? `🚫 ${formatRaidLabel(i.startsAt, zone)} — Cancelled. Pick to restore`
+      : `${formatRaidLabel(i.startsAt, zone)} — Pick to cancel`,
+    value: i.id,
+  }));
 }
 
 /**
@@ -86,19 +93,6 @@ export async function raidDayChoices(team: RaidTeam): Promise<Choice[]> {
     days.set(choice.value, choice);
   }
   return [...days.values()].slice(0, MAX_CHOICES);
-}
-
-/** Upcoming one-off raids for a team, including cancelled ones. */
-export async function oneOffRaidChoices(team: RaidTeam, zone = team.timezone): Promise<Choice[]> {
-  const instances = await prisma.raidInstance.findMany({
-    where: { raidTeamId: team.id, closed: false, oneOff: true },
-    orderBy: { startsAt: "asc" },
-    take: MAX_CHOICES,
-  });
-  return instances.map((i) => ({
-    name: formatRaidLabel(i.startsAt, zone) + (i.cancelled ? " (cancelled)" : ""),
-    value: i.id,
-  }));
 }
 
 /**

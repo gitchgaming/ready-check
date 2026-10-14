@@ -1,5 +1,5 @@
 import type { ChatInputCommandInteraction, Client } from "discord.js";
-import { MessageFlags } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from "discord.js";
 import { DateTime } from "luxon";
 import { prisma } from "../../lib/db.js";
 import { formatRaidLabel, parseTypedDate } from "../../lib/pickers.js";
@@ -7,7 +7,27 @@ import { formatFinalRaidDate, renderTeamMessage, scheduleCutoff } from "../../li
 import { parseHourMinute, raidTime } from "../../lib/time.js";
 import { requireTeam } from "./shared.js";
 
-async function setCancelled(interaction: ChatInputCommandInteraction, client: Client, cancelled: boolean) {
+/**
+ * The reply to cancelling or restoring a raid, with an Undo button
+ * (`raidlead:cancel:<raidId>:<1|0>`, the state to go back to).
+ */
+export function cancelReply(raidId: string, startsAt: Date, cancelled: boolean) {
+  const label = raidTime(startsAt);
+  return {
+    content: cancelled ? `🚫 Cancelled the raid on ${label}.` : `✅ Restored the raid on ${label}.`,
+    components: [
+      new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`raidlead:cancel:${raidId}:${cancelled ? 0 : 1}`)
+          .setLabel("Undo")
+          .setStyle(ButtonStyle.Secondary),
+      ),
+    ],
+  };
+}
+
+/** Cancels an upcoming raid, or restores a cancelled one: the picker says which. */
+export async function cancel(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
   const team = await requireTeam(interaction);
   if (!team) return;
 
@@ -21,58 +41,11 @@ async function setCancelled(interaction: ChatInputCommandInteraction, client: Cl
     await interaction.reply({ content: "That raid has already started or passed.", flags: MessageFlags.Ephemeral });
     return;
   }
-  if (instance.cancelled === cancelled) {
-    await interaction.reply({
-      content: cancelled ? "That raid is already cancelled." : "That raid isn't cancelled.",
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
-  }
 
+  const cancelled = !instance.cancelled;
   await prisma.raidInstance.update({ where: { id: instance.id }, data: { cancelled } });
   await renderTeamMessage(client, team.id);
-
-  const label = raidTime(instance.startsAt);
-  await interaction.reply({
-    content: cancelled ? `🚫 Cancelled the raid on ${label}.` : `✅ Restored the raid on ${label}.`,
-    flags: MessageFlags.Ephemeral,
-  });
-}
-
-export async function cancel(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
-  await setCancelled(interaction, client, true);
-}
-
-export async function restore(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
-  await setCancelled(interaction, client, false);
-}
-
-export async function remove(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
-  const team = await requireTeam(interaction);
-  if (!team) return;
-
-  const instanceId = interaction.options.getString("date", true);
-  const instance = await prisma.raidInstance.findFirst({ where: { id: instanceId, raidTeamId: team.id } });
-  if (!instance) {
-    await interaction.reply({ content: "Couldn't find that raid. Pick one from the suggestions.", flags: MessageFlags.Ephemeral });
-    return;
-  }
-  if (!instance.oneOff) {
-    await interaction.reply({
-      content: "That raid is on a weekly raid night, so it would come back. Cancel it instead with `/raidlead raid cancel`.",
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
-  }
-
-  // Attendance rows cascade with the raid.
-  await prisma.raidInstance.delete({ where: { id: instance.id } });
-  await renderTeamMessage(client, team.id);
-
-  await interaction.reply({
-    content: `🗑️ Removed the one-off raid on ${raidTime(instance.startsAt)}.`,
-    flags: MessageFlags.Ephemeral,
-  });
+  await interaction.reply({ ...cancelReply(instance.id, instance.startsAt, cancelled), flags: MessageFlags.Ephemeral });
 }
 
 export async function add(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {

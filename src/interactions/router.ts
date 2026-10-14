@@ -2,6 +2,7 @@ import { MessageFlags, type Client, type Interaction } from "discord.js";
 import { commands, type Command } from "../commands/index.js";
 import { isAttendanceControl, handleAttendanceControl } from "./attendanceControls.js";
 import { isNavButton, handleNavButton } from "./navButton.js";
+import { isRaidleadUndo, handleRaidleadUndo } from "./raidleadUndo.js";
 import { isTeamDeleteButton, handleTeamDeleteButton } from "./teamDeleteButton.js";
 
 const defaultCommandsByName = new Map(commands.map((c) => [c.data.name, c]));
@@ -34,6 +35,11 @@ export async function routeInteraction(
 
     if (interaction.isButton() && isNavButton(interaction.customId)) {
       await handleNavButton(interaction, client);
+      return;
+    }
+
+    if (interaction.isButton() && isRaidleadUndo(interaction.customId)) {
+      await handleRaidleadUndo(interaction, client);
       return;
     }
 

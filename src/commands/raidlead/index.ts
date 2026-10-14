@@ -17,14 +17,13 @@ import {
   dateChoice,
   nightChoices,
   parseTypedDate,
-  oneOffRaidChoices,
   raidDayChoices,
   respondFiltered,
   MAX_CHOICES,
   fitChoiceName,
   teamDisplayName,
   viewableTeams,
-  teamRaidChoices,
+  cancelChoices,
   timezoneChoices,
   upcomingDateChoices,
 } from "../../lib/pickers.js";
@@ -170,24 +169,6 @@ export const data = new SlashCommandBuilder()
       .setDescription("Change individual raids on the schedule")
       .addSubcommand((sub) =>
         sub
-          .setName("cancel")
-          .setDescription("Cancel an upcoming raid")
-          .addStringOption((opt) =>
-            opt.setName("date").setDescription("The raid to cancel").setRequired(true).setAutocomplete(true),
-          )
-          .addStringOption(teamOption),
-      )
-      .addSubcommand((sub) =>
-        sub
-          .setName("restore")
-          .setDescription("Restore a cancelled raid")
-          .addStringOption((opt) =>
-            opt.setName("date").setDescription("The cancelled raid").setRequired(true).setAutocomplete(true),
-          )
-          .addStringOption(teamOption),
-      )
-      .addSubcommand((sub) =>
-        sub
           .setName("add")
           .setDescription("Add a one-off raid outside the weekly nights")
           .addStringOption((opt) =>
@@ -204,27 +185,18 @@ export const data = new SlashCommandBuilder()
       )
       .addSubcommand((sub) =>
         sub
-          .setName("remove")
-          .setDescription("Delete a one-off raid from the schedule")
+          .setName("cancel")
+          .setDescription("Cancel an upcoming raid, or restore a cancelled one")
           .addStringOption((opt) =>
-            opt.setName("date").setDescription("The one-off raid").setRequired(true).setAutocomplete(true),
+            opt.setName("date").setDescription("The raid").setRequired(true).setAutocomplete(true),
           )
           .addStringOption(teamOption),
       ),
   )
   .addSubcommand((sub) =>
     sub
-      .setName("callout")
-      .setDescription("Call out a raider for a raid")
-      .addUserOption((opt) => opt.setName("user").setDescription("The raider").setRequired(true))
-      .addStringOption((opt) =>
-        opt.setName("date").setDescription("The raid").setRequired(true).setAutocomplete(true),
-      ),
-  )
-  .addSubcommand((sub) =>
-    sub
-      .setName("attend")
-      .setDescription("Undo a raider's call-out")
+      .setName("attendance")
+      .setDescription("Call a raider out of a raid, or switch them back in")
       .addUserOption((opt) => opt.setName("user").setDescription("The raider").setRequired(true))
       .addStringOption((opt) =>
         opt.setName("date").setDescription("The raid").setRequired(true).setAutocomplete(true),
@@ -241,12 +213,9 @@ const handlers: Record<string, Handler> = {
   "nights add": nights.add,
   "nights edit": nights.edit,
   "nights remove": nights.remove,
-  "raid cancel": raid.cancel,
-  "raid restore": raid.restore,
   "raid add": raid.add,
-  "raid remove": raid.remove,
-  callout: (i, c) => setAttendance(i, c, "OUT", i.options.getUser("user", true).id),
-  attend: (i, c) => setAttendance(i, c, "IN", i.options.getUser("user", true).id),
+  "raid cancel": raid.cancel,
+  attendance: (i, c) => setAttendance(i, c, "TOGGLE", i.options.getUser("user", true).id),
 };
 
 function routeKey(group: string | null, sub: string): string {
@@ -281,12 +250,9 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
     return;
   }
 
-  if (key === "callout" || key === "attend") {
-    await raidDateAutocomplete(
-      interaction,
-      interaction.options.get("user")?.value as string | undefined,
-      key === "attend" ? "IN" : "OUT",
-    );
+  if (key === "attendance") {
+    const userId = interaction.options.get("user")?.value as string | undefined;
+    await raidDateAutocomplete(interaction, userId, "TOGGLE", undefined, true);
     return;
   }
 
@@ -309,11 +275,7 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
   if (focused === "night") {
     await respondFiltered(interaction, await nightChoices(raidTeam, viewerZone), "No weekly raid nights yet");
   } else if (key === "raid cancel") {
-    await respondFiltered(interaction, await teamRaidChoices(raidTeam, false, zone), "No upcoming raids to cancel");
-  } else if (key === "raid restore") {
-    await respondFiltered(interaction, await teamRaidChoices(raidTeam, true, zone), "No cancelled raids to restore");
-  } else if (key === "raid remove") {
-    await respondFiltered(interaction, await oneOffRaidChoices(raidTeam, zone), "No upcoming one-off raids");
+    await respondFiltered(interaction, await cancelChoices(raidTeam, zone), "No upcoming raids");
   } else if (focused === "final-raid") {
     const typed = interaction.options.getFocused();
     const parsed = parseTypedDate(typed, raidTeam.timezone);

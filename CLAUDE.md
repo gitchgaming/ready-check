@@ -54,7 +54,10 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   reply, `a` `/attendance`, `t` `/attendance` for that team only,
   `c<offset>` `/schedule`),
   `mynav:<dir>:<teamId>:<offset>`,
-  `teamdelete:<confirm|abort>:<teamId>`.
+  `teamdelete:<confirm|abort>:<teamId>`,
+  `raidlead:cancel:<raidId>:<1|0>` and `raidlead:att:<raidId>:<userId>:<out|in>`
+  (officers' Undo buttons on `raid cancel` and `/raidlead attendance`; each
+  sets the named state, never toggles).
 - `src/lib/` — `scheduler.ts` (instance generation, hourly sync, schedule
   message render), `embeds.ts`, `roster.ts`, `attendance.ts`, `pickers.ts`
   (all autocomplete), `access.ts`, `classes.ts` (class/type role names),
@@ -77,7 +80,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   Officers can view every team (`viewableTeams`, oldest first, their own
   teams first, so `/schedule` and `/roster` default to a team they're on).
   `/raidlead` subcommands (all but `team setup`, which takes the `role:` it
-  creates the team from) take an optional `team:` picker last (Discord puts
+  creates the team from, and `attendance`, whose picker covers the raider's
+  teams) take an optional `team:` picker last (Discord puts
   required options first). `pickTeam` (`raidlead/shared.ts`) uses the pick (an
   id, or a typed team name), else the server's only team, else the officer's
   only team, else asks: these commands change things, so it never guesses.
@@ -90,7 +94,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   ROSTER, YOUR SCHEDULE, YOUR ATTENDANCE); never a hard-coded "Raid".
   Confirmations use one wording everywhere: "❌ You're out for **<date>**." /
   "✅ You're back in for **<date>**.", the date as `raidTime`
-  (`confirmation` in `embeds.ts`). Every change a raider makes gets one
+  (`confirmation` in `embeds.ts`); an officer's change for someone else reads
+  "❌ <@user> is out for **<date>**." (`officerAttendanceReply`). Every change a raider makes gets one
   privately, with an Undo button (the Status reply; a notice on top of
   `/attendance` and `/schedule`), so a misclick is one click to fix.
 - Discord can't personalize a shared message, so the public schedule message
@@ -160,8 +165,9 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   Call-outs are only displayed/counted for current role holders.
 - Raids are generated from weekly nights (`RaidSlot`, called "nights" in the
   UI) and upserted hourly. Never delete a generated raid — the sync recreates
-  it. `cancelled` keeps it visible as 🚫 Cancelled; only `oneOff` raids (from
-  `/raidlead raid add`) can be hard-deleted with `raid remove`.
+  it. `cancelled` keeps it visible as 🚫 Cancelled, one-off raids (`oneOff`,
+  from `/raidlead raid add`) included: `raid cancel` toggles, and there's no
+  hard delete for a single raid.
   The exception is a team's final raid date (`finalRaidDate`, "yyyy-MM-dd" in
   team time, set or cleared with `team settings final-raid:`): the sync
   generates nothing after it (`scheduleCutoff`) and deletes open raids after it;

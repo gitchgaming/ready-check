@@ -7,7 +7,8 @@ import * as roster from "../../src/commands/roster.js";
 import * as schedule from "../../src/commands/schedule.js";
 import { ROLE_ID, callOut, makeRaid, makeSlot, makeTeam, prisma } from "../db.js";
 import { setUserTimezone } from "../../src/lib/userSettings.js";
-import { fakeAutocomplete, fakeChatInput, fakeRole, flattenComponents, payloadText, raider, teamRole } from "../discord.js";
+import { routeInteraction } from "../../src/interactions/router.js";
+import { fakeAutocomplete, fakeButton, fakeChatInput, fakeRole, flattenComponents, payloadText, raider, teamRole } from "../discord.js";
 import { isEphemeral, onlyReply, useDbAndClock, world } from "./world.js";
 
 useDbAndClock();
@@ -394,18 +395,29 @@ describe("/raidlead execute", () => {
     ]);
   });
 
-  it("routes top-level callout/attend to set someone else's attendance", async () => {
+  it("routes top-level attendance to toggle someone else's attendance, with an Undo", async () => {
     const { main, guild, client } = await twoTeams();
     const raid = await makeRaid(main.id, TUE_8PM);
-    const out = fakeChatInput({ commandName: "raidlead", subcommand: "callout", guild, userId: "u-officer", officer: true, options: { user: "u-bob", date: raid.id } });
-    await raidlead.execute(out, client);
-    expect(onlyReply(out)).toBe(`❌ Marked <@u-bob> as called out for ${TUE_TIME}.`);
+    const toggle = async () => {
+      const run = fakeChatInput({ commandName: "raidlead", subcommand: "attendance", guild, userId: "u-officer", officer: true, options: { user: "u-bob", date: raid.id } });
+      await raidlead.execute(run, client);
+      return run;
+    };
+    const out = await toggle();
+    expect(onlyReply(out)).toBe("❌ <@u-bob> is out for **<t:1791334800:s>**.");
+    expect(out.replies[0].components[0].toJSON().components[0].custom_id).toBe(`raidlead:att:${raid.id}:u-bob:in`);
     expect(await prisma.attendance.count({ where: { userId: "u-bob" } })).toBe(1);
 
-    const back = fakeChatInput({ commandName: "raidlead", subcommand: "attend", guild, userId: "u-officer", officer: true, options: { user: "u-bob", date: raid.id } });
-    await raidlead.execute(back, client);
-    expect(onlyReply(back)).toBe(`✅ Marked <@u-bob> as attending ${TUE_TIME}.`);
+    expect(onlyReply(await toggle())).toBe("✅ <@u-bob> is back in for **<t:1791334800:s>**.");
     expect(await prisma.attendance.count()).toBe(0);
+
+    // Undo sets the named state, so clicking it twice can't flip it back.
+    for (let i = 0; i < 2; i++) {
+      const undo = fakeButton(`raidlead:att:${raid.id}:u-bob:out`, { guild, officer: true });
+      await routeInteraction(undo, client);
+      expect(undo.updates[0].content).toBe("❌ <@u-bob> is out for **<t:1791334800:s>**.");
+    }
+    expect(await prisma.attendance.count()).toBe(1);
   });
 
   it("ignores an unknown subcommand", async () => {
@@ -448,27 +460,26 @@ describe("/raidlead autocomplete", () => {
     expect(typed).toEqual([{ name: "Europe/Helsinki", value: "Europe/Helsinki" }]);
   });
 
-  it("callout lists the picked user's raids; attend lists only their call-outs", async () => {
+  it("attendance lists the picked user's raids with what picking each does", async () => {
     const w = await twoTeams();
     const r1 = await makeRaid(w.main.id, TUE_8PM);
     const r2 = await makeRaid(w.main.id, "2026-10-08T01:00:00Z");
     await callOut(r2.id, "u-bob");
-    const ask = async (subcommand: string, user?: string) => {
-      const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, subcommand, focused: "date", options: user ? { user } : {} });
+    const ask = async (user?: string) => {
+      const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, subcommand: "attendance", focused: "date", options: user ? { user } : {} });
       await raidlead.autocomplete(ac);
       return ac.responses[0];
     };
     // Bob is on two teams, so labels carry the team name.
-    expect(await ask("callout", "u-bob")).toEqual([
-      { name: `✅ ${TUE_LABEL} · Main Raid`, value: r1.id },
-      { name: "❌ Wed, Oct 7 · 8:00 PM CDT · Main Raid", value: r2.id },
+    expect(await ask("u-bob")).toEqual([
+      { name: `✅ ${TUE_LABEL} — In. Pick to call out · Main Raid`, value: r1.id },
+      { name: "❌ Wed, Oct 7 · 8:00 PM CDT — Called out. Pick to switch back in · Main Raid", value: r2.id },
     ]);
-    expect(await ask("attend", "u-bob")).toEqual([{ name: "Wed, Oct 7 · 8:00 PM CDT · Main Raid", value: r2.id }]);
-    expect(await ask("callout", "u-alice")).toEqual([
-      { name: `✅ ${TUE_LABEL}`, value: r1.id },
-      { name: "✅ Wed, Oct 7 · 8:00 PM CDT", value: r2.id },
+    expect(await ask("u-alice")).toEqual([
+      { name: `✅ ${TUE_LABEL} — In. Pick to call out`, value: r1.id },
+      { name: "✅ Wed, Oct 7 · 8:00 PM CDT — In. Pick to call out", value: r2.id },
     ]);
-    expect(await ask("callout")).toEqual([{ name: "Pick a raider first", value: "none" }]);
+    expect(await ask()).toEqual([{ name: "Pick a raider first", value: "none" }]);
   });
 
   it("asks for the team first when it's missing or unknown", async () => {
@@ -498,29 +509,18 @@ describe("/raidlead autocomplete", () => {
     expect(empty.responses).toEqual([[{ name: "No weekly raid nights yet", value: "none" }]]);
   });
 
-  it("lists the right raids for raid cancel, restore and remove", async () => {
+  it("lists every upcoming raid for raid cancel", async () => {
     const w = await twoTeams();
     const open = await makeRaid(w.main.id, TUE_8PM);
     const cancelled = await makeRaid(w.main.id, "2026-10-08T01:00:00Z", { cancelled: true });
-    const oneOff = await makeRaid(w.main.id, "2026-10-09T01:00:00Z", { oneOff: true });
-    const ask = async (subcommand: string) => {
-      const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "raid", subcommand, focused: "date", options: { team: "Main Raid" } });
+    const ask = async () => {
+      const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "raid", subcommand: "cancel", focused: "date", options: { team: "Main Raid" } });
       await raidlead.autocomplete(ac);
-      return ac.responses[0]!.map((c) => c.value);
+      return ac.responses[0]!;
     };
-    expect(await ask("cancel")).toEqual([open.id, oneOff.id]);
-    expect(await ask("restore")).toEqual([cancelled.id]);
-    expect(await ask("remove")).toEqual([oneOff.id]);
-
+    expect((await ask()).map((c) => c.value)).toEqual([open.id, cancelled.id]);
     await prisma.raidInstance.deleteMany();
-    const names = async (subcommand: string) => {
-      const ac = fakeAutocomplete({ commandName: "raidlead", guild: w.guild, officer: true, group: "raid", subcommand, focused: "date", options: { team: "Main Raid" } });
-      await raidlead.autocomplete(ac);
-      return ac.responses[0]!.map((c) => c.name);
-    };
-    expect(await names("cancel")).toEqual(["No upcoming raids to cancel"]);
-    expect(await names("restore")).toEqual(["No cancelled raids to restore"]);
-    expect(await names("remove")).toEqual(["No upcoming one-off raids"]);
+    expect((await ask()).map((c) => c.name)).toEqual(["No upcoming raids"]);
   });
 
   it("raid add offers a typed date as-is, else upcoming dates in the team's timezone", async () => {
