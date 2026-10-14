@@ -161,6 +161,11 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   team time, set with `team final-raid`, cleared with `team resume`): the sync
   generates nothing after it (`scheduleCutoff`) and deletes open raids after it;
   closed raids stay as attendance history.
+  Removing a weekly night (`nights remove`) is the other: its upcoming
+  non-one-off raids go with it, since nothing would generate them again.
+  Changing one's time (`nights edit`) moves those raids with their
+  call-outs, so the sync matches them instead of adding new ones. A night
+  never changes day: that's a remove and an add, by the user's choice.
 - Changing a team's timezone never moves a raid: `changeTeamTimezone`
   (`scheduler.ts`) rewrites each weekly night to the same moment in the new
   zone, so the sync matches the raids it already made. Where the zones change
