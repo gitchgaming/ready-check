@@ -62,9 +62,7 @@ export async function respondFiltered(
 
 /**
  * Every upcoming raid for `raid cancel`, which toggles, marked with what picking
- * it does. A one-off raid also gets a choice to remove it (`remove:<raidId>`),
- * for one added by mistake. `zone` is the viewer's own timezone if they set
- * one, else the team's.
+ * it does. `zone` is the viewer's own timezone if they set one, else the team's.
  */
 export async function cancelChoices(team: RaidTeam, zone = team.timezone): Promise<Choice[]> {
   const instances = await prisma.raidInstance.findMany({
@@ -72,16 +70,28 @@ export async function cancelChoices(team: RaidTeam, zone = team.timezone): Promi
     orderBy: { startsAt: "asc" },
     take: MAX_CHOICES,
   });
-  return instances
-    .flatMap((i) => {
-      const label = formatRaidLabel(i.startsAt, zone);
-      const toggle = i.cancelled
-        ? { name: `🚫 ${label} — Cancelled. Pick to restore`, value: i.id }
-        : { name: `${label} — Pick to cancel`, value: i.id };
-      if (!i.oneOff) return [toggle];
-      return [toggle, { name: `${label} — Added by mistake? Pick to remove`, value: `remove:${i.id}` }];
-    })
-    .slice(0, MAX_CHOICES);
+  return instances.map((i) => ({
+    name: i.cancelled
+      ? `🚫 ${formatRaidLabel(i.startsAt, zone)} — Cancelled. Pick to restore`
+      : `${formatRaidLabel(i.startsAt, zone)} — Pick to cancel`,
+    value: i.id,
+  }));
+}
+
+/**
+ * Upcoming one-off raids for `raid remove`, cancelled ones included. Raids from
+ * weekly nights aren't listed: the sync would bring them back.
+ */
+export async function removeChoices(team: RaidTeam, zone = team.timezone): Promise<Choice[]> {
+  const instances = await prisma.raidInstance.findMany({
+    where: { raidTeamId: team.id, closed: false, oneOff: true },
+    orderBy: { startsAt: "asc" },
+    take: MAX_CHOICES,
+  });
+  return instances.map((i) => ({
+    name: `${i.cancelled ? "🚫 " : ""}${formatRaidLabel(i.startsAt, zone)}`,
+    value: i.id,
+  }));
 }
 
 /**

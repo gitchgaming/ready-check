@@ -24,6 +24,7 @@ import {
   teamDisplayName,
   viewableTeams,
   cancelChoices,
+  removeChoices,
   timeChoices,
   timezoneChoices,
   upcomingDateChoices,
@@ -192,6 +193,15 @@ export const data = new SlashCommandBuilder()
             opt.setName("date").setDescription("The raid").setRequired(true).setAutocomplete(true),
           )
           .addStringOption(teamOption),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("remove")
+          .setDescription("Remove a one-off raid added by mistake, with its call-outs")
+          .addStringOption((opt) =>
+            opt.setName("date").setDescription("The one-off raid").setRequired(true).setAutocomplete(true),
+          )
+          .addStringOption(teamOption),
       ),
   )
   .addSubcommand((sub) =>
@@ -216,6 +226,7 @@ const handlers: Record<string, Handler> = {
   "nights remove": nights.remove,
   "raid add": raid.add,
   "raid cancel": raid.cancel,
+  "raid remove": raid.remove,
   attendance: (i, c) => setAttendance(i, c, "TOGGLE", i.options.getUser("user", true).id),
 };
 
@@ -279,6 +290,8 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
     await respondFiltered(interaction, await nightChoices(raidTeam, viewerZone), "No weekly raid nights yet");
   } else if (key === "raid cancel") {
     await respondFiltered(interaction, await cancelChoices(raidTeam, zone), "No upcoming raids");
+  } else if (key === "raid remove") {
+    await respondFiltered(interaction, await removeChoices(raidTeam, zone), "No upcoming one-off raids");
   } else if (focused === "final-raid") {
     const typed = interaction.options.getFocused();
     const parsed = parseTypedDate(typed, raidTeam.timezone);

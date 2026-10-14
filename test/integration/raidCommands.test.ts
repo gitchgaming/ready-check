@@ -184,7 +184,7 @@ describe("raid cancel", () => {
     expect(await prisma.attendance.count()).toBe(1);
   });
 
-  it("removes a one-off raid added by mistake, with its call-outs, and Undo adds it back without them", async () => {
+  it("raid remove deletes a one-off raid with its call-outs, and Undo adds it back without them", async () => {
     const t = await makeTeam({ messageId: "public" });
     const raid = await makeRaid(t.id, TUE_8PM, { oneOff: true });
     await callOut(raid.id, "u-bob");
@@ -196,7 +196,7 @@ describe("raid cancel", () => {
       return button.updates[0].content;
     };
 
-    const remove = await run("raid", "cancel", { date: `remove:${raid.id}` });
+    const remove = await run("raid", "remove", { date: raid.id });
     expect(onlyReply(remove)).toBe("🗑️ Removed the one-off raid on <t:1791334800:F>.");
     expect(undoId(remove)).toBe(`raidlead:readd:${t.id}:1791334800`);
     expect(await raids(t.id)).toEqual([]);
@@ -215,8 +215,8 @@ describe("raid cancel", () => {
     const t = await makeTeam();
     const raid = await makeRaid(t.id, TUE_8PM);
     const { run } = setup();
-    expect(onlyReply(await run("raid", "cancel", { date: `remove:${raid.id}` }))).toBe(
-      "Only one-off raids can be removed. A weekly night's raid can be cancelled instead.",
+    expect(onlyReply(await run("raid", "remove", { date: raid.id }))).toBe(
+      "Only one-off raids can be removed. Use `/raidlead raid cancel` for a weekly night's raid.",
     );
     expect(await raids(t.id)).toHaveLength(1);
   });
