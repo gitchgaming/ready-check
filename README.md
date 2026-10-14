@@ -99,9 +99,10 @@ Every subcommand takes the team's `role:` first.
 - `remove night:` — pick from the team's existing nights. Its upcoming raids
   go with it, along with their call-outs; past raids, a raid under way, and
   one-off raids stay.
-- `edit night: [day:] [time:]` — move a night to a new day or time. Its
-  upcoming raids move with it and keep their call-outs; one whose new day
-  has already passed this week is removed (the next week's raid stays).
+- `edit night: time:` — change a night's start time. Its upcoming raids move
+  with it and keep their call-outs; tonight's raid is removed if its new time
+  has already passed. To move a night to another day, remove it and add the
+  new one.
 - `list`
 
 **`raid`** — change individual raids

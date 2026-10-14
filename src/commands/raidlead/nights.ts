@@ -108,10 +108,10 @@ export async function remove(interaction: ChatInputCommandInteraction, client: C
 }
 
 /**
- * Moves a weekly night to a new day or time, and its upcoming raids with it, keeping
- * their call-outs. Each raid goes to the new night's occurrence nearest it; one that
- * would land in the past, or on another raid, is removed instead, since the sync
- * schedules the next one.
+ * Moves a weekly night to a new time on the same day, and its upcoming raids with it,
+ * keeping their call-outs. A raid whose new time has already passed, or lands on
+ * another raid, is removed instead. Moving a night to another day is a remove and
+ * an add, since call-outs for one day don't carry to another.
  */
 export async function edit(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
   const team = await requireTeam(interaction);
@@ -124,13 +124,8 @@ export async function edit(interaction: ChatInputCommandInteraction, client: Cli
     return;
   }
 
-  const dayInput = interaction.options.getString("day");
-  const timeInput = interaction.options.getString("time");
-  if (!dayInput && !timeInput) {
-    await interaction.reply({ content: "Pick a new day, a new time, or both.", flags: MessageFlags.Ephemeral });
-    return;
-  }
-  const time = timeInput ? parseHourMinute(timeInput) : { hour: night.hour, minute: night.minute };
+  const timeInput = interaction.options.getString("time", true);
+  const time = parseHourMinute(timeInput);
   if (!time) {
     await interaction.reply({
       content: `"${timeInput}" isn't a valid 24-hour time. Use \`HH:MM\`, e.g. \`20:00\`.`,
@@ -138,7 +133,7 @@ export async function edit(interaction: ChatInputCommandInteraction, client: Cli
     });
     return;
   }
-  const moved = { dayOfWeek: dayInput ? Number(dayInput) : night.dayOfWeek, ...time };
+  const moved = { dayOfWeek: night.dayOfWeek, ...time };
   const before = formatNight(night.dayOfWeek, night.hour, night.minute);
   const after = formatNight(moved.dayOfWeek, moved.hour, moved.minute);
   if (before === after) {
@@ -167,8 +162,7 @@ export async function edit(interaction: ChatInputCommandInteraction, client: Cli
     const local = DateTime.fromJSDate(raid.startsAt).setZone(team.timezone);
     const fromNight = local.weekday === night.dayOfWeek && local.hour === night.hour && local.minute === night.minute;
     if (raid.oneOff || !fromNight || local <= now) continue;
-    // The new night's occurrence nearest the raid: within half a week either side.
-    const target = nextOccurrence(moved.dayOfWeek, moved.hour, moved.minute, team.timezone, local.minus({ hours: 84 }));
+    const target = local.set(time);
     if (target <= now || taken.has(target.toMillis())) {
       dropped.push(raid.id);
       droppedCallOuts += raid._count.attendance;
@@ -192,7 +186,7 @@ export async function edit(interaction: ChatInputCommandInteraction, client: Cli
   const removed =
     dropped.length === 0
       ? ""
-      : ` Removed ${plural(dropped.length, "raid")} that couldn't move` +
+      : ` Removed ${plural(dropped.length, "raid")} whose new time has passed` +
         (droppedCallOuts > 0 ? `, with ${plural(droppedCallOuts, "call-out")}.` : ".");
   await interaction.reply({
     content:

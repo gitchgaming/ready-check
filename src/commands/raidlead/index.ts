@@ -159,13 +159,14 @@ export const data = new SlashCommandBuilder()
       .addSubcommand((sub) =>
         sub
           .setName("edit")
-          .setDescription("Move a weekly raid night, and its upcoming raids, to a new day or time")
+          .setDescription("Change a weekly raid night's start time; its upcoming raids move with it")
           .addRoleOption(roleOption)
           .addStringOption((opt) =>
             opt.setName("night").setDescription("The night to move").setRequired(true).setAutocomplete(true),
           )
-          .addStringOption((opt) => opt.setName("day").setDescription("New day of the week").addChoices(...WEEKDAY_CHOICES))
-          .addStringOption((opt) => opt.setName("time").setDescription('New start time, 24-hour, e.g. "21:00"')),
+          .addStringOption((opt) =>
+            opt.setName("time").setDescription('New start time, 24-hour, e.g. "21:00"').setRequired(true),
+          ),
       )
       .addSubcommand((sub) =>
         sub.setName("list").setDescription("List a team's weekly raid nights").addRoleOption(roleOption),
