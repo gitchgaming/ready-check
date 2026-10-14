@@ -4,10 +4,12 @@ import {
   ButtonStyle,
   type ChatInputCommandInteraction,
   type Client,
+  type Guild,
   MessageFlags,
 } from "discord.js";
 import { DateTime } from "luxon";
 import { prisma } from "../../lib/db.js";
+import type { RaidTeam } from "../../generated/prisma/client.js";
 import { formatNight, parseTypedDate, teamDisplayName } from "../../lib/pickers.js";
 import {
   changeTeamTimezone,
@@ -17,6 +19,7 @@ import {
   syncRaidTeam,
 } from "../../lib/scheduler.js";
 import { zoneGenericName } from "../../lib/time.js";
+import { nextRaid, teamTime } from "./nights.js";
 import { deleteMessage, requireTeam } from "./shared.js";
 
 function invalidTimezone(timezone: string): boolean {
@@ -30,14 +33,21 @@ async function replyBadTimezone(interaction: ChatInputCommandInteraction, timezo
   });
 }
 
+/** The `final-raid:` choice that clears the final raid date. */
+export const NO_FINAL_RAID = "clear";
+
 export async function setup(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
   const role = interaction.options.getRole("role", true);
-  const channel = interaction.options.getChannel("channel", true);
+  const channel = interaction.options.getChannel("channel") ?? (interaction.channel?.isTextBased() ? interaction.channel : null);
   const timezone = interaction.options.getString("timezone", true).trim();
   const name = interaction.options.getString("name");
   const comingUp = interaction.options.getInteger("coming-up");
   const size = interaction.options.getInteger("size");
 
+  if (!channel) {
+    await interaction.reply({ content: "Pick a `channel:` for the schedule, or run this in one.", flags: MessageFlags.Ephemeral });
+    return;
+  }
   if (invalidTimezone(timezone)) {
     await replyBadTimezone(interaction, timezone);
     return;
@@ -48,7 +58,7 @@ export async function setup(interaction: ChatInputCommandInteraction, client: Cl
   });
   if (existing) {
     await interaction.reply({
-      content: `<@&${role.id}> is already a raid team. Change its settings with \`/raidlead team edit\`.`,
+      content: `<@&${role.id}> is already a raid team. Change its settings with \`/raidlead team settings\`.`,
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -76,60 +86,133 @@ export async function setup(interaction: ChatInputCommandInteraction, client: Cl
   await syncRaidTeam(client, team.id).catch((err) => console.error(`Failed to sync raid team ${team.id}:`, err));
 }
 
-export async function edit(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
+/** Everything about a team at a glance: its settings, then its weekly nights. */
+async function overview(team: RaidTeam, guild: Guild | null): Promise<string> {
+  const nights = await prisma.raidSlot.findMany({
+    where: { raidTeamId: team.id },
+    orderBy: [{ dayOfWeek: "asc" }, { hour: "asc" }, { minute: "asc" }],
+  });
+  const nightLines =
+    nights.length === 0
+      ? ["• None yet. Add one with `/raidlead nights add`."]
+      : nights.map((n) => `• ${formatNight(n.dayOfWeek, n.hour, n.minute)} · next ${nextRaid(team, n)}`);
+  return [
+    `**${teamDisplayName(team, guild)}** · <@&${team.roleId}>`,
+    `• Schedule: <#${team.channelId}>`,
+    `• Timezone: ${teamTime(team)}`,
+    `• Raid size: ${team.raidSize}-player`,
+    `• Coming Up raids: ${team.displayCount}`,
+    `• Final raid date: ${team.finalRaidDate ? `${formatFinalRaidDate(team)}; no raids are scheduled after it` : "none"}`,
+    "**Weekly nights**, in team time",
+    ...nightLines,
+  ].join("\n");
+}
+
+/**
+ * Shows the team's settings and weekly nights; with options, changes them first.
+ * A new timezone rewrites the nights so no raid moves. `final-raid:` sets the last
+ * raid day (later open raids go, with their call-outs) or, as `NO_FINAL_RAID`,
+ * clears it so the weekly nights schedule raids again.
+ */
+export async function settings(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
   const team = await requireTeam(interaction);
   if (!team) return;
 
-  const channel = interaction.options.getChannel("channel");
-  const timezone = interaction.options.getString("timezone")?.trim();
-  const name = interaction.options.getString("name");
+  const timezone = interaction.options.getString("timezone")?.trim() || null;
+  const name = interaction.options.getString("name")?.trim() || null;
   const comingUp = interaction.options.getInteger("coming-up");
   const size = interaction.options.getInteger("size");
-
-  if (!channel && !timezone && !name && comingUp === null && size === null) {
-    await interaction.reply({ content: "Pick at least one setting to change.", flags: MessageFlags.Ephemeral });
-    return;
-  }
+  const finalInput = interaction.options.getString("final-raid")?.trim() || null;
 
   if (timezone && invalidTimezone(timezone)) {
     await replyBadTimezone(interaction, timezone);
     return;
   }
+  const finalDay = finalInput && finalInput !== NO_FINAL_RAID ? parseTypedDate(finalInput, timezone ?? team.timezone) : null;
+  if (finalInput && finalInput !== NO_FINAL_RAID && !finalDay) {
+    await interaction.reply({
+      content: `Couldn't read "${finalInput}" as an upcoming date. Pick one from the suggestions, or type it like \`3/15/2027\`.`,
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
 
-  const movingChannel = channel && channel.id !== team.channelId;
-  if (movingChannel && team.messageId) await deleteMessage(client, team.channelId, team.messageId);
+  const notes: string[] = [];
+  if (timezone && timezone !== team.timezone) {
+    // Raids stay put: the weekly nights are rewritten into the new zone.
+    const nights = await changeTeamTimezone(team, timezone);
+    if (nights.length > 0) notes.push(`The weekly nights are now in ${zoneGenericName(timezone)}, and no raid moved.`);
+  }
+  if (name !== null || comingUp !== null || size !== null) {
+    await prisma.raidTeam.update({
+      where: { id: team.id },
+      data: {
+        ...(name !== null ? { name } : {}),
+        ...(comingUp !== null ? { displayCount: comingUp } : {}),
+        ...(size !== null ? { raidSize: size } : {}),
+      },
+    });
+  }
+  if (finalInput === NO_FINAL_RAID) {
+    notes.push(await clearFinalRaid(team.id));
+  } else if (finalDay) {
+    notes.push(await setFinalRaid(team.id, finalDay.toFormat("yyyy-MM-dd")));
+  }
 
-  // Raids stay put: the weekly nights are rewritten into the new zone.
-  const nights = timezone && timezone !== team.timezone ? await changeTeamTimezone(team, timezone) : null;
-
-  const updated = await prisma.raidTeam.update({
-    where: { id: team.id },
-    data: {
-      ...(channel ? { channelId: channel.id } : {}),
-      ...(movingChannel ? { messageId: null } : {}),
-      ...(name ? { name } : {}),
-      ...(comingUp !== null ? { displayCount: comingUp } : {}),
-      ...(size !== null ? { raidSize: size } : {}),
-    },
-  });
-
+  const changed = timezone !== null || name !== null || comingUp !== null || size !== null || finalInput !== null;
+  const updated = await prisma.raidTeam.findUniqueOrThrow({ where: { id: team.id } });
   await interaction.reply({
-    content:
-      `✅ Updated **${teamDisplayName(updated, interaction.guild)}**.\n` +
-      `• Channel: <#${updated.channelId}>\n` +
-      `• Timezone: ${updated.timezone}\n` +
-      `• Raid size: ${updated.raidSize}-player\n` +
-      `• Coming Up raids: ${updated.displayCount}` +
-      (updated.finalRaidDate ? `\n• Final raid date: ${formatFinalRaidDate(updated)}` : "") +
-      (nights && nights.length > 0
-        ? `\n• Weekly nights, now in ${zoneGenericName(updated.timezone)}: ` +
-          nights.map((n) => formatNight(n.dayOfWeek, n.hour, n.minute)).join(", ") +
-          ". The raids didn't move."
-        : ""),
+    content: (changed ? ["✅ Saved.", ...notes].join(" ") + "\n\n" : "") + (await overview(updated, interaction.guild)),
     flags: MessageFlags.Ephemeral,
   });
 
-  await syncRaidTeam(client, team.id).catch((err) => console.error(`Failed to sync raid team ${team.id}:`, err));
+  if (changed) await syncRaidTeam(client, team.id).catch((err) => console.error(`Failed to sync raid team ${team.id}:`, err));
+}
+
+/**
+ * Sets the team's last raid day. Open raids after it are removed with their
+ * call-outs, and the sync schedules nothing past it; closed raids stay as history.
+ */
+async function setFinalRaid(teamId: string, finalRaidDate: string): Promise<string> {
+  const team = await prisma.raidTeam.update({ where: { id: teamId }, data: { finalRaidDate } });
+  const later = { raidTeamId: team.id, closed: false, startsAt: { gte: scheduleCutoff(team)!.toJSDate() } };
+  const [removedRaids, removedCallOuts] = await Promise.all([
+    prisma.raidInstance.count({ where: later }),
+    prisma.attendance.count({ where: { raidInstance: later } }),
+  ]);
+  await prisma.raidInstance.deleteMany({ where: later });
+  const removed =
+    removedRaids === 0
+      ? ""
+      : ` Removed ${plural(removedRaids, "raid")} after it` +
+        (removedCallOuts > 0 ? `, with ${plural(removedCallOuts, "call-out")}.` : ".");
+  return `🏁 The final raid date is ${formatFinalRaidDate(team)} (team time).${removed} Past raids and their attendance stay.`;
+}
+
+/** Clears the final raid date, so the weekly nights generate raids again. */
+async function clearFinalRaid(teamId: string): Promise<string> {
+  const team = await prisma.raidTeam.findUniqueOrThrow({ where: { id: teamId } });
+  if (!team.finalRaidDate) return "There was no final raid date to clear.";
+  await prisma.raidTeam.update({ where: { id: teamId }, data: { finalRaidDate: null } });
+  return "Cleared the final raid date, so the weekly nights schedule raids again; call-outs on removed raids don't come back.";
+}
+
+/** Posts the team's schedule message in a channel (this one by default), removing the old one. */
+export async function post(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
+  const team = await requireTeam(interaction);
+  if (!team) return;
+
+  const channel = interaction.options.getChannel("channel") ?? (interaction.channel?.isTextBased() ? interaction.channel : null);
+  if (!channel) {
+    await interaction.reply({ content: "Pick a `channel:`, or run this in a text channel.", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  if (team.messageId) await deleteMessage(client, team.channelId, team.messageId);
+  await prisma.raidTeam.update({ where: { id: team.id }, data: { channelId: channel.id, messageId: null } });
+  await renderTeamMessage(client, team.id);
+
+  await interaction.reply({ content: `✅ Schedule posted in <#${channel.id}>.`, flags: MessageFlags.Ephemeral });
 }
 
 export async function remove(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
@@ -148,93 +231,6 @@ export async function remove(interaction: ChatInputCommandInteraction, _client: 
     ],
     flags: MessageFlags.Ephemeral,
   });
-}
-
-export async function publish(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
-  const team = await requireTeam(interaction);
-  if (!team) return;
-
-  const channel = interaction.channel;
-  if (!channel?.isTextBased()) {
-    await interaction.reply({ content: "Run this in a text channel.", flags: MessageFlags.Ephemeral });
-    return;
-  }
-
-  if (team.messageId) await deleteMessage(client, team.channelId, team.messageId);
-  await prisma.raidTeam.update({ where: { id: team.id }, data: { channelId: channel.id, messageId: null } });
-  await renderTeamMessage(client, team.id);
-
-  await interaction.reply({ content: `✅ Schedule posted in <#${channel.id}>.`, flags: MessageFlags.Ephemeral });
-}
-
-/**
- * Sets the team's last raid day. Open raids after it are removed with their
- * call-outs, and the sync schedules nothing past it; closed raids stay as history.
- */
-export async function finalRaid(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
-  const team = await requireTeam(interaction);
-  if (!team) return;
-
-  const dateInput = interaction.options.getString("date", true);
-  const day = parseTypedDate(dateInput, team.timezone);
-  if (!day) {
-    await interaction.reply({
-      content: `Couldn't read "${dateInput}" as an upcoming date. Pick one from the suggestions, or type it like \`3/15/2027\`.`,
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
-  }
-
-  const updated = { ...team, finalRaidDate: day.toFormat("yyyy-MM-dd") };
-  const cutoff = scheduleCutoff(updated)!.toJSDate();
-  const later = { raidTeamId: team.id, closed: false, startsAt: { gte: cutoff } };
-  const [removedRaids, removedCallOuts] = await Promise.all([
-    prisma.raidInstance.count({ where: later }),
-    prisma.attendance.count({ where: { raidInstance: later } }),
-  ]);
-
-  await prisma.raidTeam.update({ where: { id: team.id }, data: { finalRaidDate: updated.finalRaidDate } });
-  await prisma.raidInstance.deleteMany({ where: later });
-
-  const removed =
-    removedRaids === 0
-      ? "There were no raids after it."
-      : `Removed ${plural(removedRaids, "raid")} after it` +
-        (removedCallOuts > 0 ? `, with ${plural(removedCallOuts, "call-out")}.` : ".");
-  await interaction.reply({
-    content:
-      `🏁 **${team.name ?? "This team"}**'s final raid date is ${formatFinalRaidDate(updated)} (team time). ${removed}\n` +
-      "No new raids will be scheduled after it; past raids and their attendance stay. " +
-      "To schedule the weekly nights again, use `/raidlead team resume`.",
-    flags: MessageFlags.Ephemeral,
-  });
-
-  await syncRaidTeam(client, team.id).catch((err) => console.error(`Failed to sync raid team ${team.id}:`, err));
-}
-
-/** Clears the final raid date, so the weekly nights generate raids again. */
-export async function resume(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
-  const team = await requireTeam(interaction);
-  if (!team) return;
-
-  if (!team.finalRaidDate) {
-    await interaction.reply({
-      content: `**${team.name ?? "This team"}** has no final raid date, so its weekly nights are already scheduling raids.`,
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
-  }
-
-  await prisma.raidTeam.update({ where: { id: team.id }, data: { finalRaidDate: null } });
-
-  await interaction.reply({
-    content:
-      `✅ Cleared **${team.name ?? "this team"}**'s final raid date (${formatFinalRaidDate(team)}). ` +
-      "Its weekly nights are scheduling raids again; call-outs on removed raids don't come back.",
-    flags: MessageFlags.Ephemeral,
-  });
-
-  await syncRaidTeam(client, team.id).catch((err) => console.error(`Failed to sync raid team ${team.id}:`, err));
 }
 
 function plural(count: number, noun: string): string {

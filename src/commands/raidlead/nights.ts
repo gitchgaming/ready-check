@@ -12,7 +12,7 @@ import { requireTeam } from "./shared.js";
  * A night's next raid as a timestamp, which each viewer sees in their own timezone,
  * or a note that the team's final raid date comes first.
  */
-function nextRaid(team: RaidTeam, night: { dayOfWeek: number; hour: number; minute: number }): string {
+export function nextRaid(team: RaidTeam, night: { dayOfWeek: number; hour: number; minute: number }): string {
   const next = nextOccurrence(night.dayOfWeek, night.hour, night.minute, team.timezone, DateTime.now());
   const cutoff = scheduleCutoff(team);
   return cutoff && next >= cutoff ? "none before the final raid date" : raidTime(next.toJSDate());
@@ -21,12 +21,12 @@ function nextRaid(team: RaidTeam, night: { dayOfWeek: number; hour: number; minu
 /** A line about the team's final raid date, if it has one. */
 function finalRaidNote(team: RaidTeam): string {
   return team.finalRaidDate
-    ? `\n-# Final raid date: ${formatFinalRaidDate(team)}. No raids are scheduled after it; clear it with \`/raidlead team resume\`.`
+    ? `\n-# Final raid date: ${formatFinalRaidDate(team)}. No raids are scheduled after it; clear it with \`/raidlead team settings final-raid:\`.`
     : "";
 }
 
 /** Team time, named for a weekly night: `Central Time (America/Chicago)`. */
-function teamTime(team: RaidTeam): string {
+export function teamTime(team: RaidTeam): string {
   return `${zoneGenericName(team.timezone)} (${team.timezone})`;
 }
 
@@ -200,23 +200,4 @@ export async function edit(interaction: ChatInputCommandInteraction, client: Cli
 
 function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
-}
-
-export async function list(interaction: ChatInputCommandInteraction, _client: Client): Promise<void> {
-  const team = await requireTeam(interaction);
-  if (!team) return;
-
-  const nights = await prisma.raidSlot.findMany({
-    where: { raidTeamId: team.id },
-    orderBy: [{ dayOfWeek: "asc" }, { hour: "asc" }, { minute: "asc" }],
-  });
-
-  await interaction.reply({
-    content:
-      nights.length === 0
-        ? "No weekly raid nights yet. Add one with `/raidlead nights add`."
-        : nights.map((n) => `• ${formatNight(n.dayOfWeek, n.hour, n.minute)} · next ${nextRaid(team, n)}`).join("\n") +
-          `\n-# Nights are in team time, ${teamTime(team)}.${finalRaidNote(team)}`,
-    flags: MessageFlags.Ephemeral,
-  });
 }

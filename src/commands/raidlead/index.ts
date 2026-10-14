@@ -20,6 +20,7 @@ import {
   oneOffRaidChoices,
   raidDayChoices,
   respondFiltered,
+  MAX_CHOICES,
   fitChoiceName,
   teamDisplayName,
   viewableTeams,
@@ -56,15 +57,14 @@ export const data = new SlashCommandBuilder()
           .setName("setup")
           .setDescription("Create a raid team for a role")
           .addRoleOption(roleOption)
+          .addStringOption((opt) =>
+            opt.setName("timezone").setDescription("The team's timezone").setRequired(true).setAutocomplete(true),
+          )
           .addChannelOption((opt) =>
             opt
               .setName("channel")
-              .setDescription("Where the schedule message lives")
-              .addChannelTypes(ChannelType.GuildText)
-              .setRequired(true),
-          )
-          .addStringOption((opt) =>
-            opt.setName("timezone").setDescription("The team's timezone").setRequired(true).setAutocomplete(true),
+              .setDescription("Where the schedule message lives (default: this channel)")
+              .addChannelTypes(ChannelType.GuildText),
           )
           .addStringOption((opt) => opt.setName("name").setDescription('Display name, e.g. "Main Raid"'))
           .addIntegerOption((opt) =>
@@ -83,18 +83,15 @@ export const data = new SlashCommandBuilder()
       )
       .addSubcommand((sub) =>
         sub
-          .setName("edit")
-          .setDescription("Change a raid team's settings")
-          .addChannelOption((opt) =>
-            opt
-              .setName("channel")
-              .setDescription("Move the schedule message to this channel")
-              .addChannelTypes(ChannelType.GuildText),
-          )
-          .addStringOption((opt) =>
-            opt.setName("timezone").setDescription("The team's timezone").setAutocomplete(true),
-          )
+          .setName("settings")
+          .setDescription("See a raid team's settings and weekly nights, or change them")
           .addStringOption((opt) => opt.setName("name").setDescription("Display name"))
+          .addStringOption((opt) =>
+            opt.setName("timezone").setDescription("The team's timezone (raids stay at the same moment)").setAutocomplete(true),
+          )
+          .addIntegerOption((opt) =>
+            opt.setName("size").setDescription("Players the raid is built for").addChoices(...SIZE_CHOICES),
+          )
           .addIntegerOption((opt) =>
             opt
               .setName("coming-up")
@@ -102,34 +99,24 @@ export const data = new SlashCommandBuilder()
               .setMinValue(0)
               .setMaxValue(MAX_COMING_UP),
           )
-          .addIntegerOption((opt) =>
-            opt.setName("size").setDescription("Players the raid is built for").addChoices(...SIZE_CHOICES),
-          )
-          .addStringOption(teamOption),
-      )
-      .addSubcommand((sub) =>
-        sub
-          .setName("publish")
-          .setDescription("Post the team's schedule message in this channel")
-          .addStringOption(teamOption),
-      )
-      .addSubcommand((sub) =>
-        sub
-          .setName("final-raid")
-          .setDescription("Set the team's last raid day: later raids are removed and no more are scheduled")
           .addStringOption((opt) =>
             opt
-              .setName("date")
-              .setDescription("Pick a raid day, or type a date like 3/15/2027")
-              .setRequired(true)
+              .setName("final-raid")
+              .setDescription("The last raid day (later raids are removed), or clear it")
               .setAutocomplete(true),
           )
           .addStringOption(teamOption),
       )
       .addSubcommand((sub) =>
         sub
-          .setName("resume")
-          .setDescription("Clear the team's final raid date and schedule its weekly nights again")
+          .setName("post")
+          .setDescription("Post the team's schedule message here or in a channel, replacing the old one")
+          .addChannelOption((opt) =>
+            opt
+              .setName("channel")
+              .setDescription("Where to post it (default: this channel)")
+              .addChannelTypes(ChannelType.GuildText),
+          )
           .addStringOption(teamOption),
       )
       .addSubcommand((sub) =>
@@ -157,15 +144,6 @@ export const data = new SlashCommandBuilder()
       )
       .addSubcommand((sub) =>
         sub
-          .setName("remove")
-          .setDescription("Remove a weekly raid night")
-          .addStringOption((opt) =>
-            opt.setName("night").setDescription("The night to remove").setRequired(true).setAutocomplete(true),
-          )
-          .addStringOption(teamOption),
-      )
-      .addSubcommand((sub) =>
-        sub
           .setName("edit")
           .setDescription("Change a weekly raid night's start time; its upcoming raids move with it")
           .addStringOption((opt) =>
@@ -177,7 +155,13 @@ export const data = new SlashCommandBuilder()
           .addStringOption(teamOption),
       )
       .addSubcommand((sub) =>
-        sub.setName("list").setDescription("List a team's weekly raid nights").addStringOption(teamOption),
+        sub
+          .setName("remove")
+          .setDescription("Remove a weekly raid night and its upcoming raids")
+          .addStringOption((opt) =>
+            opt.setName("night").setDescription("The night to remove").setRequired(true).setAutocomplete(true),
+          )
+          .addStringOption(teamOption),
       ),
   )
   .addSubcommandGroup((group) =>
@@ -251,15 +235,12 @@ type Handler = (interaction: ChatInputCommandInteraction, client: Client) => Pro
 
 const handlers: Record<string, Handler> = {
   "team setup": team.setup,
-  "team edit": team.edit,
-  "team publish": team.publish,
-  "team final-raid": team.finalRaid,
-  "team resume": team.resume,
+  "team settings": team.settings,
+  "team post": team.post,
   "team delete": team.remove,
   "nights add": nights.add,
-  "nights remove": nights.remove,
   "nights edit": nights.edit,
-  "nights list": nights.list,
+  "nights remove": nights.remove,
   "raid cancel": raid.cancel,
   "raid restore": raid.restore,
   "raid add": raid.add,
@@ -333,7 +314,7 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
     await respondFiltered(interaction, await teamRaidChoices(raidTeam, true, zone), "No cancelled raids to restore");
   } else if (key === "raid remove") {
     await respondFiltered(interaction, await oneOffRaidChoices(raidTeam, zone), "No upcoming one-off raids");
-  } else if (key === "raid add" || key === "team final-raid") {
+  } else if (focused === "final-raid") {
     const typed = interaction.options.getFocused();
     const parsed = parseTypedDate(typed, raidTeam.timezone);
     if (parsed) {
@@ -341,8 +322,17 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
       return;
     }
     // A final raid date is usually a raid's day, so those come first.
-    const raidDays = key === "team final-raid" && !typed ? await raidDayChoices(raidTeam) : [];
-    const choices = raidDays.length > 0 ? raidDays : upcomingDateChoices(raidTeam.timezone, typed);
-    await respondFiltered(interaction, choices, "No dates available");
+    const raidDays = typed ? [] : await raidDayChoices(raidTeam);
+    const dates = raidDays.length > 0 ? raidDays : upcomingDateChoices(raidTeam.timezone, typed);
+    const clear = raidTeam.finalRaidDate ? [{ name: "No final raid: keep scheduling the weekly nights", value: team.NO_FINAL_RAID }] : [];
+    await respondFiltered(interaction, [...clear, ...dates].slice(0, MAX_CHOICES), "No dates available");
+  } else if (key === "raid add") {
+    const typed = interaction.options.getFocused();
+    const parsed = parseTypedDate(typed, raidTeam.timezone);
+    if (parsed) {
+      await interaction.respond([dateChoice(parsed)]);
+      return;
+    }
+    await respondFiltered(interaction, upcomingDateChoices(raidTeam.timezone, typed), "No dates available");
   }
 }

@@ -1,5 +1,10 @@
 # Plan: fixed team time, clearly labelled
 
+> **Status (2026-10-14): section 4 dropped.** A team's timezone stays
+> changeable: since #40 a change rewrites the weekly nights to the same
+> moments, so no raid moves or doubles up. Section 3's `time` autocomplete is
+> the last step of the `/raidlead` cleanup; this file goes once it's done.
+
 > **Status (2026-10-13): sections 1 and 2 done** (message text → timestamps,
 > plain text → zone labels, with the zone helpers in `src/lib/time.ts`).
 > Message text uses `<t:unix:F>` throughout, which keeps the weekday, rather
