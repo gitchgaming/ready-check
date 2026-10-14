@@ -1,18 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { discordTime, parseHourMinute, raidTime, zoneAbbrev, zoneGenericName } from "../../src/lib/time.js";
+import { discordTime, formatClock, parseTime, raidTime, readTimes, timeValue, zoneAbbrev, zoneGenericName } from "../../src/lib/time.js";
 
-describe("parseHourMinute", () => {
+describe("readTimes and parseTime", () => {
   it.each([
-    ["20:00", { hour: 20, minute: 0 }],
-    ["0:00", { hour: 0, minute: 0 }],
-    ["23:59", { hour: 23, minute: 59 }],
-    ["7:05", { hour: 7, minute: 5 }],
-  ])("parses %s", (input, expected) => {
-    expect(parseHourMinute(input)).toEqual(expected);
+    ["20:00", [[20, 0]]],
+    ["0:00", [[0, 0]]],
+    ["23:59", [[23, 59]]],
+    ["2030", [[20, 30]]],
+    ["20", [[20, 0]]],
+    ["8pm", [[20, 0]]],
+    ["8 PM", [[20, 0]]],
+    ["8:30 p.m.", [[20, 30]]],
+    ["12am", [[0, 0]]],
+    ["12pm", [[12, 0]]],
+    ["11a", [[11, 0]]],
+    ["07:05", [[7, 5]]],
+    // A bare hour from 1 to 11 could be either: evening first.
+    ["7:05", [[19, 5], [7, 5]]],
+    ["830", [[20, 30], [8, 30]]],
+    ["12", [[12, 0]]],
+  ])("reads %s", (input, expected) => {
+    const times = expected.map(([hour, minute]) => ({ hour, minute }));
+    expect(readTimes(input)).toEqual(times);
+    expect(parseTime(input)).toEqual(times[0]);
   });
 
-  it.each(["24:00", "12:60", "7:5", "", "noon", "20", "-1:00"])("rejects %j", (input) => {
-    expect(parseHourMinute(input)).toBeNull();
+  it.each(["24:00", "12:60", "7:5", "", "noon", "13pm", "0am", "-1:00"])("rejects %j", (input) => {
+    expect(readTimes(input)).toEqual([]);
+    expect(parseTime(input)).toBeNull();
+  });
+
+  it("formats a clock time and a choice value", () => {
+    expect(formatClock({ hour: 20, minute: 5 })).toBe("8:05 PM");
+    expect(timeValue({ hour: 7, minute: 5 })).toBe("07:05");
   });
 });
 

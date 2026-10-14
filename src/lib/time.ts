@@ -1,10 +1,47 @@
 import { DateTime } from "luxon";
 
-/** Parses a strict "HH:MM" 24-hour string. Returns null if invalid. */
-export function parseHourMinute(input: string): { hour: number; minute: number } | null {
-  const match = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/.exec(input.trim());
-  if (!match) return null;
-  return { hour: Number(match[1]), minute: Number(match[2]) };
+export interface HourMinute {
+  hour: number;
+  minute: number;
+}
+
+/**
+ * Reads a typed time of day: `20:00`, `8pm`, `8:30 PM`, `2030`. A bare hour from 1
+ * to 11 with no am/pm could be either, so it reads as both, evening first, since
+ * raids are in the evening (`08:30`, with its leading zero, is morning only).
+ * Empty when it can't be read.
+ */
+export function readTimes(input: string): HourMinute[] {
+  const match = /^(\d{1,2})(?:[:.]?(\d{2}))?\s*(?:([ap])\.?\s*m?\.?)?$/i.exec(input.trim());
+  if (!match) return [];
+  const [, hourText, minuteText, suffix] = match;
+  const typedHour = Number(hourText);
+  const minute = minuteText ? Number(minuteText) : 0;
+  if (minute > 59) return [];
+  if (suffix) {
+    if (typedHour < 1 || typedHour > 12) return [];
+    return [{ hour: (typedHour % 12) + (suffix.toLowerCase() === "p" ? 12 : 0), minute }];
+  }
+  if (typedHour > 23) return [];
+  if (typedHour >= 1 && typedHour <= 11 && !hourText!.startsWith("0")) {
+    return [{ hour: typedHour + 12, minute }, { hour: typedHour, minute }];
+  }
+  return [{ hour: typedHour, minute }];
+}
+
+/** A typed time as `readTimes` reads it first, or null. */
+export function parseTime(input: string): HourMinute | null {
+  return readTimes(input)[0] ?? null;
+}
+
+/** `20:30` → `8:30 PM`. */
+export function formatClock({ hour, minute }: HourMinute): string {
+  return DateTime.fromObject({ hour, minute }).toFormat("h:mm a");
+}
+
+/** `20:30`, the value a time choice carries. */
+export function timeValue({ hour, minute }: HourMinute): string {
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 /** Discord's timestamp styles, rendered by each viewer's client in their own timezone. */

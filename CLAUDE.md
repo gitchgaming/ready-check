@@ -201,6 +201,11 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   Never the server clock, which is UTC.
 - Every date input is an autocomplete picker. Only `raid add` accepts free-typed
   dates (`parseTypedDate`); pickers for existing raids list real raids only.
+  Start times (`nights add`/`edit`, `raid add`) are autocomplete too, in team
+  time: `readTimes` (`time.ts`) reads `8pm`, `20:00` or `830`, a bare hour
+  from 1 to 11 reads as evening first, and `timeChoices` names each reading
+  with the team's zone (`8:00 PM Central Time`, value `20:00`). Officer
+  confirmations show team time and a `<t:…>` timestamp.
 - Role membership comes from the member cache (warmed once at startup, kept
   current by member events). Never `guild.members.fetch()` per render — it hits
   Discord's gateway rate limit. Member events trigger a debounced refresh of
@@ -255,9 +260,6 @@ testing is for look and feel only.
 - Staging is live and verified (2026-10-09), except one guard path: with
   staging stopped, `check-staging` should report it stopped and let
   `npm run dev` start. Confirm it the first time the user asks to run dev.
-- Fixed team time, clearly labelled: see `docs/timezone-plan.md`. Sections 1
-  and 2 (timestamps in message text, zone labels in plain text) are done;
-  officer input (3) is not, and a permanent timezone (4) was dropped.
 
 ## Production hosting (Railway)
 
