@@ -187,7 +187,7 @@ export const data = new SlashCommandBuilder()
       .addSubcommand((sub) =>
         sub
           .setName("cancel")
-          .setDescription("Cancel an upcoming raid, or restore a cancelled one")
+          .setDescription("Cancel an upcoming raid or remove a one-off, or restore a cancelled raid")
           .addStringOption((opt) =>
             opt.setName("date").setDescription("The raid").setRequired(true).setAutocomplete(true),
           )

@@ -55,7 +55,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   `c<offset>` `/schedule`),
   `mynav:<dir>:<teamId>:<offset>`,
   `teamdelete:<confirm|abort>:<teamId>`,
-  `raidlead:cancel:<raidId>:<1|0>` and `raidlead:att:<raidId>:<userId>:<out|in>`
+  `raidlead:cancel:<raidId>:<1|0>`, `raidlead:readd:<teamId>:<unix seconds>`
+  (a removed one-off) and `raidlead:att:<raidId>:<userId>:<out|in>`
   (officers' Undo buttons on `raid cancel` and `/raidlead attendance`; each
   sets the named state, never toggles).
 - `src/lib/` — `scheduler.ts` (instance generation, hourly sync, schedule
@@ -165,9 +166,10 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   Call-outs are only displayed/counted for current role holders.
 - Raids are generated from weekly nights (`RaidSlot`, called "nights" in the
   UI) and upserted hourly. Never delete a generated raid — the sync recreates
-  it. `cancelled` keeps it visible as 🚫 Cancelled, one-off raids (`oneOff`,
-  from `/raidlead raid add`) included: `raid cancel` toggles, and there's no
-  hard delete for a single raid.
+  it. `cancelled` keeps it visible as 🚫 Cancelled; `raid cancel` toggles. A
+  one-off raid (`oneOff`, from `/raidlead raid add`) is the exception: nothing
+  regenerates it, so `raid cancel` deletes it with its call-outs
+  (`setCancelled` in `raid.ts`), and its Undo adds it back without them.
   The exception is a team's final raid date (`finalRaidDate`, "yyyy-MM-dd" in
   team time, set or cleared with `team settings final-raid:`): the sync
   generates nothing after it (`scheduleCutoff`) and deletes open raids after it;

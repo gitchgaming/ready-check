@@ -1,6 +1,7 @@
 import type { ChatInputCommandInteraction, Client } from "discord.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from "discord.js";
 import { DateTime } from "luxon";
+import type { RaidInstance, RaidTeam } from "../../generated/prisma/client.js";
 import { prisma } from "../../lib/db.js";
 import { formatRaidLabel, parseTypedDate } from "../../lib/pickers.js";
 import { formatFinalRaidDate, renderTeamMessage, scheduleCutoff } from "../../lib/scheduler.js";
@@ -26,7 +27,69 @@ export function cancelReply(raidId: string, startsAt: Date, cancelled: boolean) 
   };
 }
 
-/** Cancels an upcoming raid, or restores a cancelled one: the picker says which. */
+/**
+ * The reply to removing a one-off raid, with an Undo button that adds it back
+ * (`raidlead:readd:<teamId>:<unix seconds>`; its call-outs are gone).
+ */
+export function removedReply(teamId: string, startsAt: Date) {
+  return {
+    content: `🗑️ Removed the one-off raid on ${raidTime(startsAt)}.`,
+    components: [
+      new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`raidlead:readd:${teamId}:${Math.floor(startsAt.getTime() / 1000)}`)
+          .setLabel("Undo")
+          .setStyle(ButtonStyle.Secondary),
+      ),
+    ],
+  };
+}
+
+/**
+ * Cancels or restores a raid and returns the reply. Cancelling a one-off removes
+ * it, call-outs and all: nothing would generate it again, so there's no reason to
+ * keep a 🚫 line on the schedule.
+ */
+export async function setCancelled(raid: RaidInstance, cancelled: boolean) {
+  if (cancelled && raid.oneOff) {
+    await prisma.raidInstance.delete({ where: { id: raid.id } });
+    return removedReply(raid.raidTeamId, raid.startsAt);
+  }
+  await prisma.raidInstance.update({ where: { id: raid.id }, data: { cancelled } });
+  return cancelReply(raid.id, raid.startsAt, cancelled);
+}
+
+/**
+ * Puts a one-off raid on the schedule at `startsAt` (restoring a cancelled raid
+ * already there). Returns its id, or why it can't.
+ */
+export async function placeOneOff(team: RaidTeam, startsAt: DateTime): Promise<{ id: string } | { problem: string }> {
+  if (startsAt <= DateTime.now()) return { problem: "That time has already passed." };
+
+  const cutoff = scheduleCutoff(team);
+  if (cutoff && startsAt >= cutoff) {
+    return {
+      problem:
+        `That's after the team's final raid date, ${formatFinalRaidDate(team)}. ` +
+        "Move or clear it with `/raidlead team settings final-raid:`.",
+    };
+  }
+
+  const existing = await prisma.raidInstance.findUnique({
+    where: { raidTeamId_startsAt: { raidTeamId: team.id, startsAt: startsAt.toJSDate() } },
+  });
+  if (existing && !existing.cancelled) return { problem: "A raid is already scheduled at that time." };
+  if (existing) {
+    await prisma.raidInstance.update({ where: { id: existing.id }, data: { cancelled: false } });
+    return { id: existing.id };
+  }
+  const created = await prisma.raidInstance.create({
+    data: { raidTeamId: team.id, startsAt: startsAt.toJSDate(), oneOff: true },
+  });
+  return { id: created.id };
+}
+
+/** Cancels an upcoming raid (removing a one-off), or restores a cancelled one: the picker says which. */
 export async function cancel(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
   const team = await requireTeam(interaction);
   if (!team) return;
@@ -42,10 +105,9 @@ export async function cancel(interaction: ChatInputCommandInteraction, client: C
     return;
   }
 
-  const cancelled = !instance.cancelled;
-  await prisma.raidInstance.update({ where: { id: instance.id }, data: { cancelled } });
+  const reply = await setCancelled(instance, !instance.cancelled);
   await renderTeamMessage(client, team.id);
-  await interaction.reply({ ...cancelReply(instance.id, instance.startsAt, cancelled), flags: MessageFlags.Ephemeral });
+  await interaction.reply({ ...reply, flags: MessageFlags.Ephemeral });
 }
 
 export async function add(interaction: ChatInputCommandInteraction, client: Client): Promise<void> {
@@ -73,36 +135,10 @@ export async function add(interaction: ChatInputCommandInteraction, client: Clie
   }
 
   const startsAt = day.set(time);
-  if (startsAt <= DateTime.now()) {
-    await interaction.reply({ content: "That time has already passed.", flags: MessageFlags.Ephemeral });
+  const placed = await placeOneOff(team, startsAt);
+  if ("problem" in placed) {
+    await interaction.reply({ content: placed.problem, flags: MessageFlags.Ephemeral });
     return;
-  }
-
-  const cutoff = scheduleCutoff(team);
-  if (cutoff && startsAt >= cutoff) {
-    await interaction.reply({
-      content:
-        `That's after the team's final raid date, ${formatFinalRaidDate(team)}. ` +
-        "Move or clear it with `/raidlead team settings final-raid:`.",
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
-  }
-
-  const existing = await prisma.raidInstance.findUnique({
-    where: { raidTeamId_startsAt: { raidTeamId: team.id, startsAt: startsAt.toJSDate() } },
-  });
-  if (existing && !existing.cancelled) {
-    await interaction.reply({ content: "A raid is already scheduled at that time.", flags: MessageFlags.Ephemeral });
-    return;
-  }
-
-  if (existing) {
-    await prisma.raidInstance.update({ where: { id: existing.id }, data: { cancelled: false } });
-  } else {
-    await prisma.raidInstance.create({
-      data: { raidTeamId: team.id, startsAt: startsAt.toJSDate(), oneOff: true },
-    });
   }
   await renderTeamMessage(client, team.id);
 

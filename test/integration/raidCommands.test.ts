@@ -156,7 +156,7 @@ describe("raid cancel", () => {
 
   it("cancels an open raid and, picked again, restores it, re-rendering each time and keeping call-outs", async () => {
     const t = await makeTeam();
-    const raid = await makeRaid(t.id, TUE_8PM, { oneOff: true });
+    const raid = await makeRaid(t.id, TUE_8PM);
     await callOut(raid.id, "u-bob");
     const { run, channel } = setup();
 
@@ -172,6 +172,36 @@ describe("raid cancel", () => {
     expect((await raids(t.id))[0]!.cancelled).toBe(false);
     expect(channel.sent[0]!.payloads).toHaveLength(2);
     expect(await prisma.attendance.count()).toBe(1);
+  });
+
+  it("removes a one-off raid with its call-outs, and Undo adds it back without them", async () => {
+    const t = await makeTeam({ messageId: "public" });
+    const raid = await makeRaid(t.id, TUE_8PM, { oneOff: true });
+    await callOut(raid.id, "u-bob");
+    const { run, guild, client, channel } = setup();
+    channel.seedMessage("public");
+
+    const remove = await run("raid", "cancel", { date: raid.id });
+    expect(onlyReply(remove)).toBe("🗑️ Removed the one-off raid on <t:1791334800:F>.");
+    expect(undoId(remove)).toBe(`raidlead:readd:${t.id}:1791334800`);
+    expect(await raids(t.id)).toEqual([]);
+    expect(await prisma.attendance.count()).toBe(0);
+
+    const undo = fakeButton(`raidlead:readd:${t.id}:1791334800`, { guild, officer: true });
+    await routeInteraction(undo, client);
+    expect(undo.updates[0].content).toBe("✅ Restored the raid on <t:1791334800:F>.");
+    const [back] = await raids(t.id);
+    expect(back).toEqual(expect.objectContaining({ oneOff: true, cancelled: false }));
+    expect(back!.startsAt.toISOString()).toBe(new Date(TUE_8PM).toISOString());
+
+    // Clicked again, it doesn't add a second one; its Undo removes it again.
+    const again = fakeButton(`raidlead:readd:${t.id}:1791334800`, { guild, officer: true });
+    await routeInteraction(again, client);
+    expect(again.updates[0].content).toBe("A raid is already scheduled at that time.");
+    const cancelAgain = fakeButton(`raidlead:cancel:${back!.id}:1`, { guild, officer: true });
+    await routeInteraction(cancelAgain, client);
+    expect(cancelAgain.updates[0].content).toBe("🗑️ Removed the one-off raid on <t:1791334800:F>.");
+    expect(await raids(t.id)).toEqual([]);
   });
 
   it("Undo sets the state it names, for officers only", async () => {

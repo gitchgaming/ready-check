@@ -62,7 +62,7 @@ export async function respondFiltered(
 
 /**
  * Every upcoming raid for `raid cancel`, which toggles, marked with what picking
- * it does. `zone` is the viewer's own timezone if they set one, else the team's.
+ * it does (a one-off is removed, not cancelled). `zone` is the viewer's own timezone if they set one, else the team's.
  */
 export async function cancelChoices(team: RaidTeam, zone = team.timezone): Promise<Choice[]> {
   const instances = await prisma.raidInstance.findMany({
@@ -73,7 +73,7 @@ export async function cancelChoices(team: RaidTeam, zone = team.timezone): Promi
   return instances.map((i) => ({
     name: i.cancelled
       ? `🚫 ${formatRaidLabel(i.startsAt, zone)} — Cancelled. Pick to restore`
-      : `${formatRaidLabel(i.startsAt, zone)} — Pick to cancel`,
+      : `${formatRaidLabel(i.startsAt, zone)} — ${i.oneOff ? "One-off. Pick to remove" : "Pick to cancel"}`,
     value: i.id,
   }));
 }
