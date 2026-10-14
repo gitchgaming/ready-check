@@ -1,5 +1,5 @@
 import type { AutocompleteInteraction, ChatInputCommandInteraction, Client, Guild } from "discord.js";
-import { MessageFlags } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from "discord.js";
 import { prisma } from "./db.js";
 import {
   PICK_TO_CALL_OUT,
@@ -21,6 +21,29 @@ export type AttendanceStatus = "IN" | "OUT";
 /** "TOGGLE" flips whatever the raider's current status is for the picked raid. */
 export type AttendanceChange = AttendanceStatus | "TOGGLE";
 
+/** The officer picker's words for someone else (`/raidlead attendance`), after the raider's own. */
+export const THEY_ARE_IN = "In. Pick to call out";
+export const THEY_ARE_OUT = "Called out. Pick to switch back in";
+
+/**
+ * An officer's change to someone else's attendance, with an Undo button
+ * (`raidlead:att:<raidId>:<userId>:<in|out>`, the state to go back to).
+ */
+export function officerAttendanceReply(userId: string, raidId: string, startsAt: Date, out: boolean) {
+  return {
+    content: `${statusMark(out)} <@${userId}> is ${out ? "out" : "back in"} for **${raidTime(startsAt, "short")}**.`,
+    components: [
+      new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`raidlead:att:${raidId}:${userId}:${out ? "in" : "out"}`)
+          .setLabel("Undo")
+          .setStyle(ButtonStyle.Secondary),
+      ),
+    ],
+    allowedMentions: { parse: [] as const },
+  };
+}
+
 /**
  * Date picker for the raids of whoever the attendance change is about, on every
  * team they're on, or only `onlyTeamId` when given. Calling
@@ -33,6 +56,7 @@ export async function raidDateAutocomplete(
   subjectId: string | undefined,
   status: AttendanceChange,
   onlyTeamId?: string,
+  onBehalf = false,
 ) {
   if (!interaction.guild) return;
   if (!subjectId) {
@@ -76,7 +100,7 @@ export async function raidDateAutocomplete(
       const label =
         status === "IN"
           ? date
-          : `${out ? "❌" : "✅"} ${date}${status === "TOGGLE" ? ` — ${out ? PICK_TO_COME_BACK : PICK_TO_CALL_OUT}` : ""}`;
+          : `${out ? "❌" : "✅"} ${date}${status === "TOGGLE" ? ` — ${pickWords(out, onBehalf)}` : ""}`;
       const name = showTeam ? `${label} · ${teamDisplayName(team, interaction.guild)}` : label;
       return {
         name: fitChoiceName(name),
@@ -89,6 +113,11 @@ export async function raidDateAutocomplete(
     choices,
     status === "IN" ? "No call-outs to undo" : "No upcoming raids",
   );
+}
+
+function pickWords(out: boolean, onBehalf: boolean): string {
+  if (onBehalf) return out ? THEY_ARE_OUT : THEY_ARE_IN;
+  return out ? PICK_TO_COME_BACK : PICK_TO_CALL_OUT;
 }
 
 /** Calls a raider out of one raid, or back in. Returns whether anything changed. */
@@ -219,6 +248,11 @@ export async function setAttendance(
     const oneTeam = showView === "team" ? instance.raidTeamId : undefined;
     const notice = confirmation(status === "OUT", instance.startsAt, instance.raidTeamId, instance.id, oneTeam ? "t" : "a");
     await interaction.reply(asEphemeral(await attendanceView(interaction.guild, subjectId, notice, oneTeam)));
+    return;
+  }
+
+  if (onBehalf) {
+    await interaction.reply({ ...officerAttendanceReply(subjectId, instance.id, instance.startsAt, status === "OUT"), flags: MessageFlags.Ephemeral });
     return;
   }
 

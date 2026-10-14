@@ -3,8 +3,7 @@ import { MessageFlags } from "discord.js";
 import { raidDateAutocomplete, setAttendance, type AttendanceChange } from "../../src/lib/attendance.js";
 import {
   nightChoices,
-  oneOffRaidChoices,
-  teamRaidChoices,
+  cancelChoices,
   teamsForMember,
   viewableTeams,
 } from "../../src/lib/pickers.js";
@@ -73,11 +72,11 @@ describe("setAttendance", () => {
 
   it("words replies for someone else when acting on their behalf", async () => {
     const { raid, run } = await setup();
-    expect(onlyReply(await run("OUT", "u-bob"))).toBe(`❌ Marked <@u-bob> as called out for ${TUE_TIME}.`);
+    expect(onlyReply(await run("OUT", "u-bob"))).toBe("❌ <@u-bob> is out for **<t:1791334800:s>**.");
     expect(await isOut(raid.id, "u-bob")).toBe(true);
     expect(await isOut(raid.id, "u-alice")).toBe(false);
     expect(onlyReply(await run("OUT", "u-bob"))).toBe(`<@u-bob> is already called out for ${TUE_TIME}.`);
-    expect(onlyReply(await run("IN", "u-bob"))).toBe(`✅ Marked <@u-bob> as attending ${TUE_TIME}.`);
+    expect(onlyReply(await run("IN", "u-bob"))).toBe("✅ <@u-bob> is back in for **<t:1791334800:s>**.");
     expect(onlyReply(await run("IN", "u-bob"))).toBe(`<@u-bob> is already attending ${TUE_TIME}.`);
   });
 
@@ -234,41 +233,25 @@ describe("raidDateAutocomplete", () => {
 });
 
 describe("DB-backed pickers", () => {
-  it("teamRaidChoices lists upcoming raids by cancelled state, soonest first, in the team's timezone", async () => {
+  it("cancelChoices lists every upcoming raid with what picking it does, soonest first", async () => {
     const team = await makeTeam();
     await makeRaid(team.id, "2026-09-30T01:00:00Z", { closed: true });
-    await makeRaid(team.id, "2026-09-29T01:00:00Z", { closed: true, cancelled: true });
-    const later = await makeRaid(team.id, "2026-10-14T01:00:00Z");
+    const later = await makeRaid(team.id, "2026-10-14T01:00:00Z", { oneOff: true });
     const first = await makeRaid(team.id, TUE_8PM);
     const cancelled = await makeRaid(team.id, "2026-10-08T01:00:00Z", { cancelled: true });
-    expect(await teamRaidChoices(team, false)).toEqual([
-      { name: TUE_LABEL, value: first.id },
-      { name: "Tue, Oct 13 · 8:00 PM CDT", value: later.id },
+    expect(await cancelChoices(team)).toEqual([
+      { name: `${TUE_LABEL} — Pick to cancel`, value: first.id },
+      { name: "🚫 Wed, Oct 7 · 8:00 PM CDT — Cancelled. Pick to restore", value: cancelled.id },
+      { name: "Tue, Oct 13 · 8:00 PM CDT — Pick to cancel", value: later.id },
     ]);
     // Or in the viewer's own timezone, if they set one.
-    expect(await teamRaidChoices(team, false, "Asia/Tokyo")).toEqual([
-      { name: "Wed, Oct 7 · 10:00 AM GMT+9", value: first.id },
-      { name: "Wed, Oct 14 · 10:00 AM GMT+9", value: later.id },
-    ]);
-    expect(await teamRaidChoices(team, true)).toEqual([{ name: "Wed, Oct 7 · 8:00 PM CDT", value: cancelled.id }]);
+    expect((await cancelChoices(team, "Asia/Tokyo"))[0]).toEqual({ name: "Wed, Oct 7 · 10:00 AM GMT+9 — Pick to cancel", value: first.id });
   });
 
-  it("teamRaidChoices caps at 25", async () => {
+  it("cancelChoices caps at 25", async () => {
     const team = await makeTeam();
     for (let i = 1; i <= 30; i++) await makeRaid(team.id, now().plus({ hours: i }));
-    expect(await teamRaidChoices(team, false)).toHaveLength(25);
-  });
-
-  it("oneOffRaidChoices lists upcoming one-offs only, marking cancelled ones", async () => {
-    const team = await makeTeam();
-    await makeRaid(team.id, "2026-10-08T01:00:00Z"); // generated
-    await makeRaid(team.id, "2026-09-30T01:00:00Z", { oneOff: true, closed: true });
-    const a = await makeRaid(team.id, TUE_8PM, { oneOff: true });
-    const b = await makeRaid(team.id, "2026-10-14T01:00:00Z", { oneOff: true, cancelled: true });
-    expect(await oneOffRaidChoices(team)).toEqual([
-      { name: TUE_LABEL, value: a.id },
-      { name: "Tue, Oct 13 · 8:00 PM CDT (cancelled)", value: b.id },
-    ]);
+    expect(await cancelChoices(team)).toHaveLength(25);
   });
 
   it("nightChoices lists a team's nights by weekday, then time", async () => {

@@ -2,9 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { DateTime } from "luxon";
 import * as raidlead from "../../src/commands/raidlead/index.js";
 import { CHANNEL_ID, GUILD_ID, ROLE_ID, callOut, makeRaid, makeSlot, makeTeam, prisma } from "../db.js";
-import { fakeAutocomplete, fakeChannel, fakeChatInput, fakeClient, fakeGuild, fakeMember, fakeRole, payloadText, teamRole, type FakeChannel } from "../discord.js";
+import { fakeAutocomplete, fakeButton, fakeChannel, fakeChatInput, fakeClient, fakeGuild, fakeMember, fakeRole, payloadText, teamRole, type FakeChannel } from "../discord.js";
 import { onlyReply, useDbAndClock } from "./world.js";
 import { syncRaidTeam } from "../../src/lib/scheduler.js";
+import { routeInteraction } from "../../src/interactions/router.js";
 
 useDbAndClock(); // Tue Oct 6 2026, 7:00 AM in Chicago
 
@@ -33,8 +34,6 @@ describe("picking the team", () => {
     ["nights", "remove", { night: "x" }],
     ["nights", "edit", { night: "x", time: "21:00" }],
     ["raid", "cancel", { date: "x" }],
-    ["raid", "restore", { date: "x" }],
-    ["raid", "remove", { date: "x" }],
     ["team", "settings", { name: "New" }],
     ["team", "delete", {}],
     ["team", "post", {}],
@@ -150,38 +149,56 @@ describe("raid add", () => {
   });
 });
 
-describe("raid cancel / restore", () => {
-  it("cancels an open raid and restores it, re-rendering each time and keeping call-outs", async () => {
+describe("raid cancel", () => {
+  const undoId = (interaction: { replies: any[] }) => interaction.replies[0].components[0].toJSON().components[0].custom_id;
+
+  it("cancels an open raid and, picked again, restores it, re-rendering each time and keeping call-outs", async () => {
     const t = await makeTeam();
-    const raid = await makeRaid(t.id, TUE_8PM);
+    const raid = await makeRaid(t.id, TUE_8PM, { oneOff: true });
     await callOut(raid.id, "u-bob");
     const { run, channel } = setup();
 
-    expect(onlyReply(await run("raid", "cancel", { date: raid.id }))).toBe(
-      "🚫 Cancelled the raid on <t:1791334800:F>.",
-    );
+    const cancel = await run("raid", "cancel", { date: raid.id });
+    expect(onlyReply(cancel)).toBe("🚫 Cancelled the raid on <t:1791334800:F>.");
+    expect(undoId(cancel)).toBe(`raidlead:cancel:${raid.id}:0`);
     expect((await raids(t.id))[0]!.cancelled).toBe(true);
     expect(payloadText(channel.sent[0]!.payloads[0] as any)).toContain("🚫 **Cancelled**");
 
-    expect(onlyReply(await run("raid", "restore", { date: raid.id }))).toBe(
-      "✅ Restored the raid on <t:1791334800:F>.",
-    );
+    const restore = await run("raid", "cancel", { date: raid.id });
+    expect(onlyReply(restore)).toBe("✅ Restored the raid on <t:1791334800:F>.");
+    expect(undoId(restore)).toBe(`raidlead:cancel:${raid.id}:1`);
     expect((await raids(t.id))[0]!.cancelled).toBe(false);
     expect(channel.sent[0]!.payloads).toHaveLength(2);
     expect(await prisma.attendance.count()).toBe(1);
   });
 
-  it("refuses to cancel twice, restore an uncancelled raid, or touch a closed one", async () => {
+  it("Undo sets the state it names, for officers only", async () => {
+    const t = await makeTeam({ messageId: "public" });
+    const raid = await makeRaid(t.id, TUE_8PM);
+    const { guild, client, channel } = setup();
+    const existing = channel.seedMessage("public");
+    const click = async (customId: string, officer = true) => {
+      const button = fakeButton(customId, { guild, officer });
+      await routeInteraction(button, client);
+      return button.updates[0];
+    };
+
+    expect((await click(`raidlead:cancel:${raid.id}:1`)).content).toBe("🚫 Cancelled the raid on <t:1791334800:F>.");
+    expect((await click(`raidlead:cancel:${raid.id}:1`)).content).toBe("🚫 Cancelled the raid on <t:1791334800:F>.");
+    expect((await raids(t.id))[0]!.cancelled).toBe(true);
+    expect(existing.payloads.length).toBeGreaterThan(1);
+    expect((await click(`raidlead:cancel:${raid.id}:0`, false)).content).toBe("Only officers can change this.");
+    expect((await raids(t.id))[0]!.cancelled).toBe(true);
+    expect((await click(`raidlead:cancel:${raid.id}:0`)).content).toBe("✅ Restored the raid on <t:1791334800:F>.");
+    expect((await click("raidlead:cancel:gone:0")).content).toBe("That raid has already started, passed, or been removed.");
+  });
+
+  it("refuses a closed raid", async () => {
     const t = await makeTeam();
-    const open = await makeRaid(t.id, TUE_8PM);
-    const cancelled = await makeRaid(t.id, "2026-10-08T01:00:00Z", { cancelled: true });
     const closed = await makeRaid(t.id, "2026-09-30T01:00:00Z", { closed: true });
     const { run, channel } = setup();
-    expect(onlyReply(await run("raid", "cancel", { date: cancelled.id }))).toBe("That raid is already cancelled.");
-    expect(onlyReply(await run("raid", "restore", { date: open.id }))).toBe("That raid isn't cancelled.");
     expect(onlyReply(await run("raid", "cancel", { date: closed.id }))).toBe("That raid has already started or passed.");
-    expect(onlyReply(await run("raid", "restore", { date: closed.id }))).toBe("That raid has already started or passed.");
-    expect((await raids(t.id)).map((r) => r.cancelled)).toEqual([false, false, true]);
+    expect((await raids(t.id))[0]!.cancelled).toBe(false);
     expect(channel.sent).toHaveLength(0);
   });
 
@@ -194,39 +211,6 @@ describe("raid cancel / restore", () => {
       "Couldn't find that raid. Pick one from the suggestions.",
     );
     expect((await raids(other.id))[0]!.cancelled).toBe(false);
-  });
-});
-
-describe("raid remove", () => {
-  it("deletes a one-off raid and its call-outs", async () => {
-    const t = await makeTeam();
-    const raid = await makeRaid(t.id, TUE_8PM, { oneOff: true });
-    await callOut(raid.id, "u-bob");
-    const { run, channel } = setup();
-    expect(onlyReply(await run("raid", "remove", { date: raid.id }))).toBe(
-      "🗑️ Removed the one-off raid on <t:1791334800:F>.",
-    );
-    expect(await prisma.raidInstance.count()).toBe(0);
-    expect(await prisma.attendance.count()).toBe(0);
-    expect(channel.sent).toHaveLength(1);
-  });
-
-  it("refuses to delete a raid generated from a weekly night", async () => {
-    const t = await makeTeam();
-    const raid = await makeRaid(t.id, TUE_8PM);
-    const { run } = setup();
-    expect(onlyReply(await run("raid", "remove", { date: raid.id }))).toBe(
-      "That raid is on a weekly raid night, so it would come back. Cancel it instead with `/raidlead raid cancel`.",
-    );
-    expect(await prisma.raidInstance.count()).toBe(1);
-  });
-
-  it("can't find unknown raids", async () => {
-    await makeTeam();
-    const { run } = setup();
-    expect(onlyReply(await run("raid", "remove", { date: "nope" }))).toBe(
-      "Couldn't find that raid. Pick one from the suggestions.",
-    );
   });
 });
 
