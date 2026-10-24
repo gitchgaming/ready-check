@@ -38,8 +38,9 @@ model RaidTeam {
   // open raids after it; closed raids keep their attendance as history.
   finalRaidDate String?
 
-  slots     RaidSlot[]
-  instances RaidInstance[]
+  slots       RaidSlot[]
+  instances   RaidInstance[]
+  raiderNames RaiderName[]
 
   @@unique([guildId, roleId])
 }
@@ -91,6 +92,19 @@ model Attendance {
   raidInstance RaidInstance @relation(fields: [raidInstanceId], references: [id], onDelete: Cascade)
 
   @@unique([raidInstanceId, userId])
+}
+
+// The name a raider shows as on one team's views instead of their Discord name,
+// set by the raider with /name or by an officer with /raidlead name.
+model RaiderName {
+  raidTeamId String
+  userId     String
+  name       String
+  updatedAt  DateTime @updatedAt
+
+  raidTeam RaidTeam @relation(fields: [raidTeamId], references: [id], onDelete: Cascade)
+
+  @@id([raidTeamId, userId])
 }
 
 // A raider's own settings, across every server and team. Discord never tells a

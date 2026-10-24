@@ -12,6 +12,7 @@ export const CHANNEL_ID = "channel-1";
 export async function resetDb(): Promise<void> {
   await prisma.attendance.deleteMany();
   await prisma.userSetting.deleteMany();
+  await prisma.raiderName.deleteMany();
   await prisma.raidInstance.deleteMany();
   await prisma.raidSlot.deleteMany();
   await prisma.raidTeam.deleteMany();

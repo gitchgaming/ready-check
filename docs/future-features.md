@@ -24,3 +24,14 @@ database) as a private file, and a matching import. It would give on-demand
 backups without SSH and a way to move a team to another server. It can't
 help a bot whose data is about to be lost to a redeploy: the command only
 exists after a deploy.
+
+## Registered characters
+
+Per-team names (`/name`, `/raidlead name`) are the first step. The design
+discussed (2026-10-24) keeps Discord roles as the default and lets a raider or
+officer optionally override each field: class, role (Tank/Healer/Damage),
+spec (which can imply the role) and off-specs, stored per person and falling
+back to Discord where unset. Later, alts: several characters per person, a
+main per team, and an optional "bringing" character per raid, with attendance
+still per person. Open questions: whether a profile beats a Discord role when
+they disagree, and whether the bot should also hand out matching roles.

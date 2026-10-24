@@ -33,7 +33,8 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 ## Layout
 
 - `src/commands/` — `attendance` (call-outs; toggles with a date), `schedule`, `roster` (read-only; raider),
-  `timezone` (a raider's own zone, `src/lib/userSettings.ts`), `howitworks`
+  `timezone` (a raider's own zone, `src/lib/userSettings.ts`), `name` (a
+  raider's per-team name, `src/lib/raiderNames.ts`), `howitworks`
   (the guide, `buildHowItWorksMessage`), and
   `raidlead/` (officer): `index.ts` builds the command and routes by
   "group sub" key; `team.ts`, `nights.ts`, `raid.ts` hold the handlers.
@@ -90,7 +91,7 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
 - Raider commands take at most a date and a team. The team comes from the
   user's roles; `/schedule` and `/roster` have an optional `team:` for raiders
   on several teams (and officers), while `/attendance` covers all their teams.
-  `/timezone` is the one setting a raider keeps. Every reply to a raider is private.
+  `/timezone` and `/name` are the settings a raider keeps. Every reply to a raider is private.
 - Every view labels its team with `teamDisplayName` (the team's name, else its
   role's name), as a small-caps "TEAM · LABEL" line (NEXT UP, SCHEDULE,
   ROSTER, YOUR SCHEDULE, YOUR ATTENDANCE); never a hard-coded "Raid".
@@ -210,6 +211,13 @@ Node 26 + TypeScript 7 (ESM, NodeNext) + discord.js v14 + Prisma 7 on SQLite
   from 1 to 11 reads as evening first, and `timeChoices` names each reading
   with the team's zone (`8:00 PM Central Time`, value `20:00`). Officer
   confirmations show team time and a `<t:…>` timestamp.
+- A raider's name is their Discord display name unless a name is set for
+  that team (`RaiderName`, by the raider with `/name`, which covers all their
+  teams without `team:`, or by an officer with `/raidlead name`; last change
+  wins). `fetchRosterMembers` applies it as a prototype copy of the cached
+  member with its own `displayName`, so every view uses it and the cache
+  never changes. Max 32 characters, Discord's nickname limit. This is the
+  first step of `docs/future-features.md` → Registered characters.
 - Role membership comes from the member cache (warmed once at startup, kept
   current by member events). Never `guild.members.fetch()` per render — it hits
   Discord's gateway rate limit. Member events trigger a debounced refresh of

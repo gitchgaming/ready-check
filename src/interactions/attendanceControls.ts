@@ -256,6 +256,6 @@ async function showRoster(interaction: AttendanceInteraction, teamId: string, ra
     return;
   }
 
-  const members = await fetchRosterMembers(guild, raid.raidTeam.roleId);
+  const members = await fetchRosterMembers(guild, raid.raidTeam);
   await interaction.reply(asEphemeral(buildRaidRosterCard(raid.raidTeam, teamDisplayName(raid.raidTeam, guild), raid, members)));
 }

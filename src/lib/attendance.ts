@@ -154,7 +154,7 @@ export async function attendanceView(guild: Guild, userId: string, notice?: Noti
         include: { attendance: true },
         orderBy: { startsAt: "asc" },
       }),
-      members: await fetchRosterMembers(guild, team.roleId),
+      members: await fetchRosterMembers(guild, team),
     })),
   );
   return buildAttendanceMessage(blocks, userId, notice, onlyTeamId !== undefined);
