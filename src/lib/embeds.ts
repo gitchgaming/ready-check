@@ -175,7 +175,7 @@ function roleCounts(roles: ReturnType<typeof raidAttendance>["roles"], nextUp = 
 }
 
 /** A display name as an inline-code chip. A backtick would end the chip early, so it becomes a look-alike. */
-function chip(name: string): string {
+export function chip(name: string): string {
   return `\`${name.replaceAll("`", "ˋ")}\``;
 }
 
@@ -487,6 +487,7 @@ export function buildHowItWorksMessage() {
           "`/schedule` every upcoming raid, with whether you're in\n" +
           "`/roster` who's coming, for one raid or your whole team\n" +
           "`/timezone` show times in menus and pickers in your zone\n" +
+          "`/name` show as your character's name instead of your Discord name\n" +
           "`/howitworks` this guide",
       ),
       text(

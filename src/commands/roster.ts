@@ -120,7 +120,7 @@ export async function execute(interaction: ChatInputCommandInteraction, _client:
       });
       return;
     }
-    const members = await fetchRosterMembers(guild, team.roleId);
+    const members = await fetchRosterMembers(guild, team);
     await interaction.reply(asEphemeral(buildTeamRosterCard(teamDisplayName(team, guild), members)));
     return;
   }
@@ -135,6 +135,6 @@ export async function execute(interaction: ChatInputCommandInteraction, _client:
     return;
   }
 
-  const members = await fetchRosterMembers(guild, team.roleId);
+  const members = await fetchRosterMembers(guild, team);
   await interaction.reply(asEphemeral(buildRaidRosterCard(team, teamDisplayName(team, guild), raid, members)));
 }

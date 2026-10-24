@@ -223,7 +223,7 @@ export async function personalCalendar(team: RaidTeam, guild: Guild, offset: num
   const [{ instances, canEarlier, canLater }, openInstances, members, viewerZone] = await Promise.all([
     instancesForWindow(team.id, offset),
     nextOpenInstances(team.id, MAX_SELECT_OPTIONS),
-    fetchRosterMembers(guild, team.roleId),
+    fetchRosterMembers(guild, team),
     userTimezone(viewerId),
   ]);
   return buildCalendarMessage(
@@ -260,7 +260,7 @@ export async function renderTeamMessage(client: Client, teamId: string): Promise
   const instances = await nextOpenInstances(team.id, team.displayCount + 1);
   const guild = await client.guilds.fetch(team.guildId).catch(() => null);
   if (!guild) return;
-  const members = await fetchRosterMembers(guild, team.roleId);
+  const members = await fetchRosterMembers(guild, team);
   const content = buildPublicMessage(team, teamDisplayName(team, guild), instances, members);
 
   const channel = await client.channels.fetch(team.channelId).catch(() => null);

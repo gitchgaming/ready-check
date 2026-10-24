@@ -16,7 +16,7 @@ export function fitChoiceName(name: string): string {
 /** Placeholder value for an informational choice that isn't a real selection. */
 export const NO_CHOICE = "none";
 
-interface Choice {
+export interface Choice {
   name: string;
   value: string;
 }

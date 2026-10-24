@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ensureMembersCached, fetchRosterMembers, rosterMemberIds } from "../../src/lib/roster.js";
 import { fakeGuild, fakeMember, raider, teamRole } from "../discord.js";
+
+// Team names come from the database, which unit tests don't use (names.test.ts covers them).
+vi.mock("../../src/lib/raiderNames.js", () => ({ teamNames: async () => new Map() }));
+
+const team = { id: "team-1", roleId: teamRole.id };
 
 describe("roster membership", () => {
   const alice = raider("Alice", [], "u-alice");
@@ -16,13 +21,13 @@ describe("roster membership", () => {
 
   it("fetchRosterMembers returns the same members as objects", async () => {
     const guild = fakeGuild({ members });
-    expect(await fetchRosterMembers(guild, teamRole.id)).toEqual([alice, bob]);
+    expect(await fetchRosterMembers(guild, team)).toEqual([alice, bob]);
   });
 
   it("doesn't fetch the member list when the cache is complete", async () => {
     const guild = fakeGuild({ members });
     await rosterMemberIds(guild, teamRole.id);
-    await fetchRosterMembers(guild, teamRole.id);
+    await fetchRosterMembers(guild, team);
     await ensureMembersCached(guild);
     expect(guild.fullFetches).toBe(0);
   });
@@ -31,7 +36,7 @@ describe("roster membership", () => {
     const guild = fakeGuild({ members, memberCount: 10 });
     await ensureMembersCached(guild);
     expect(guild.fullFetches).toBe(1);
-    await fetchRosterMembers(guild, teamRole.id);
+    await fetchRosterMembers(guild, team);
     expect(guild.fullFetches).toBe(2);
   });
 });

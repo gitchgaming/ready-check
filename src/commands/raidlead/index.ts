@@ -31,6 +31,8 @@ import {
 } from "../../lib/pickers.js";
 import { WEEKDAY_CHOICES } from "../../lib/weekdays.js";
 import { userTimezone } from "../../lib/userSettings.js";
+import { MAX_NAME_LENGTH, nameChoices } from "../../lib/raiderNames.js";
+import * as names from "./names.js";
 import * as nights from "./nights.js";
 import * as raid from "./raid.js";
 import { pickTeam } from "./shared.js";
@@ -212,6 +214,21 @@ export const data = new SlashCommandBuilder()
       .addStringOption((opt) =>
         opt.setName("date").setDescription("The raid").setRequired(true).setAutocomplete(true),
       ),
+  )
+  .addSubcommand((sub) =>
+    sub
+      .setName("name")
+      .setDescription("Set the name a raider shows as on a team, or clear it")
+      .addUserOption((opt) => opt.setName("user").setDescription("The raider").setRequired(true))
+      .addStringOption((opt) =>
+        opt
+          .setName("name")
+          .setDescription("The name to show, like their character's")
+          .setRequired(true)
+          .setMaxLength(MAX_NAME_LENGTH)
+          .setAutocomplete(true),
+      )
+      .addStringOption(teamOption),
   );
 
 type Handler = (interaction: ChatInputCommandInteraction, client: Client) => Promise<void>;
@@ -228,6 +245,7 @@ const handlers: Record<string, Handler> = {
   "raid cancel": raid.cancel,
   "raid remove": raid.remove,
   attendance: (i, c) => setAttendance(i, c, "TOGGLE", i.options.getUser("user", true).id),
+  name: names.set,
 };
 
 function routeKey(group: string | null, sub: string): string {
@@ -265,6 +283,11 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
   if (key === "attendance") {
     const userId = interaction.options.get("user")?.value as string | undefined;
     await raidDateAutocomplete(interaction, userId, "TOGGLE", undefined, true);
+    return;
+  }
+
+  if (focused === "name" && key === "name") {
+    await interaction.respond(nameChoices(interaction.options.getFocused(), "Use their Discord name (clear it)"));
     return;
   }
 

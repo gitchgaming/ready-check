@@ -64,6 +64,12 @@ All dates are picked from a list of your team's actual raids.
   device). Without a zone it shows your current one; pick **Use each team's
   timezone** to clear it. The reply says what time it is there now, so a wrong
   pick is easy to spot. It applies on every server and team.
+- `/name [name:] [team:]` — only you see it. Sets the name you show as on the
+  schedule and rosters, like your character's, instead of your Discord name.
+  Without `team:` it applies to every team you're on; with it, only that one.
+  Without a name it shows your current one; pick **Use my Discord name** to
+  clear it. Names are up to 32 characters, Discord's own limit. Officers can
+  also set it for you (`/raidlead name`), and the last change wins.
 - `/howitworks` — only you see it. A short guide to the bot: you're in unless
   you call out, what the schedule post's buttons do, and every raider command.
   The schedule post's **How it works** menu, under Next Up's Status button,
@@ -138,6 +144,10 @@ one; otherwise the command asks you to pick.
 back in. The picker lists their upcoming raids in `/attendance`'s words ("In.
 Pick to call out" / "Called out. Pick to switch back in"), with each raid's
 team when they're on several. The reply has an **Undo** button.
+
+**`name user: name: [team:]`** — set the name a raider shows as on one team,
+like their character's, or pick **Use their Discord name** to clear it. Only
+works for someone on that team. Raiders can set their own with `/name`.
 
 ## How it works
 
